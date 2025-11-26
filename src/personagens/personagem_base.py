@@ -1,11 +1,8 @@
 import random
 import math
-
-# Importar a função calcular_distancia que será movida para um módulo de utilidades
-# from ..utils import calcular_distancia 
-# Por enquanto, vamos redefinir aqui para evitar erros de importação circular
-def calcular_distancia(p1, p2):
-    return abs(p1.pos_x - p2.pos_x) + abs(p1.pos_y - p2.pos_y)
+from ..config import TIME_A, TIME_B, TERRENO_FLORESTA, PROPRIEDADES_STATUS_EFEITO
+from ..utils import calcular_distancia
+from .status_efeito import StatusEfeito
 
 class Personagem:
     def __init__(self, nome, time, nivel=1, sound_player=None):
@@ -28,11 +25,58 @@ class Personagem:
         self.cooldown_max = {}
         self.sound_player = sound_player
         self.eventos_animacao = []
+        self.status_efeitos = []
 
     def tick_cooldowns(self):
         for key in self.cooldowns:
             if self.cooldowns[key] > 0:
                 self.cooldowns[key] -= 1
+
+    def aplicar_status_efeito(self, nome_efeito, duracao_turnos=1, logger=print):
+        if nome_efeito not in PROPRIEDADES_STATUS_EFEITO:
+            logger(f"  ERRO: Efeito de status '{nome_efeito}' não encontrado.")
+            return
+
+        # Verifica se o efeito já existe e atualiza a duração
+        for efeito in self.status_efeitos:
+            if efeito.nome == nome_efeito:
+                efeito.duracao_restante += duracao_turnos
+                logger(f"  {self.nome} teve a duração de {nome_efeito} estendida para {efeito.duracao_restante} turnos.")
+                return
+
+        novo_efeito = StatusEfeito(nome_efeito, duracao_turnos)
+        self.status_efeitos.append(novo_efeito)
+        logger(f"  {self.nome} foi afetado por {novo_efeito.nome} por {novo_efeito.duracao_restante} turnos.")
+        self.eventos_animacao.append({'tipo': 'status_aplicado', 'personagem': self, 'efeito': novo_efeito.nome})
+
+    def remover_status_efeito(self, nome_efeito, logger=print):
+        self.status_efeitos = [e for e in self.status_efeitos if e.nome != nome_efeito]
+        logger(f"  {self.nome} não está mais sob efeito de {nome_efeito}.")
+        self.eventos_animacao.append({'tipo': 'status_removido', 'personagem': self, 'efeito': nome_efeito})
+
+    def tick_status_efeitos(self, logger=print):
+        efeitos_a_remover = []
+        for efeito in self.status_efeitos:
+            efeito.aplicar_efeito_por_turno(self, logger)
+            if not efeito.tick():
+                efeitos_a_remover.append(efeito.nome)
+        
+        for nome_efeito in efeitos_a_remover:
+            self.remover_status_efeito(nome_efeito, logger)
+
+    @property
+    def pode_agir(self):
+        for efeito in self.status_efeitos:
+            if not efeito.propriedades.get("pode_agir", True):
+                return False
+        return True
+
+    @property
+    def pode_fugir(self):
+        for efeito in self.status_efeitos:
+            if not efeito.propriedades.get("pode_fugir", True):
+                return False
+        return True
 
     def ganhar_xp(self, quantidade, logger=print):
         if not self.esta_vivo: return
@@ -72,9 +116,20 @@ class Personagem:
     def bonus_proficiencia(self): return 1 + math.ceil(self.nivel / 4)
 
     @property
-    def bonus_ataque(self): return self.bonus_proficiencia
+    def bonus_ataque(self):
+        bonus = self.bonus_proficiencia
+        for efeito in self.status_efeitos:
+            if efeito.propriedades.get("bonus_ataque_fixo"):
+                bonus += efeito.propriedades["bonus_ataque_fixo"]
+        return bonus
+
     @property
-    def bonus_dano(self): return 0
+    def bonus_dano(self):
+        bonus = 0
+        for efeito in self.status_efeitos:
+            if efeito.propriedades.get("bonus_dano_ataque"):
+                bonus += efeito.propriedades["bonus_dano_ataque"]
+        return bonus
 
     @property
     def threat_level(self): return 1
@@ -82,6 +137,37 @@ class Personagem:
     def rolar_iniciativa(self):
         self.iniciativa = random.randint(1, 20) + self.mod_des
         return self.iniciativa
+
+    def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
+        if not self.pode_agir:
+            logs_turno.append(f"  {self.nome} está impedido de agir devido a um efeito de status.")
+            return {'acao': 'passar'}
+        """
+        Define a lógica de decisão de ação para o personagem.
+        Retorna um dicionário descrevendo a ação (ex: {'acao': 'atacar', 'alvo': inimigo}, 
+        {'acao': 'mover', 'destino_x': x, 'destino_y': y}, {'acao': 'usar_habilidade', ...})
+        """
+        # Exemplo de lógica padrão:
+        # 1. Tentar fugir se com pouca vida (instinto de sobrevivência)
+        if self.hp_atual / self.hp_max < 0.25 and inimigos:
+            logs_turno.append(f"  {self.nome} está com pouca vida e tenta fugir!")
+            # A lógica de fuga complexa será tratada pelo MotorCombate
+            # Aqui, apenas indicamos que a intenção é fugir.
+            return {'acao': 'fugir'}
+
+        # 2. Atacar o inimigo com menor HP ou maior ameaça
+        if inimigos:
+            alvo = max(inimigos, key=lambda p: (p.threat_level, -p.hp_atual))
+            logs_turno.append(f"  ({self.nome} identifica {alvo.nome} como a maior ameaça.)")
+            dist = calcular_distancia(self, alvo)
+
+            if dist <= self.alcance:
+                return {'acao': 'atacar', 'alvo': alvo}
+            else:
+                # Lógica de movimento simples em direção ao alvo
+                return {'acao': 'mover', 'alvo': alvo}
+        
+        return {'acao': 'passar'} # Nenhuma ação se não houver inimigos
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
         if not self.esta_vivo: return
@@ -101,7 +187,7 @@ class Personagem:
         
         ac_alvo = alvo.ac
         terreno_alvo = tabuleiro.get_terrain_em(alvo.pos_x, alvo.pos_y)
-        if terreno_alvo == "FLORESTA":
+        if terreno_alvo == TERRENO_FLORESTA:
             ac_alvo += 2
             logger(f"  {alvo.nome} recebe cobertura da floresta (+2 AC)!")
 
@@ -135,7 +221,13 @@ class Personagem:
         self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': dano_total})
 
     def receber_dano(self, quantidade, atacante, logger=print):
-        self.hp_atual -= quantidade
+        dano_final = quantidade
+        for efeito in self.status_efeitos:
+            if efeito.propriedades.get("resistencia_dano_percentual"):
+                dano_final -= int(dano_final * efeito.propriedades["resistencia_dano_percentual"])
+            # Futuramente, adicionar imunidades/vulnerabilidades
+        
+        self.hp_atual -= dano_final
         if self.hp_atual <= 0:
             self.hp_atual = 0
             self.esta_vivo = False

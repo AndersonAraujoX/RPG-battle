@@ -1,6 +1,10 @@
 import pygame
 import math
-from ..config import *
+from src.config import (
+    TAMANHO_CELULA, CORES_TERRENO, COR_FUNDO, COR_LINHA, CORES_TIME,
+    COR_HP_BAR_FUNDO, COR_HP_BAR_FRENTE, COR_TEXTO, PROPRIEDADES_STATUS_EFEITO,
+    TERRENO_PAREDE, LARGURA_TABULEIRO, LARGURA_LOG, ALTURA_TELA
+)
 from ..personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe
 
 def desenhar_cenario(tela, motor):
@@ -52,6 +56,18 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
             else:
                 desenhar_sprite(tela, p, rect, cor)
             personagens_desenhados.add(p)
+
+            # Desenhar indicadores de status
+            if p.status_efeitos:
+                status_x_offset = 0
+                for efeito in p.status_efeitos:
+                    prop = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome)
+                    if prop:
+                        # Desenha um pequeno quadrado colorido
+                        cor_status = prop.get("cor", (255, 255, 255))
+                        pygame.draw.rect(tela, cor_status, (rect.right - 10 - status_x_offset, rect.top + 2, 8, 8))
+                        status_x_offset += 10 # Offset para o próximo status
+        
     if atacante_animacao and atacante_animacao.esta_vivo:
         p = atacante_animacao
         rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
@@ -122,11 +138,19 @@ def desenhar_info_personagem(tela, fonte, personagem, max_altura=ALTURA_TELA):
     tela.blit(fonte.render("Habilidades:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 25
     if not personagem.cooldowns: tela.blit(fonte.render("  Nenhuma", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
     for nome, cd in personagem.cooldowns.items():
-        if y + 20 > max_altura: # Evita desenhar fora da área
+        if y + 20 > max_altura:
             break
         status, cor = ("Pronta!", (60,220,60)) if cd == 0 else (f"{cd} turnos", (220,180,60))
         tela.blit(fonte.render(f"  - {nome.replace('_', ' ').title()}:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y))
         tela.blit(fonte.render(status, True, cor), (LARGURA_TABULEIRO + 200, y)); y += 25
+    y += 10 # Espaçamento
+    tela.blit(fonte.render("Efeitos de Status:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 25
+    if not personagem.status_efeitos: tela.blit(fonte.render("  Nenhum", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
+    for efeito in personagem.status_efeitos:
+        if y + 20 > max_altura:
+            break
+        cor_status = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome, {}).get("cor", COR_TEXTO) # Pega a cor do config
+        tela.blit(fonte.render(f"  - {efeito.nome} ({efeito.duracao_restante} turnos)", True, cor_status), (LARGURA_TABULEIRO + 20, y)); y += 25
 
 def desenhar_feedback_jogador(tela, unidade, motor):
     if not unidade: return

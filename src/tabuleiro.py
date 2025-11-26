@@ -1,10 +1,5 @@
 import random
-
-# Constantes de Terreno
-TERRENO_NORMAL = "NORMAL"
-TERRENO_FLORESTA = "FLORESTA"
-TERRENO_DIFICIL = "DIFICIL"
-TERRENO_PAREDE = "PAREDE"
+from src.config import TIME_A, TIME_B, TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE
 
 class Tabuleiro:
     def __init__(self, largura=20, altura=20):
@@ -72,10 +67,10 @@ class Tabuleiro:
 
     def desenhar_tabuleiro(self, combatentes):
         simbolos = {
-            ("Guerreiro", "A"): "GA", ("Mago", "A"): "MA", ("Ladino", "A"): "LA",
-            ("Arqueiro", "A"): "AA", ("Barbaro", "A"): "BA", ("Clerigo", "A"): "CA",
-            ("Guerreiro", "B"): "GB", ("Mago", "B"): "MB", ("Ladino", "B"): "LB",
-            ("Arqueiro", "B"): "AB", ("Barbaro", "B"): "BB", ("Clerigo", "B"): "CB",
+            ("Guerreiro", TIME_A): "GA", ("Mago", TIME_A): "MA", ("Ladino", TIME_A): "LA",
+            ("Arqueiro", TIME_A): "AA", ("Barbaro", TIME_A): "BA", ("Clerigo", TIME_A): "CA",
+            ("Guerreiro", TIME_B): "GB", ("Mago", TIME_B): "MB", ("Ladino", TIME_B): "LB",
+            ("Arqueiro", TIME_B): "AB", ("Barbaro", TIME_B): "BB", ("Clerigo", TIME_B): "CB",
         }
         simbolos_terreno = {
             TERRENO_NORMAL: " . ",
