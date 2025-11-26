@@ -45,6 +45,8 @@ class Game:
         self.checkbox_chefe = None
         self.checkbox_autoplay = None
 
+        self.feedback_invalido_timer = 0
+
         self.setup_ui()
 
     def carregar_sons(self):
@@ -171,6 +173,8 @@ class Game:
                                         eventos = self.motor.jogador_ataca_personagem(self.unidade_selecionada, p_clicado)
                                         self.fila_animacoes.extend(eventos)
                                         acao_realizada = True
+                                    else:
+                                        self.feedback_invalido_timer = 30
                                 
                                 elif not p_clicado:
                                     dist = abs(self.unidade_selecionada.pos_x - grid_x) + abs(self.unidade_selecionada.pos_y - grid_y)
@@ -180,8 +184,11 @@ class Game:
                                         eventos = self.motor.jogador_move_personagem(self.unidade_selecionada, grid_x, grid_y)
                                         self.fila_animacoes.extend(eventos)
                                         acao_realizada = True
+                                    else:
+                                        self.feedback_invalido_timer = 30
 
                                 else:
+                                    self.feedback_invalido_timer = 30
                                     self.unidade_selecionada = None
                                     self.estado_combate = ESTADO_COMBATE_AGUARDANDO_JOGADOR
                                 
@@ -218,6 +225,9 @@ class Game:
         if self.animacao_atual:
             self.animacao_atual['progresso'] += 1.0 / self.animacao_atual['duracao']
             if self.animacao_atual['progresso'] >= 1.0: self.animacao_atual = None
+        
+        if self.feedback_invalido_timer > 0:
+            self.feedback_invalido_timer -= 1
 
     def draw_elements(self, tick, mouse_pos):
         personagem_ativo = self.motor.get_personagem_ativo() if self.motor and not self.motor.vencedor else None
@@ -249,3 +259,7 @@ class Game:
                 self.botoes_combate['proxima_acao'].desenhar(self.tela, self.fonte_menu)
             else:
                 desenhar_tela_fim(self.tela, self.fonte_titulo, self.motor.vencedor)
+
+            if self.feedback_invalido_timer > 0:
+                alpha = int(100 * (self.feedback_invalido_timer / 30))
+                desenhar_feedback_invalido(self.tela, alpha)

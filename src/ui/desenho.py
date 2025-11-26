@@ -257,3 +257,8 @@ def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo):
         if x_offset > area_iniciativa.right - 25:
             x_offset = area_iniciativa.x + 10
             y_offset += 25
+
+def desenhar_feedback_invalido(tela, alpha):
+    overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
+    overlay.fill((255, 0, 0, alpha))
+    tela.blit(overlay, (0, 0))
