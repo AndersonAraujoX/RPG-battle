@@ -1,6 +1,6 @@
 import random
 import math
-from ..config import TIME_A, TIME_B, TERRENO_FLORESTA, PROPRIEDADES_STATUS_EFEITO
+from src.config import TIME_A, TIME_B, TERRENO_FLORESTA, PROPRIEDADES_STATUS_EFEITO
 from ..utils import calcular_distancia
 from .status_efeito import StatusEfeito
 
@@ -142,32 +142,39 @@ class Personagem:
         if not self.pode_agir:
             logs_turno.append(f"  {self.nome} está impedido de agir devido a um efeito de status.")
             return {'acao': 'passar'}
-        """
-        Define a lógica de decisão de ação para o personagem.
-        Retorna um dicionário descrevendo a ação (ex: {'acao': 'atacar', 'alvo': inimigo}, 
-        {'acao': 'mover', 'destino_x': x, 'destino_y': y}, {'acao': 'usar_habilidade', ...})
-        """
-        # Exemplo de lógica padrão:
-        # 1. Tentar fugir se com pouca vida (instinto de sobrevivência)
-        if self.hp_atual / self.hp_max < 0.25 and inimigos:
+        
+        # 1. Tentar fugir se com pouca vida
+        if self.hp_atual / self.hp_max < 0.25 and inimigos and self.pode_fugir:
             logs_turno.append(f"  {self.nome} está com pouca vida e tenta fugir!")
-            # A lógica de fuga complexa será tratada pelo MotorCombate
-            # Aqui, apenas indicamos que a intenção é fugir.
             return {'acao': 'fugir'}
 
-        # 2. Atacar o inimigo com menor HP ou maior ameaça
-        if inimigos:
-            alvo = max(inimigos, key=lambda p: (p.threat_level, -p.hp_atual))
-            logs_turno.append(f"  ({self.nome} identifica {alvo.nome} como a maior ameaça.)")
-            dist = calcular_distancia(self, alvo)
+        if not inimigos:
+            return {'acao': 'passar'}
 
-            if dist <= self.alcance:
-                return {'acao': 'atacar', 'alvo': alvo}
-            else:
-                # Lógica de movimento simples em direção ao alvo
-                return {'acao': 'mover', 'alvo': alvo}
+        # 2. Lógica de seleção de alvo aprimorada
+        avg_damage = (self.dado_dano[0] * (self.dado_dano[1] + 1) / 2) + self.bonus_dano
         
-        return {'acao': 'passar'} # Nenhuma ação se não houver inimigos
+        inimigos_em_range = [p for p in inimigos if calcular_distancia(self, p) <= self.alcance]
+        
+        # Prioridade 1: Inimigos que podem ser finalizados neste turno
+        alvos_finalizaveis = [p for p in inimigos_em_range if p.hp_atual <= avg_damage]
+        if alvos_finalizaveis:
+            alvo = max(alvos_finalizaveis, key=lambda p: p.threat_level)
+            logs_turno.append(f"  ({self.nome} identifica uma oportunidade de finalizar {alvo.nome}!)")
+            return {'acao': 'atacar', 'alvo': alvo}
+        
+        # Prioridade 2: Atacar o inimigo mais próximo em range
+        if inimigos_em_range:
+            alvo = min(inimigos_em_range, key=lambda p: calcular_distancia(self,p))
+            logs_turno.append(f"  ({self.nome} ataca o inimigo mais próximo ao seu alcance: {alvo.nome}.)")
+            return {'acao': 'atacar', 'alvo': alvo}
+
+        # Prioridade 3: Mover-se em direção ao inimigo com menor HP
+        alvo = min(inimigos, key=lambda p: p.hp_atual)
+        logs_turno.append(f"  ({self.nome} se move em direção a {alvo.nome}, o inimigo com menos vida.)")
+        return {'acao': 'mover', 'alvo': alvo}
+        
+        return {'acao': 'passar'}
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
         if not self.esta_vivo: return
