@@ -1,7 +1,7 @@
 import pygame
 from ..config import *
 from .componentes import Botao, Checkbox
-from ..personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo
+from ..personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Paladino
 
 def desenhar_menu(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay):
     tela.fill(COR_FUNDO)
@@ -12,7 +12,7 @@ def desenhar_menu(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_t
     # --- Time A ---
     tela.blit(fonte.render("Time A", True, CORES_TIME["A"]), (x_time_a - 80, y_start - 40))
     for i, (classe, nome_classe) in enumerate(config_times['classes']):
-        y_pos = y_start + i * 60
+        y_pos = y_start + i * 50
         tela.blit(fonte.render(f"{nome_classe}: {config_times['A'][classe]}", True, COR_TEXTO), (x_time_a - 80, y_pos + 5))
 
     # --- Time B ou Chefe ---
@@ -28,7 +28,7 @@ def desenhar_menu(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_t
     else:
         # Interface Normal do Time B
         for i, (classe, nome_classe) in enumerate(config_times['classes']):
-            y_pos = y_start + i * 60
+            y_pos = y_start + i * 50
             tela.blit(fonte.render(f"{nome_classe}: {config_times['B'][classe]}", True, COR_TEXTO), (x_time_b - 80, y_pos + 5))
 
     # Desenha todos os botões, mas só mostra os relevantes
@@ -52,7 +52,7 @@ def desenhar_menu(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_t
 def setup_menu_ui():
     fonte = pygame.font.Font(None, 28)
     config_times = {
-        'classes': [(Guerreiro, "Guerreiro"), (Mago, "Mago"), (Ladino, "Ladino"), (Arqueiro, "Arqueiro"), (Barbaro, "Bárbaro"), (Clerigo, "Clérigo")],
+        'classes': [(Guerreiro, "Guerreiro"), (Mago, "Mago"), (Ladino, "Ladino"), (Arqueiro, "Arqueiro"), (Barbaro, "Bárbaro"), (Clerigo, "Clérigo"), (Paladino, "Paladino")],
         'A': {cls: 1 for cls in [Guerreiro, Mago, Ladino]},
         'B': {cls: 1 for cls in [Guerreiro, Mago, Ladino]}
     }
@@ -67,7 +67,7 @@ def setup_menu_ui():
     
     # Botões Time A e B
     for i, (cls, _) in enumerate(config_times['classes']):
-        y_pos = y_start + i * 60
+        y_pos = y_start + i * 50
         botoes[f'A_add_{i}'] = Botao(x_a + 60, y_pos, 28, 28, "+", fonte)
         botoes[f'A_sub_{i}'] = Botao(x_a - 120, y_pos, 28, 28, "-", fonte)
         botoes[f'B_add_{i}'] = Botao(x_b + 60, y_pos, 28, 28, "+", fonte)

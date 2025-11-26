@@ -5,7 +5,7 @@ from src.config import (
     COR_HP_BAR_FUNDO, COR_HP_BAR_FRENTE, COR_TEXTO, PROPRIEDADES_STATUS_EFEITO,
     TERRENO_PAREDE, LARGURA_TABULEIRO, LARGURA_LOG, ALTURA_TELA, COR_BOTAO_HOVER, LARGURA_TELA
 )
-from src.personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe
+from src.personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe, Paladino
 
 def desenhar_cenario(tela, motor):
     for y in range(motor.tabuleiro.altura):
@@ -35,6 +35,12 @@ def desenhar_sprite(tela, personagem, rect, cor):
     elif isinstance(personagem, Clerigo):
         pygame.draw.rect(tela, cor, (rect.left + radius * 0.4, rect.top, radius, rect.height))
         pygame.draw.rect(tela, cor, (rect.left, rect.top + radius * 0.4, rect.width, radius))
+    elif isinstance(personagem, Paladino):
+        points = [
+            (center[0], rect.top), (rect.right, center[1]),
+            (center[0], rect.bottom), (rect.left, center[1])
+        ]
+        pygame.draw.polygon(tela, cor, points)
     else: pygame.draw.rect(tela, cor, rect)
 
 def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual):

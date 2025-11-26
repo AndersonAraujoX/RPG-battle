@@ -6,3 +6,4 @@ from .arqueiro import Arqueiro
 from .barbaro import Barbaro
 from .clerigo import Clerigo
 from .chefe import Chefe
+from .paladino import Paladino
