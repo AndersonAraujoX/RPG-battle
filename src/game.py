@@ -195,6 +195,7 @@ class Game:
                                 if acao_realizada:
                                     self.motor.avancar_turno()
                                     self.unidade_selecionada = None
+                                    self.estado_combate = None
 
     def update_game_logic(self, agora, personagem_ativo):
         if self.estado_jogo == ESTADO_JOGO_COMBATE and self.motor and not self.motor.vencedor:
