@@ -3,6 +3,7 @@ import math
 from src.config import TIME_A, TIME_B, TERRENO_FLORESTA, PROPRIEDADES_STATUS_EFEITO
 from ..utils import calcular_distancia
 from .status_efeito import StatusEfeito
+from src.itens.item import HealthPotion
 
 class Personagem:
     def __init__(self, nome, time, nivel=1, sound_player=None):
@@ -26,6 +27,7 @@ class Personagem:
         self.sound_player = sound_player
         self.eventos_animacao = []
         self.status_efeitos = []
+        self.inventario = [HealthPotion()]
 
     def tick_cooldowns(self):
         for key in self.cooldowns:
@@ -142,8 +144,17 @@ class Personagem:
         if not self.pode_agir:
             logs_turno.append(f"  {self.nome} está impedido de agir devido a um efeito de status.")
             return {'acao': 'passar'}
+
+        # 1. Usar Poção de Cura se com pouca vida
+        if self.hp_atual / self.hp_max < 0.35:
+            for item in self.inventario:
+                if isinstance(item, HealthPotion):
+                    logs_turno.append(f"  {self.nome} está com pouca vida e usa uma Poção de Cura!")
+                    item.usar(self, logs_turno.append)
+                    self.inventario.remove(item)
+                    return {'acao': 'usar_item', 'item': item}
         
-        # 1. Tentar fugir se com pouca vida
+        # 2. Tentar fugir se com pouca vida
         if self.hp_atual / self.hp_max < 0.25 and inimigos and self.pode_fugir:
             logs_turno.append(f"  {self.nome} está com pouca vida e tenta fugir!")
             return {'acao': 'fugir'}
@@ -151,7 +162,7 @@ class Personagem:
         if not inimigos:
             return {'acao': 'passar'}
 
-        # 2. Lógica de seleção de alvo aprimorada
+        # 3. Lógica de seleção de alvo aprimorada
         avg_damage = (self.dado_dano[0] * (self.dado_dano[1] + 1) / 2) + self.bonus_dano
         
         inimigos_em_range = [p for p in inimigos if calcular_distancia(self, p) <= self.alcance]
