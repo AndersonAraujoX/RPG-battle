@@ -235,11 +235,12 @@ class Game:
 
             desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual)
             
-            log_max_altura = ALTURA_TELA - 150
+            log_max_altura = ALTURA_TELA - 250
             if self.painel_modo == PAINEL_MODO_LOG: desenhar_log(self.tela, self.fonte_log, list(self.log_combate), log_max_altura)
             elif self.painel_modo == PAINEL_MODO_INFO and self.personagem_info_painel: desenhar_info_personagem(self.tela, self.fonte_info, self.personagem_info_painel, log_max_altura)
 
             desenhar_comandos(self.tela, self.fonte_log)
+            desenhar_ordem_iniciativa(self.tela, self.fonte_personagem, self.motor.ordem_de_combate, personagem_ativo)
 
             if not self.motor.vencedor:
                 is_vez_ia = self.estado_combate == ESTADO_COMBATE_VEZ_IA

@@ -3,9 +3,9 @@ import math
 from src.config import (
     TAMANHO_CELULA, CORES_TERRENO, COR_FUNDO, COR_LINHA, CORES_TIME,
     COR_HP_BAR_FUNDO, COR_HP_BAR_FRENTE, COR_TEXTO, PROPRIEDADES_STATUS_EFEITO,
-    TERRENO_PAREDE, LARGURA_TABULEIRO, LARGURA_LOG, ALTURA_TELA
+    TERRENO_PAREDE, LARGURA_TABULEIRO, LARGURA_LOG, ALTURA_TELA, COR_BOTAO_HOVER, LARGURA_TELA
 )
-from ..personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe
+from src.personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe
 
 def desenhar_cenario(tela, motor):
     for y in range(motor.tabuleiro.altura):
@@ -91,6 +91,30 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
             level_render = fonte.render(str(p.nivel), True, COR_TEXTO)
             pygame.draw.circle(tela, (0,0,0), (rect.left + 6, rect.top + 6), 8)
             tela.blit(level_render, (rect.left + 2, rect.top))
+
+            # Draw cooldown indicator
+            if p.cooldowns:
+                cooldown_x_offset = 0
+                for i, (nome, cd) in enumerate(p.cooldowns.items()):
+                    if p.cooldown_max.get(nome, 0) > 0:
+                        # Draw a small pie chart indicator
+                        angle = (cd / p.cooldown_max[nome]) * 2 * math.pi
+                        rect_cooldown = pygame.Rect(rect.left + cooldown_x_offset, rect.bottom - 8, 8, 8)
+                        
+                        # Background
+                        pygame.draw.ellipse(tela, (50, 50, 50), rect_cooldown)
+                        
+                        if angle > 0:
+                            # foreground
+                            start_angle = math.pi / 2
+                            end_angle = start_angle + angle
+                            
+                            # Create a surface for the arc
+                            arc_surface = pygame.Surface((rect_cooldown.width, rect_cooldown.height), pygame.SRCALPHA)
+                            pygame.draw.arc(arc_surface, (200, 200, 50, 200), (0,0,rect_cooldown.width, rect_cooldown.height), start_angle, end_angle, 4)
+                            tela.blit(arc_surface, rect_cooldown.topleft)
+                        
+                        cooldown_x_offset += 10
 
 def desenhar_projeteis_e_efeitos(tela, animacao_atual):
     if not animacao_atual: return
@@ -204,3 +228,32 @@ def desenhar_comandos(tela, fonte):
         cmd_render = fonte.render(cmd, True, COR_TEXTO)
         tela.blit(cmd_render, (LARGURA_TABULEIRO + 10, y_offset))
         y_offset += 20
+
+def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo):
+    area_iniciativa = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 250, LARGURA_LOG, 100)
+    pygame.draw.rect(tela, (15, 15, 15), area_iniciativa)
+    
+    titulo_render = fonte.render("Ordem de Iniciativa:", True, COR_TEXTO)
+    tela.blit(titulo_render, (area_iniciativa.x + 10, area_iniciativa.y + 5))
+    
+    x_offset = area_iniciativa.x + 10
+    y_offset = area_iniciativa.y + 30
+    
+    for personagem in ordem:
+        if not personagem.esta_vivo:
+            continue
+            
+        cor = CORES_TIME.get(personagem.time)
+        
+        # Highlight the active character
+        if personagem == personagem_ativo:
+            pygame.draw.rect(tela, COR_BOTAO_HOVER, (x_offset - 2, y_offset - 2, 24, 24), border_radius=4)
+
+        # Draw a smaller version of the character sprite
+        sprite_rect = pygame.Rect(x_offset, y_offset, 20, 20)
+        desenhar_sprite(tela, personagem, sprite_rect, cor)
+        
+        x_offset += 25
+        if x_offset > area_iniciativa.right - 25:
+            x_offset = area_iniciativa.x + 10
+            y_offset += 25
