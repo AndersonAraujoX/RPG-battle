@@ -7,6 +7,7 @@ class Tabuleiro:
         self.altura = altura
         self.grid = [[None for _ in range(largura)] for _ in range(altura)]
         self.terrain_grid = [[TERRENO_NORMAL for _ in range(largura)] for _ in range(altura)]
+        self.elevation_grid = [[0 for _ in range(largura)] for _ in range(altura)]
 
     def gerar_terreno_aleatorio(self, chance_parede=0.05, chance_floresta=0.1, chance_dificil=0.1):
         """Gera terreno aleatório no tabuleiro, evitando as áreas de spawn."""
@@ -18,11 +19,19 @@ class Tabuleiro:
                     self.terrain_grid[y][x] = TERRENO_FLORESTA
                 elif random.random() < chance_dificil:
                     self.terrain_grid[y][x] = TERRENO_DIFICIL
+                
+                self.elevation_grid[y][x] = random.randint(0, 2)
 
     def get_terrain_em(self, x, y):
         if 0 <= x < self.largura and 0 <= y < self.altura:
             return self.terrain_grid[y][x]
         return None
+
+    def get_elevation_em(self, x, y):
+        if 0 <= x < self.largura and 0 <= y < self.altura:
+            return self.elevation_grid[y][x]
+        return 0
+
 
     def adicionar_personagem(self, personagem, x, y):
         if 0 <= x < self.largura and 0 <= y < self.altura and self.grid[y][x] is None and self.terrain_grid[y][x] != TERRENO_PAREDE:
@@ -64,6 +73,39 @@ class Tabuleiro:
                     if personagem:
                         personagens_na_area.append(personagem)
         return personagens_na_area
+
+    def calcular_linha_visao(self, x1, y1, x2, y2, ignorar_personagens=False):
+        """
+        Verifica se há linha de visão clara entre dois pontos (x1, y1) e (x2, y2).
+        Utiliza um algoritmo simplificado de linha para verificar obstáculos.
+        """
+        dx = abs(x2 - x1)
+        dy = abs(y2 - y1)
+        sx = 1 if x1 < x2 else -1
+        sy = 1 if y1 < y2 else -1
+        err = dx - dy
+
+        while True:
+            # Não verifica o ponto inicial para obstaculos, apenas os pontos entre inicio e fim, e o ponto final
+            if (x1 != x2 or y1 != y2) and self.terrain_grid[y1][x1] == TERRENO_PAREDE:
+                return False
+            
+            # Opcionalmente, verifica se há outro personagem bloqueando a visão
+            if not ignorar_personagens and self.grid[y1][x1] is not None and \
+               not (x1 == x2 and y1 == y2): # Don't block self or target
+                return False
+
+            if x1 == x2 and y1 == y2:
+                break
+
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x1 += sx
+            if e2 < dx:
+                err += dx
+                y1 += sy
+        return True
 
     def desenhar_tabuleiro(self, combatentes):
         simbolos = {

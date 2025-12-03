@@ -4,13 +4,6 @@ from .personagem_base import Personagem, calcular_distancia
 class Paladino(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
-        self.forca, self.constituicao, self.carisma = 16, 14, 14
-        self.dado_vida = (1, 10)
-        self.hp_max = 10 + self.mod_con + ((nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
-        self.hp_atual = self.hp_max
-        self.ac = 18 
-        self.dado_dano = (1, 8)
-        self.velocidade, self.alcance = 3, 1
         
         self.usos_lay_on_hands = self.mod_car + 1
         self.cooldowns['smite_evil'] = 0

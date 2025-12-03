@@ -4,21 +4,8 @@ from .personagem_base import Personagem, calcular_distancia
 class Chefe(Personagem):
     def __init__(self, nome, time, nivel=10, sound_player=None, stats=None):
         super().__init__(nome, time, nivel, sound_player)
-        self.forca, self.constituicao = 20, 20
-        self.dado_vida = (1, 12)
         
-        if stats:
-            self.hp_max = stats.get('hp', 300)
-            self.ac = stats.get('ac', 20)
-            num_dados_dano = stats.get('dado_dano', 2)
-            self.dado_dano = (num_dados_dano, 8)
-        else:
-            self.hp_max = 300
-            self.ac = 20
-            self.dado_dano = (2, 8)
-
         self.hp_atual = self.hp_max
-        self.velocidade, self.alcance = 4, 1
         self.cooldowns['pisao_trovejante'] = 0
         self.cooldown_max['pisao_trovejante'] = 3
 

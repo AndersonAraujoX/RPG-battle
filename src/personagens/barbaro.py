@@ -4,15 +4,15 @@ from .personagem_base import Personagem
 class Barbaro(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
-        self.forca, self.constituicao = 16, 16
-        self.dado_vida = (1, 12)
-        self.hp_max = 12 + self.mod_con + ((nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
-        self.hp_atual = self.hp_max
+        
         self.ac = 10 + self.mod_des + self.mod_con
-        self.dado_dano = (1, 12)
-        self.velocidade, self.alcance = 4, 1
         self.cooldowns['ataque_descuidado'] = 0
         self.cooldown_max['ataque_descuidado'] = 3
+
+        from ..itens.armas_comuns import MachadoGrande
+        from ..itens.acessorios_comuns import AmuletoDeVitalidade
+        self.equipar_arma(MachadoGrande())
+        self.equipar_acessorio(AmuletoDeVitalidade())
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia

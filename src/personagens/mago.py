@@ -6,15 +6,11 @@ from ..config import TERRENO_PAREDE
 class Mago(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
-        self.inteligencia, self.constituicao, self.destreza = 16, 12, 14
-        self.dado_vida = (1, 6)
-        self.hp_max = 6 + self.mod_con + ((nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
-        self.hp_atual = self.hp_max
-        self.ac = 10 + self.mod_des
-        self.dado_dano = (1, 6)
-        self.velocidade, self.alcance = 3, 6
-        self.cooldowns['bola_de_fogo'] = 0
-        self.cooldown_max['bola_de_fogo'] = 4
+        
+        # Mana system
+        self.mana_max = 20 + (nivel * 2)
+        self.mana_atual = self.mana_max
+        self.custo_habilidades = {'bola_de_fogo': 8, 'raio_de_gelo': 4}
 
     @property
     def bonus_ataque(self): return self.mod_int + self.bonus_proficiencia
@@ -23,7 +19,7 @@ class Mago(Personagem):
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         # 1. Tentar usar Bola de Fogo
-        if self.cooldowns['bola_de_fogo'] == 0 and inimigos:
+        if 'bola_de_fogo' in self.custo_habilidades and self.mana_atual >= self.custo_habilidades['bola_de_fogo'] and inimigos:
             melhor_oportunidade = {'alvos_atingidos': 0, 'aliados_atingidos': 999, 'pos_final': None, 'alvo_central': None}
             pos_inicial = (self.pos_x, self.pos_y)
 
@@ -64,7 +60,15 @@ class Mago(Personagem):
                 return {'acao': 'usar_habilidade', 'habilidade': 'bola_de_fogo', 
                         'pos_conjuracao': pos_final, 'alvo_central': alvo_central}
 
-        # 2. Lógica padrão da classe base (fugir ou atacar)
+        # 2. Tentar usar Raio de Gelo
+        if 'raio_de_gelo' in self.custo_habilidades and self.mana_atual >= self.custo_habilidades['raio_de_gelo'] and inimigos:
+            inimigos_em_range = [p for p in inimigos if calcular_distancia(self, p) <= self.alcance]
+            if inimigos_em_range:
+                alvo = min(inimigos_em_range, key=lambda p: p.hp_atual)
+                logs_turno.append(f"  {self.nome} decide usar Raio de Gelo em {alvo.nome}.")
+                return {'acao': 'usar_habilidade', 'habilidade': 'raio_de_gelo', 'alvo': alvo}
+
+        # 3. Lógica padrão da classe base (fugir ou atacar)
         return super().decidir_acao(inimigos, aliados, tabuleiro, logs_turno)
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):

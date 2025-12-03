@@ -4,16 +4,13 @@ from .personagem_base import Personagem, calcular_distancia
 class Clerigo(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
-        self.sabedoria, self.constituicao, self.forca = 16, 14, 14
-        self.dado_vida = (1, 8)
-        self.hp_max = 8 + self.mod_con + ((nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
-        self.hp_atual = self.hp_max
-        self.ac = 18
-        self.dado_dano = (1, 6)
-        self.velocidade, self.alcance = 3, 1
+        
         self.alcance_cura = 5
-        self.cooldowns['canalizar_divindade'] = 0
-        self.cooldown_max['canalizar_divindade'] = 4
+        
+        # Faith system
+        self.fe_max = 10 + nivel
+        self.fe_atual = self.fe_max
+        self.custo_habilidades = {'canalizar_divindade': 4}
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia
@@ -24,7 +21,7 @@ class Clerigo(Personagem):
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         # 1. Tentar curar aliado ferido
-        if self.cooldowns['canalizar_divindade'] == 0:
+        if 'canalizar_divindade' in self.custo_habilidades and self.fe_atual >= self.custo_habilidades['canalizar_divindade']:
             aliados_feridos = [p for p in aliados if p.esta_vivo and p.hp_atual < p.hp_max * 0.7 and calcular_distancia(self, p) <= self.alcance_cura]
             if aliados_feridos:
                 alvo_cura = min(aliados_feridos, key=lambda p: p.hp_atual / p.hp_max)

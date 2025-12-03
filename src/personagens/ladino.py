@@ -4,15 +4,18 @@ from .personagem_base import Personagem
 class Ladino(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
-        self.destreza, self.constituicao = 16, 12
-        self.dado_vida = (1, 8)
-        self.hp_max = 8 + self.mod_con + ((nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
-        self.hp_atual = self.hp_max
-        self.ac = 12 + self.mod_des
-        self.dado_dano = (1, 6)
-        self.velocidade, self.alcance = 4, 1
-        self.cooldowns['ataque_furtivo'] = 0
-        self.cooldown_max['ataque_furtivo'] = 2
+        
+        # Energy system
+        self.energia_max = 10 + nivel
+        self.energia_atual = self.energia_max
+        self.custo_habilidades = {'ataque_furtivo': 5}
+
+        from ..itens.armas_comuns import Adaga
+        from ..itens.armaduras_comuns import CouracaDeCouro
+        from ..itens.acessorios_comuns import BotasDaVelocidade
+        self.equipar_arma(Adaga())
+        self.equipar_armadura(CouracaDeCouro())
+        self.equipar_acessorio(BotasDaVelocidade())
 
     @property
     def bonus_ataque(self): return self.mod_des + self.bonus_proficiencia
@@ -22,9 +25,9 @@ class Ladino(Personagem):
     def threat_level(self): return 3
 
     def causar_dano(self, alvo, logger=print, is_critico=False):
-        if self.cooldowns['ataque_furtivo'] == 0:
+        if 'ataque_furtivo' in self.custo_habilidades and self.energia_atual >= self.custo_habilidades['ataque_furtivo']:
             logger(f"  {self.nome} consegue um Ataque Furtivo!")
-            self.cooldowns['ataque_furtivo'] = self.cooldown_max['ataque_furtivo']
+            self.energia_atual -= self.custo_habilidades['ataque_furtivo']
             dado_original = self.dado_dano
             self.dado_dano = (self.dado_dano[0] + 1, self.dado_dano[1])
             super().causar_dano(alvo, logger, is_critico)

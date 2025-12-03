@@ -1,101 +1,35 @@
 import random
-from .tabuleiro import Tabuleiro, TERRENO_PAREDE, TERRENO_DIFICIL
-from .personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe
-from src.config import TIME_A, TIME_B
-from .utils import calcular_distancia
-
-class MotorCombate:
-    def __init__(self, args_times, gerar_terreno=False, sound_player=None, modo_chefe=False, stats_chefe=None):
-        self.tabuleiro = Tabuleiro(20, 20)
-        if gerar_terreno:
-            self.tabuleiro.gerar_terreno_aleatorio()
-        self.sound_player = sound_player
-        self.time_a, self.time_b = self._setup_times(args_times, modo_chefe, stats_chefe)
-        if not self.time_a or not self.time_b:
-            raise ValueError("Ambos os times precisam de pelo menos um personagem.")
-        self.combatentes = self.time_a + self.time_b
-        for p in self.combatentes: p.rolar_iniciativa()
-        self.ordem_de_combate = sorted(self.combatentes, key=lambda x: x.iniciativa, reverse=True)
-        self.turno = 1
-        self.combatente_atual_idx = 0
-        self.vencedor = None
-
-    def _setup_times(self, args, modo_chefe, stats_chefe):
-        classes = [Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo]
-        time_a = []
-        personagens_para_criar_a = []
-        for i, classe in enumerate(classes):
-            personagens_para_criar_a.extend([classe] * args[i])
-        for i, classe_personagem in enumerate(personagens_para_criar_a):
-            nome = f"{classe_personagem.__name__}_A{i+1}"
-            p = classe_personagem(nome, TIME_A, nivel=1, sound_player=self.sound_player)
-            time_a.append(p)
-            self.tabuleiro.adicionar_personagem_na_borda(p, 'sul')
-
-        time_b = []
-        if modo_chefe:
-            chefe = Chefe("Dragão Ancião", TIME_B, sound_player=self.sound_player, stats=stats_chefe)
-            time_b.append(chefe)
-            self.tabuleiro.adicionar_personagem_na_borda(chefe, 'norte')
-        else:
-            personagens_para_criar_b = []
-            for i, classe in enumerate(classes):
-                personagens_para_criar_b.extend([classe] * args[i+6])
-            for i, classe_personagem in enumerate(personagens_para_criar_b):
-                nome = f"{classe_personagem.__name__}_B{i+1}"
-                p = classe_personagem(nome, TIME_B, nivel=1, sound_player=self.sound_player)
-                time_b.append(p)
-                self.tabuleiro.adicionar_personagem_na_borda(p, 'norte')
-        return time_a, time_b
-
-    def proximo_passo(self):
-        logs_turno = []
-        eventos_turno = []
-        if self.vencedor: return {'logs': [], 'eventos': []}
-
-        if self.combatente_atual_idx == 0:
-            logs_turno.append(f"--- RODADA {self.turno} ---")
-            for p in self.combatentes: p.tick_cooldowns()
-
-        atacante = self.ordem_de_combate[self.combatente_atual_idx]
-        atacante.eventos_animacao.clear()
-
-        if atacante.esta_vivo:
-            atacante.tick_status_efeitos(logs_turno.append) # Processa efeitos de status no início do turno
-            logs_turno.append(f"Vez de {atacante.nome}")
-            time_inimigo = [p for p in (self.time_b if atacante.time == TIME_A else self.time_a) if p.esta_vivo]
-            time_aliado = [p for p in (self.time_a if atacante.time == TIME_A else self.time_b) if p.esta_vivo]
-            
-            if not time_inimigo and not time_aliado: # If there are no enemies or allies, the character just passes
-                logs_turno.append(f"{atacante.nome} não tem alvos ou aliados.")
-                acao = {'acao': 'passar'}
-            else:
-                acao = atacante.decidir_acao(time_inimigo, time_aliado, self.tabuleiro, logs_turno)
-
-            # Executa a ação decidida pelo personagem
-            if acao['acao'] == 'atacar':
-                alvo = acao['alvo']
-                if calcular_distancia(atacante, alvo) > atacante.alcance: # Should not happen if AI is good, but a safeguard
-                    logs_turno.append(f"  {atacante.nome} tenta atacar {alvo.nome} mas está fora de alcance!")
-                    self._mover_personagem(atacante, alvo, logs_turno) # Try to move closer
-                    if calcular_distancia(atacante, alvo) <= atacante.alcance: # If now in range, attack
-                         atacante.atacar(alvo, time_inimigo, time_aliado, self.tabuleiro, logger=logs_turno.append)
-                else:
-                    atacante.atacar(alvo, time_inimigo, time_aliado, self.tabuleiro, logger=logs_turno.append)
-            elif acao['acao'] == 'mover':
-                alvo = acao['alvo']
-                self._mover_personagem(atacante, alvo, logs_turno)
-            elif acao['acao'] == 'fugir':
-                alvos_vivos = [p for p in (self.time_b if atacante.time == TIME_A else self.time_a) if p.esta_vivo]
-                self._fugir(atacante, alvos_vivos, logs_turno)
-            elif acao['acao'] == 'usar_habilidade':
-                habilidade = acao['habilidade']
-                if habilidade == 'canalizar_divindade':
+from .tabuleiro import Tabuleiro, TERRENO_PAREDE, TERRENO_DIFICIL, TERRENO_GELO
+from .personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe, Druida, Bruxo, Goblin
+# ...
+                elif habilidade == 'convocar_goblin':
+                    self._summon_minion(atacante, Goblin, logs_turno)
+                elif habilidade == 'forma_de_urso':
+                    atacante.usar_forma_de_urso(logs_turno.append)
+                elif habilidade == 'maldicao_de_agonia':
+                    alvo = acao['alvo']
+                    logs_turno.append(f"  {atacante.nome} amaldiçoa {alvo.nome} com Agonia!")
+                    atacante.mana_atual -= atacante.custo_habilidades['maldicao_de_agonia']
+                    alvo.aplicar_status_efeito("Amaldiçoado", 3, logs_turno.append)
+                elif habilidade == 'canalizar_divindade':
                     alvo_cura = acao['alvo']
-                    atacante.cooldowns['canalizar_divindade'] = atacante.cooldown_max['canalizar_divindade']
+                    atacante.fe_atual -= atacante.custo_habilidades['canalizar_divindade']
                     cura = sum(random.randint(1, 6) for _ in range(2)) + atacante.mod_sab
                     alvo_cura.receber_cura(cura, logs_turno.append)
                     atacante.eventos_animacao.append({'tipo': 'cura', 'alvo': alvo_cura, 'cura': cura})
+                elif habilidade == 'raio_de_gelo':
+                    alvo = acao['alvo']
+                    logs_turno.append(f"  {atacante.nome} lança Raio de Gelo em {alvo.nome}!")
+                    atacante.mana_atual -= atacante.custo_habilidades['raio_de_gelo']
+                    
+                    # Perform the attack
+                    atacante.atacar(alvo, time_inimigo, time_aliado, self.tabuleiro, logger=logs_turno.append)
+
+                    # Chance to freeze the ground
+                    if random.random() < 0.3: # 30% chance
+                        self.tabuleiro.terreno[alvo.pos_y][alvo.pos_x] = TERRENO_GELO
+                        logs_turno.append(f"  O chão sob {alvo.nome} congela!")
+
                 elif habilidade == 'bola_de_fogo':
                     pos_final = acao['pos_conjuracao']
                     alvo_central = acao['alvo_central']
@@ -106,7 +40,7 @@ class MotorCombate:
                         atacante.eventos_animacao.append({'tipo': 'movimento', 'personagem': atacante, 'start_pos': (atacante.pos_x, atacante.pos_y), 'end_pos': pos_final})
                     
                     logs_turno.append(f"{atacante.nome} conjura BOLA DE FOGO em ({alvo_central.pos_x},{alvo_central.pos_y})!")
-                    atacante.cooldowns['bola_de_fogo'] = atacante.cooldown_max['bola_de_fogo']
+                    atacante.mana_atual -= atacante.custo_habilidades['bola_de_fogo']
                     alvos_afetados = self.tabuleiro.get_personagens_em_area(alvo_central.pos_x, alvo_central.pos_y, 1)
                     dano = sum(random.randint(1, 6) for _ in range(2))
                     logs_turno.append(f"  A bola de fogo causa {dano} de dano em área!")
@@ -128,6 +62,21 @@ class MotorCombate:
         self._verificar_fim_de_combate(logs_turno)
         self.combatente_atual_idx = (self.combatente_atual_idx + 1) % len(self.ordem_de_combate)
         if self.combatente_atual_idx == 0: self.turno += 1
+
+    def _verificar_ataques_de_oportunidade(self, personagem_movendo, novo_x, novo_y, logs_turno):
+        time_inimigo = self.time_b if personagem_movendo.time == TIME_A else self.time_a
+        for inimigo in time_inimigo:
+            if inimigo.esta_vivo and inimigo.alcance == 1 and calcular_distancia(personagem_movendo, inimigo) <= 1:
+                # Check if the move is away from the enemy
+                dist_antiga = calcular_distancia(personagem_movendo, inimigo)
+                dist_nova = abs(novo_x - inimigo.pos_x) + abs(novo_y - inimigo.pos_y)
+                if dist_nova > dist_antiga:
+                    logs_turno.append(f"  {inimigo.nome} aproveita a oportunidade e ataca {personagem_movendo.nome} em movimento!")
+                    inimigo.atacar(personagem_movendo, [personagem_movendo], [], self.tabuleiro, logger=logs_turno.append)
+                    if not personagem_movendo.esta_vivo:
+                        logs_turno.append(f"  {personagem_movendo.nome} foi derrotado pelo ataque de oportunidade!")
+                        return False # Stop the move
+        return True # Continue the move
 
     def _fugir(self, p, inimigos, logs_turno):
         if not inimigos: return # No one to flee from
@@ -192,10 +141,31 @@ class MotorCombate:
                 if dist < menor_dist:
                     menor_dist, melhor_passo = dist, (prox_x, prox_y)
             if melhor_passo:
+                if not self._verificar_ataques_de_oportunidade(p, melhor_passo[0], melhor_passo[1], logs_turno):
+                    break
+                
                 custo = 2 if self.tabuleiro.get_terrain_em(melhor_passo[0], melhor_passo[1]) == TERRENO_DIFICIL else 1
                 if pontos_movimento >= custo:
+                    # Store direction of movement
+                    dx = melhor_passo[0] - p.pos_x
+                    dy = melhor_passo[1] - p.pos_y
+
                     self.tabuleiro.mover_personagem(p, melhor_passo[0], melhor_passo[1])
+                    p.elevacao = self.tabuleiro.get_elevation_em(p.pos_x, p.pos_y)
+
                     pontos_movimento -= custo
+
+                    # Check for ice terrain slip
+                    if self.tabuleiro.get_terrain_em(p.pos_x, p.pos_y) == TERRENO_GELO:
+                        if random.random() < 0.5: # 50% chance to slip
+                            prox_x, prox_y = p.pos_x + dx, p.pos_y + dy
+                            if 0 <= prox_x < self.tabuleiro.largura and 0 <= prox_y < self.tabuleiro.altura and \
+                               self.tabuleiro.get_personagem_em(prox_x, prox_y) is None and \
+                               self.tabuleiro.get_terrain_em(prox_x, prox_y) != TERRENO_PAREDE:
+                                
+                                logs_turno.append(f"  {p.nome} escorrega no gelo!")
+                                self.tabuleiro.mover_personagem(p, prox_x, prox_y)
+
                     if custo > 1: logs_turno.append(f"  (Terreno difícil custou {custo} de movimento)")
                 else:
                     logs_turno.append(f"  {p.nome} não tem movimento suficiente para o próximo passo.")
@@ -208,6 +178,34 @@ class MotorCombate:
             p.eventos_animacao.append({'tipo': 'movimento', 'personagem': p, 'start_pos': start_pos, 'end_pos': (p.pos_x, p.pos_y)})
         else:
             logs_turno.append(f"  {p.nome} não se moveu nesta rodada.")
+
+    def _summon_minion(self, summoner, minion_class, logs_turno):
+        for dx, dy in sorted(random.sample([(0,-1), (0,1), (-1,0), (1,0)], 4)):
+            x, y = summoner.pos_x + dx, summoner.pos_y + dy
+            if 0 <= x < self.tabuleiro.largura and 0 <= y < self.tabuleiro.altura and \
+               self.tabuleiro.get_personagem_em(x, y) is None and \
+               self.tabuleiro.get_terrain_em(x, y) != TERRENO_PAREDE:
+                
+                nome_minion = f"{minion_class.__name__}_{random.randint(100, 999)}"
+                minion = minion_class(nome_minion, summoner.time, nivel=1, sound_player=self.sound_player)
+                minion.pos_x, minion.pos_y = x, y
+                
+                self.tabuleiro.personagens[y][x] = minion
+                self.combatentes.append(minion)
+                if summoner.time == TIME_A:
+                    self.time_a.append(minion)
+                else:
+                    self.time_b.append(minion)
+
+                # Add to initiative order
+                minion.rolar_iniciativa()
+                # Insert after the current combatant
+                self.ordem_de_combate.insert(self.combatente_atual_idx + 1, minion)
+                
+                logs_turno.append(f"  {summoner.nome} convocou {nome_minion} em ({x},{y})!")
+                summoner.eventos_animacao.append({'tipo': 'spawn', 'personagem': minion})
+                return
+        logs_turno.append(f"  {summoner.nome} tentou convocar, mas não havia espaço!")
 
     def _verificar_fim_de_combate(self, logs_turno):
         if not any(p.esta_vivo for p in self.time_a): self.vencedor = f"Time {TIME_B}"
@@ -225,10 +223,19 @@ class MotorCombate:
         self.combatente_atual_idx = (self.combatente_atual_idx + 1) % len(self.ordem_de_combate)
         if self.combatente_atual_idx == 0: 
             self.turno += 1
-            for p in self.combatentes: p.tick_cooldowns()
+            for p in self.combatentes:
+                p.tick_cooldowns()
+                p.tick_recursos()
 
     def jogador_move_personagem(self, personagem, novo_x, novo_y):
         """Executa um comando de movimento do jogador."""
+        # Check for attacks of opportunity before moving
+        if not self._verificar_ataques_de_oportunidade(personagem, novo_x, novo_y, []):
+            # The character was killed, no move happens, but animation events for the attack have been added.
+            eventos = list(personagem.eventos_animacao)
+            personagem.eventos_animacao.clear()
+            return eventos
+
         start_pos = (personagem.pos_x, personagem.pos_y)
         self.tabuleiro.mover_personagem(personagem, novo_x, novo_y)
         personagem.eventos_animacao.append({'tipo': 'movimento', 'personagem': personagem, 'start_pos': start_pos, 'end_pos': (novo_x, novo_y)})

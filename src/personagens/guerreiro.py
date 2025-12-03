@@ -4,15 +4,16 @@ from .personagem_base import Personagem, calcular_distancia
 class Guerreiro(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
-        self.forca, self.constituicao, self.destreza = 16, 14, 12
-        self.dado_vida = (1, 10)
-        self.hp_max = 10 + self.mod_con + ((nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
-        self.hp_atual = self.hp_max
-        self.ac = 18
-        self.dado_dano = (1, 8)
-        self.velocidade, self.alcance = 3, 1
+        
         self.cooldowns['surto_acao'] = 0
         self.cooldown_max['surto_acao'] = 4
+
+        from ..itens.armas_comuns import EspadaLonga
+        from ..itens.armaduras_comuns import CotaDeMalha
+        from ..itens.acessorios_comuns import AnelDeForca
+        self.equipar_arma(EspadaLonga())
+        self.equipar_armadura(CotaDeMalha())
+        self.equipar_acessorio(AnelDeForca())
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia

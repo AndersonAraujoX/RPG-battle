@@ -5,6 +5,10 @@ from ..utils import calcular_distancia
 from .status_efeito import StatusEfeito
 from src.itens.item import HealthPotion
 
+from ..utils import carregar_dados_personagens
+
+DADOS_PERSONAGENS = carregar_dados_personagens()
+
 class Personagem:
     def __init__(self, nome, time, nivel=1, sound_player=None):
         self.nome = nome
@@ -13,28 +17,81 @@ class Personagem:
         self.xp = 0
         self.xp_para_upar = 2 ** self.nivel
         self.kills = 0
-        
-        self.forca, self.destreza, self.constituicao, self.inteligencia, self.sabedoria, self.carisma = 10, 10, 10, 10, 10, 10
-        self.hp_max, self.hp_atual, self.ac = 0, 0, 0
-        self.dado_dano = (1, 1)
-        self.dado_vida = (1, 6)
+
+        class_name = self.__class__.__name__
+        if class_name in DADOS_PERSONAGENS:
+            data = DADOS_PERSONAGENS[class_name]
+            stats = data.get("stats", {})
+            self._forca = stats.get("forca", 10)
+            self._destreza = stats.get("destreza", 10)
+            self._constituicao = stats.get("constituicao", 10)
+            self._inteligencia = stats.get("inteligencia", 10)
+            self._sabedoria = stats.get("sabedoria", 10)
+            self._carisma = stats.get("carisma", 10)
+            
+            self.ac_base = data.get("ac", 10)
+            self.dado_dano = tuple(data.get("dado_dano", [1, 4]))
+            self.dado_vida = tuple(data.get("dado_vida", [1, 6]))
+            self._velocidade = data.get("velocidade", 4)
+            self.alcance = data.get("alcance", 1)
+            
+            # Calculate hp_max based on provided value or formula
+            base_hp = data.get("hp", (self.dado_vida[1] + self.mod_con))
+            self.hp_max = base_hp + ((nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
+        else:
+            # Default stats if not found in JSON
+            self._forca, self._destreza, self._constituicao, self._inteligencia, self._sabedoria, self._carisma = 10, 10, 10, 10, 10, 10
+            self.ac_base = 10
+            self.dado_dano = (1, 4)
+            self.dado_vida = (1, 6)
+            self._velocidade = 4
+            self.alcance = 1
+            self.hp_max = 10 + self.mod_con
+
+        self.hp_atual = self.hp_max
+        self.mana_atual, self.mana_max = 0, 0
+        self.energia_atual, self.energia_max = 0, 0
         self.iniciativa = 0
         self.esta_vivo = True
         self.pos_x, self.pos_y = -1, -1
-        self.velocidade, self.alcance = 0, 0
         self.cooldowns = {}
         self.cooldown_max = {}
         self.sound_player = sound_player
         self.eventos_animacao = []
         self.status_efeitos = []
+        self.imunidades = []
         self.inventario = [HealthPotion()]
+        self.arma_equipada = None
+        self.armadura_equipada = None
+        self.acessorios_equipados = []
+        self.elevacao = 0
+
+    def equipar_arma(self, arma):
+        self.arma_equipada = arma
+
+    def equipar_armadura(self, armadura):
+        self.armadura_equipada = armadura
+
+    def equipar_acessorio(self, acessorio):
+        self.acessorios_equipados.append(acessorio)
 
     def tick_cooldowns(self):
         for key in self.cooldowns:
             if self.cooldowns[key] > 0:
                 self.cooldowns[key] -= 1
 
+    def tick_recursos(self):
+        # Regenerate a small amount of resources each turn
+        if self.mana_max > 0:
+            self.mana_atual = min(self.mana_max, self.mana_atual + 1)
+        if self.energia_max > 0:
+            self.energia_atual = min(self.energia_max, self.energia_atual + 1)
+
     def aplicar_status_efeito(self, nome_efeito, duracao_turnos=1, logger=print):
+        if nome_efeito in self.imunidades:
+            logger(f"  {self.nome} é imune a {nome_efeito}!")
+            return
+
         if nome_efeito not in PROPRIEDADES_STATUS_EFEITO:
             logger(f"  ERRO: Efeito de status '{nome_efeito}' não encontrado.")
             return
@@ -102,6 +159,40 @@ class Personagem:
         logger(f"  (HP máximo aumentado em {aumento_hp})")
         if self.sound_player: self.sound_player('level_up')
         self.eventos_animacao.append({'tipo': 'level_up', 'personagem': self})
+
+    def get_bonus_acessorio(self, stat):
+        bonus = 0
+        for acessorio in self.acessorios_equipados:
+            if stat in acessorio.bonus:
+                bonus += acessorio.bonus[stat]
+        return bonus
+
+    @property
+    def forca(self): return self._forca + self.get_bonus_acessorio('forca')
+    @property
+    def destreza(self): return self._destreza + self.get_bonus_acessorio('destreza')
+    @property
+    def constituicao(self): return self._constituicao + self.get_bonus_acessorio('constituicao')
+    @property
+    def inteligencia(self): return self._inteligencia + self.get_bonus_acessorio('inteligencia')
+    @property
+    def sabedoria(self): return self._sabedoria + self.get_bonus_acessorio('sabedoria')
+    @property
+    def carisma(self): return self._carisma + self.get_bonus_acessorio('carisma')
+    @property
+    def velocidade(self): return self._velocidade + self.get_bonus_acessorio('velocidade')
+
+    @property
+    def ac(self):
+        if self.armadura_equipada:
+            return self.armadura_equipada.bonus_ac
+        return self.ac_base
+
+    @property
+    def ac(self):
+        if self.armadura_equipada:
+            return self.armadura_equipada.bonus_ac
+        return self.ac_base
 
     @property
     def mod_for(self): return (self.forca - 10) // 2
@@ -204,17 +295,33 @@ class Personagem:
         logger(f"{self.nome} (Lvl {self.nivel}) ataca {alvo.nome} (Lvl {alvo.nivel}).")
         
         ac_alvo = alvo.ac
+            
         terreno_alvo = tabuleiro.get_terrain_em(alvo.pos_x, alvo.pos_y)
         if terreno_alvo == TERRENO_FLORESTA:
-            ac_alvo += 2
-            logger(f"  {alvo.nome} recebe cobertura da floresta (+2 AC)!")
+            if self.alcance > 1: # Ranged attack
+                logger(f"  {alvo.nome} está em uma floresta, o ataque pode errar!")
+                if random.random() < 0.5: # 50% chance to miss
+                    logger(f"  O ataque se perde na vegetação e erra!")
+                    if self.sound_player: self.sound_player('miss')
+                    self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': 'ERROU!'})
+                    return
+            else: # Melee attack
+                ac_alvo += 2
+                logger(f"  {alvo.nome} recebe cobertura da floresta (+2 AC)!")
 
+        # Elevation advantage
+        bonus_elevacao = 0
+        if self.elevacao > alvo.elevacao and self.alcance > 1: # Ranged attack from higher ground
+            logger(f"  {self.nome} tem vantagem de elevação! (+1 Ataque, +1 Dano)")
+            bonus_elevacao = 1
+            
         rolagem_ataque = random.randint(1, 20)
-        total_ataque = rolagem_ataque + self.bonus_ataque + flanking_bonus
-        log_ataque = f"  Rolagem de Ataque: {rolagem_ataque} (d20) + {self.bonus_ataque} (bônus) + {flanking_bonus} (flanco) = {total_ataque}."
+        total_ataque = rolagem_ataque + self.bonus_ataque + flanking_bonus + bonus_elevacao
+        log_ataque = f"  Rolagem de Ataque: {rolagem_ataque} (d20) + {self.bonus_ataque} (bônus) + {flanking_bonus} (flanco) + {bonus_elevacao} (elevação) = {total_ataque}."
 
         if rolagem_ataque == 20:
             logger(f"{log_ataque} Acerto CRÍTICO!")
+            if self.sound_player: self.sound_player('critical_hit')
             self.causar_dano(alvo, logger, is_critico=True)
         elif total_ataque >= ac_alvo:
             logger(f"{log_ataque} Acerta (AC do alvo é {ac_alvo})!")
@@ -225,13 +332,18 @@ class Personagem:
             self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': 'ERROU!'})
 
     def causar_dano(self, alvo, logger=print, is_critico=False):
-        num_rolagens = self.dado_dano[0] * 2 if is_critico else self.dado_dano[0]
-        dano_rolado = sum(random.randint(1, self.dado_dano[1]) for _ in range(num_rolagens))
+        if self.arma_equipada:
+            dado_dano = self.arma_equipada.dado_dano
+        else:
+            dado_dano = self.dado_dano
+            
+        num_rolagens = dado_dano[0] * 2 if is_critico else dado_dano[0]
+        dano_rolado = sum(random.randint(1, dado_dano[1]) for _ in range(num_rolagens))
         
         if is_critico: logger(f"  Dano CRÍTICO!")
 
         dano_total = max(1, dano_rolado + self.bonus_dano)
-        logger(f"  Rolagem de Dano: {dano_rolado} ({num_rolagens}d{self.dado_dano[1]}) + {self.bonus_dano} (bônus) = {dano_total} de dano.")
+        logger(f"  Rolagem de Dano: {dano_rolado} ({num_rolagens}d{dado_dano[1]}) + {self.bonus_dano} (bônus) = {dano_total} de dano.")
         
         alvo.receber_dano(dano_total, self, logger)
         

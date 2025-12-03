@@ -5,13 +5,18 @@ from collections import deque
 from .config import *
 from .motor_combate import MotorCombate
 from .personagens import *
+from .personagens.rei_goblin import ReiGoblin
+from .personagens.lorde_lich import LordeLich
+from .personagens.dragao_anciao import DragaoAnciao
 from .ui.componentes import Botao
 from .ui.desenho import *
 from .ui.menu import setup_menu_ui, desenhar_menu
+from .salvar_carregar import salvar_jogo, carregar_jogo
 
 class Game:
     def __init__(self):
         pygame.init()
+        pygame.mixer.init()
         self.tela = pygame.display.set_mode((LARGURA_TELA, ALTURA_TELA))
         pygame.display.set_caption("Simulador de Batalha Tático")
         self.fonte_personagem = pygame.font.Font(None, 18)
@@ -22,6 +27,7 @@ class Game:
         self.clock = pygame.time.Clock()
 
         self.sounds = self.carregar_sons()
+        self.imagens = self.carregar_imagens()
         
         self.rodando = True
         self.estado_jogo = ESTADO_JOGO_MENU
@@ -44,21 +50,64 @@ class Game:
         self.checkbox_auto = None
         self.checkbox_chefe = None
         self.checkbox_autoplay = None
+        self.bosses = []
+        self.selected_boss_index = 0
+        self.hovered_enemy = None
+        self.volume_sfx = 0.5
 
         self.feedback_invalido_timer = 0
 
         self.setup_ui()
 
     def carregar_sons(self):
-        # Temporarily disable sound loading as files are empty
-        return {}
+        sounds = {}
+        sound_paths = {
+            'attack': 'assets/sounds/attack.wav',
+            'button_click': 'assets/sounds/button_click.wav',
+            'heal': 'assets/sounds/heal.wav',
+            'hit': 'assets/sounds/hit.wav',
+            'level_up': 'assets/sounds/level_up.wav',
+            'miss': 'assets/sounds/miss.wav',
+            'critical_hit': 'assets/sounds/critical_hit.wav',
+            'invalid_action': 'assets/sounds/invalid_action.wav',
+        }
+
+        for name, path in sound_paths.items():
+            try:
+                sounds[name] = pygame.mixer.Sound(path)
+            except pygame.error as e:
+                print(f"Não foi possível carregar o som {path}: {e}")
+                sounds[name] = None 
+
+        return sounds
     
     def play_sound(self, nome):
-        if nome in self.sounds:
-            self.sounds[nome].play()
+        if nome in self.sounds and self.sounds[nome]:
+            sound = self.sounds[nome]
+            sound.set_volume(self.volume_sfx)
+            sound.play()
+
+    def carregar_imagens(self):
+        imagens = {}
+        # Carregar imagens de personagens
+        for nome_personagem, caminho in IMAGE_PERSONAGENS.items():
+            try:
+                imagens[f"personagem_{nome_personagem.lower()}"] = pygame.image.load(caminho).convert_alpha()
+            except pygame.error as e:
+                print(f"Não foi possível carregar a imagem do personagem {nome_personagem} em {caminho}: {e}")
+                imagens[f"personagem_{nome_personagem.lower()}"] = None
+
+        # Carregar imagens de terreno
+        for tipo_terreno, caminho in IMAGE_TERRENOS.items():
+            try:
+                imagens[f"terreno_{tipo_terreno.lower()}"] = pygame.image.load(caminho).convert()
+            except pygame.error as e:
+                print(f"Não foi possível carregar a imagem do terreno {tipo_terreno} em {caminho}: {e}")
+                imagens[f"terreno_{tipo_terreno.lower()}"] = None
+        return imagens
 
     def setup_ui(self):
-        config_times_init, config_chefe_init, botoes_ui_init, checkbox_terreno_init, checkbox_auto_init, checkbox_chefe_init, checkbox_autoplay_init = setup_menu_ui()
+        config_times_init, config_chefe_init, botoes_ui_init, checkbox_terreno_init, checkbox_auto_init, checkbox_chefe_init, checkbox_autoplay_init, bosses_init = setup_menu_ui()
     
         self.config_times.update(config_times_init)
         self.config_chefe.update(config_chefe_init)
@@ -67,8 +116,10 @@ class Game:
         self.checkbox_auto = checkbox_auto_init
         self.checkbox_chefe = checkbox_chefe_init
         self.checkbox_autoplay = checkbox_autoplay_init
-
+        self.bosses = bosses_init
         self.botoes_combate['proxima_acao'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 70, LARGURA_LOG - 40, 50, "Próxima Ação", self.fonte_menu)
+        self.botoes_combate['salvar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 130, 100, 30, "Salvar", self.fonte_menu)
+        self.botoes_combate['carregar'] = Botao(LARGURA_TABULEIRO + 140, ALTURA_TELA - 130, 100, 30, "Carregar", self.fonte_menu)
 
     def run(self):
         while self.rodando:
@@ -117,12 +168,27 @@ class Game:
                                 self.estado_jogo = ESTADO_JOGO_COMBATE
                                 args = [self.config_times[TIME_A][c] for c,_ in self.config_times['classes']] + \
                                     [self.config_times[TIME_B][c] for c,_ in self.config_times['classes']]
+                                
+                                boss_class = None
+                                if self.checkbox_chefe.checked:
+                                    boss_class = self.bosses[self.selected_boss_index]['classe']
+
                                 try:
                                     self.motor = MotorCombate(args, gerar_terreno=self.checkbox_terreno.checked, sound_player=self.play_sound, 
-                                                        modo_chefe=self.checkbox_chefe.checked, stats_chefe=self.config_chefe if self.checkbox_chefe.checked else None)
+                                                        modo_chefe=self.checkbox_chefe.checked, 
+                                                        stats_chefe=self.config_chefe if self.checkbox_chefe.checked else None,
+                                                        boss_class=boss_class)
                                     for p in self.motor.combatentes: p.dano_timer = 0
                                     self.log_combate.clear(); self.log_combate.append("Batalha iniciada!")
                                 except ValueError as e: print(f"Erro: {e}"); self.estado_jogo = ESTADO_JOGO_MENU
+                                return
+                            
+                            if nome == 'next_boss':
+                                self.selected_boss_index = (self.selected_boss_index + 1) % len(self.bosses)
+                                return
+                            
+                            if nome == 'prev_boss':
+                                self.selected_boss_index = (self.selected_boss_index - 1) % len(self.bosses)
                                 return
                             
                             partes_nome = nome.split('_')
@@ -142,6 +208,20 @@ class Game:
 
             elif self.estado_jogo == ESTADO_JOGO_COMBATE and self.motor:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.botoes_combate['salvar'].checar_clique(mouse_pos):
+                        salvar_jogo(self.motor)
+                        self.log_combate.append("Jogo salvo!")
+                        return
+                    
+                    if self.botoes_combate['carregar'].checar_clique(mouse_pos):
+                        motor_carregado = carregar_jogo()
+                        if motor_carregado:
+                            self.motor = motor_carregado
+                            self.log_combate.append("Jogo carregado!")
+                        else:
+                            self.log_combate.append("Falha ao carregar o jogo.")
+                        return
+
                     if self.estado_combate == ESTADO_COMBATE_VEZ_IA and not self.motor.vencedor and not self.fila_animacoes and self.botoes_combate['proxima_acao'].checar_clique(mouse_pos):
                         self.play_sound('button_click')
                         resultado = self.motor.proximo_passo()
@@ -175,6 +255,7 @@ class Game:
                                         acao_realizada = True
                                     else:
                                         self.feedback_invalido_timer = 30
+                                        self.play_sound('invalid_action')
                                 
                                 elif not p_clicado:
                                     dist = abs(self.unidade_selecionada.pos_x - grid_x) + abs(self.unidade_selecionada.pos_y - grid_y)
@@ -186,9 +267,11 @@ class Game:
                                         acao_realizada = True
                                     else:
                                         self.feedback_invalido_timer = 30
+                                        self.play_sound('invalid_action')
 
                                 else:
                                     self.feedback_invalido_timer = 30
+                                    self.play_sound('invalid_action')
                                     self.unidade_selecionada = None
                                     self.estado_combate = ESTADO_COMBATE_AGUARDANDO_JOGADOR
                                 
@@ -233,25 +316,41 @@ class Game:
     def draw_elements(self, tick, mouse_pos):
         personagem_ativo = self.motor.get_personagem_ativo() if self.motor and not self.motor.vencedor else None
         if self.estado_jogo == ESTADO_JOGO_MENU:
-            desenhar_menu(self.tela, self.fonte_menu, self.config_times, self.config_chefe, self.botoes_ui, self.checkbox_terreno, self.checkbox_auto, self.checkbox_chefe, self.checkbox_autoplay)
+            desenhar_menu(self.tela, self.fonte_menu, self.config_times, self.config_chefe, self.botoes_ui, self.checkbox_terreno, self.checkbox_auto, self.checkbox_chefe, self.checkbox_autoplay, self.bosses, self.selected_boss_index, self.imagens)
         elif self.estado_jogo == ESTADO_JOGO_COMBATE and self.motor:
             self.tela.fill(COR_FUNDO)
-            desenhar_cenario(self.tela, self.motor)
+            
+            # Draw the new initiative bar at the top
+            desenhar_barra_iniciativa(self.tela, self.motor.ordem_de_combate, personagem_ativo, self.imagens)
+            
+            offset_y = ALTURA_BARRA_INICIATIVA
+
+            # Detect hovered enemy
+            self.hovered_enemy = None
+            if self.motor:
+                for p in self.motor.combatentes:
+                    # Only consider enemies (Team B for player A)
+                    # And only if the character is alive and in the game area
+                    if p.esta_vivo and p.time != TIME_A and 0 <= p.pos_x < (LARGURA_TABULEIRO // TAMANHO_CELULA) and 0 <= p.pos_y < ((ALTURA_TELA - offset_y) // TAMANHO_CELULA):
+                        rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + offset_y, TAMANHO_CELULA, TAMANHO_CELULA)
+                        if rect.collidepoint(mouse_pos):
+                            self.hovered_enemy = p
+                            break
+
+            desenhar_cenario(self.tela, self.motor, self.imagens, offset_y)
             
             unidade_em_foco = self.unidade_selecionada if self.estado_combate == ESTADO_COMBATE_JOGADOR_SELECIONOU else personagem_ativo
-            desenhar_personagens(self.tela, self.motor, self.fonte_personagem, unidade_em_foco, tick, self.animacao_atual)
-            
-            if self.estado_combate == ESTADO_COMBATE_JOGADOR_SELECIONOU:
-                desenhar_feedback_jogador(self.tela, self.unidade_selecionada, self.motor)
+            desenhar_personagens(self.tela, self.motor, self.fonte_personagem, unidade_em_foco, tick, self.animacao_atual, self.imagens, offset_y)
+            desenhar_pre_visualizacao_ataque(self.tela, self.motor, self.hovered_enemy, self.imagens, offset_y)
 
-            desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual)
+            desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual, offset_y)
             
-            log_max_altura = ALTURA_TELA - 250
-            if self.painel_modo == PAINEL_MODO_LOG: desenhar_log(self.tela, self.fonte_log, list(self.log_combate), log_max_altura)
-            elif self.painel_modo == PAINEL_MODO_INFO and self.personagem_info_painel: desenhar_info_personagem(self.tela, self.fonte_info, self.personagem_info_painel, log_max_altura)
+            log_max_altura = ALTURA_TELA - offset_y # Adjusted max height for logs
+            if self.painel_modo == PAINEL_MODO_LOG: desenhar_log(self.tela, self.fonte_log, list(self.log_combate), log_max_altura, offset_y)
+            elif self.painel_modo == PAINEL_MODO_INFO and self.personagem_info_painel: desenhar_info_personagem(self.tela, self.fonte_info, self.personagem_info_painel, log_max_altura, offset_y)
 
-            desenhar_comandos(self.tela, self.fonte_log)
-            desenhar_ordem_iniciativa(self.tela, self.fonte_personagem, self.motor.ordem_de_combate, personagem_ativo)
+            desenhar_comandos(self.tela, self.fonte_log, offset_y)
+            # desenhar_ordem_iniciativa(self.tela, self.fonte_personagem, self.motor.ordem_de_combate, personagem_ativo, self.imagens) # This is now handled by desenhar_barra_iniciativa
 
             if not self.motor.vencedor:
                 is_vez_ia = self.estado_combate == ESTADO_COMBATE_VEZ_IA
@@ -259,8 +358,4 @@ class Game:
                 self.botoes_combate['proxima_acao'].update_hover(mouse_pos)
                 self.botoes_combate['proxima_acao'].desenhar(self.tela, self.fonte_menu)
             else:
-                desenhar_tela_fim(self.tela, self.fonte_titulo, self.motor.vencedor)
-
-            if self.feedback_invalido_timer > 0:
-                alpha = int(100 * (self.feedback_invalido_timer / 30))
-                desenhar_feedback_invalido(self.tela, alpha)
+                desenhar_tela_fim(self.tela, self.fonte_titulo, self.motor.vencedor, offset_y)
