@@ -1,5 +1,5 @@
 import random
-from src.config import TIME_A, TIME_B, TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE
+from src.config import TIME_A, TIME_B, TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO
 
 class Tabuleiro:
     def __init__(self, largura=20, altura=20):
@@ -8,6 +8,12 @@ class Tabuleiro:
         self.grid = [[None for _ in range(largura)] for _ in range(altura)]
         self.terrain_grid = [[TERRENO_NORMAL for _ in range(largura)] for _ in range(altura)]
         self.elevation_grid = [[0 for _ in range(largura)] for _ in range(altura)]
+        self.itens_no_chao = [[None for _ in range(largura)] for _ in range(altura)]
+
+    def get_item_em(self, x, y):
+        if 0 <= x < self.largura and 0 <= y < self.altura:
+            return self.itens_no_chao[y][x]
+        return None
 
     def gerar_terreno_aleatorio(self, chance_parede=0.05, chance_floresta=0.1, chance_dificil=0.1):
         """Gera terreno aleatório no tabuleiro, evitando as áreas de spawn."""
@@ -48,15 +54,54 @@ class Tabuleiro:
         personagem.pos_x, personagem.pos_y = novo_x, novo_y
 
     def adicionar_personagem_na_borda(self, personagem, borda):
-        """Adiciona um personagem em uma borda vazia (norte ou sul)."""
-        y = 1 if borda == 'norte' else self.altura - 2
+        """Adiciona um personagem em uma borda vazia (norte ou sul), espalhando-os."""
+        rows = range(0, 4) if borda == 'norte' else range(self.altura - 4, self.altura)
         
+        # Tenta espalhar mais, usando colunas alternadas ou aleatórias
+        # Começa do centro, mas com espaçamento
         x_inicial = self.largura // 2
-        for offset in range(self.largura // 2):
-            for x_op in [x_inicial + offset, x_inicial - offset]:
-                if 0 <= x_op < self.largura:
-                    if self.adicionar_personagem(personagem, x_op, y):
-                        return True
+        
+        # Gera uma lista de posições possíveis nessas linhas
+        posicoes_possiveis = []
+        for y in rows:
+            for x in range(self.largura):
+                # Prioriza posições centrais mas com algum espaçamento
+                dist_centro = abs(x - x_inicial)
+                # Adiciona um peso para ordenar: menor peso = tenta primeiro
+                # Peso = distancia do centro + (distancia da borda * 2)
+                dist_borda_y = y if borda == 'norte' else (self.altura - 1 - y)
+                peso = dist_centro + (dist_borda_y * 5) 
+                
+                # Verifica se é válido antes de adicionar
+                if self.grid[y][x] is None and self.terrain_grid[y][x] != TERRENO_PAREDE:
+                    posicoes_possiveis.append((peso, x, y))
+        
+        # Ordena por peso e tenta colocar
+        posicoes_possiveis.sort(key=lambda item: item[0])
+        
+        for _, x, y in posicoes_possiveis:
+             # Verificação extra de espaçamento: tenta não colocar adjacente a outro personagem se possível
+            tem_vizinho = False
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx == 0 and dy == 0: continue
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < self.largura and 0 <= ny < self.altura and self.grid[ny][nx] is not None:
+                        tem_vizinho = True
+                        break
+                if tem_vizinho: break
+            
+            # Se tiver vizinho, pula essa posição na primeira tentativa (para tentar espaçar)
+            # Mas se não tiver opção, vai ter que ser
+            if not tem_vizinho:
+                if self.adicionar_personagem(personagem, x, y):
+                    return True
+
+        # Se não conseguiu com espaçamento, tenta qualquer um livre na ordem
+        for _, x, y in posicoes_possiveis:
+            if self.adicionar_personagem(personagem, x, y):
+                return True
+                
         return False
 
     def get_personagem_em(self, x, y):

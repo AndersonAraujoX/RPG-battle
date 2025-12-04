@@ -1,143 +1,84 @@
 {
     "Guerreiro": {
-        "stats": {
-            "forca": 16, "constituicao": 14, "destreza": 12
-        },
-        "dado_vida": [1, 10],
-        "ac": 18,
-        "dado_dano": [1, 8],
-        "velocidade": 3, "alcance": 1
+        "stats": { "forca": 16, "constituicao": 14, "destreza": 12 },
+        "dado_vida": [1, 10], "ac": 18, "dado_dano": [1, 8],
+        "velocidade": 3, "alcance": 1, "tipo_dano": "Cortante"
     },
     "Mago": {
-        "stats": {
-            "inteligencia": 16, "constituicao": 12, "destreza": 14
-        },
-        "dado_vida": [1, 6],
-        "ac": 10,
-        "dado_dano": [1, 6],
-        "velocidade": 3, "alcance": 6
+        "stats": { "inteligencia": 16, "constituicao": 12, "destreza": 14 },
+        "dado_vida": [1, 6], "ac": 10, "dado_dano": [1, 6],
+        "velocidade": 3, "alcance": 6, "tipo_dano": "Magico"
     },
     "Ladino": {
-        "stats": {
-            "destreza": 16, "constituicao": 12
-        },
-        "dado_vida": [1, 8],
-        "ac": 12,
-        "dado_dano": [1, 6],
-        "velocidade": 4, "alcance": 1
+        "stats": { "destreza": 16, "constituicao": 12 },
+        "dado_vida": [1, 8], "ac": 12, "dado_dano": [1, 6],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Perfurante"
     },
     "Arqueiro": {
-        "stats": {
-            "destreza": 16, "constituicao": 12
-        },
-        "dado_vida": [1, 10],
-        "ac": 15,
-        "dado_dano": [1, 8],
-        "velocidade": 4, "alcance": 10
+        "stats": { "destreza": 16, "constituicao": 12 },
+        "dado_vida": [1, 10], "ac": 15, "dado_dano": [1, 8],
+        "velocidade": 4, "alcance": 10, "tipo_dano": "Perfurante"
     },
     "Barbaro": {
-        "stats": {
-            "forca": 16, "constituicao": 16
-        },
-        "dado_vida": [1, 12],
-        "ac": 10,
-        "dado_dano": [1, 12],
-        "velocidade": 4, "alcance": 1
+        "stats": { "forca": 16, "constituicao": 16 },
+        "dado_vida": [1, 12], "ac": 10, "dado_dano": [1, 12],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Esmagamento"
     },
     "Clerigo": {
-        "stats": {
-            "sabedoria": 16, "constituicao": 14, "forca": 14
-        },
-        "dado_vida": [1, 8],
-        "ac": 18,
-        "dado_dano": [1, 6],
-        "velocidade": 3, "alcance": 1
+        "stats": { "sabedoria": 16, "constituicao": 14, "forca": 14 },
+        "dado_vida": [1, 8], "ac": 18, "dado_dano": [1, 6],
+        "velocidade": 3, "alcance": 1, "tipo_dano": "Esmagamento"
     },
     "Paladino": {
-        "stats": {
-            "forca": 16, "constituicao": 14, "carisma": 14
-        },
-        "dado_vida": [1, 10],
-        "ac": 18,
-        "dado_dano": [1, 8],
-        "velocidade": 3, "alcance": 1
+        "stats": { "forca": 16, "constituicao": 14, "carisma": 14 },
+        "dado_vida": [1, 10], "ac": 18, "dado_dano": [1, 8],
+        "velocidade": 3, "alcance": 1, "tipo_dano": "Cortante"
     },
     "Druida": {
-        "stats": {
-            "sabedoria": 16, "constituicao": 14
-        },
-        "dado_vida": [1, 8],
-        "ac": 11,
-        "dado_dano": [1, 6],
-        "velocidade": 4, "alcance": 1
+        "stats": { "sabedoria": 16, "constituicao": 14 },
+        "dado_vida": [1, 8], "ac": 11, "dado_dano": [1, 6],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Natural"
     },
     "Bruxo": {
-        "stats": {
-            "carisma": 16, "constituicao": 14
-        },
-        "dado_vida": [1, 8],
-        "ac": 11,
-        "dado_dano": [1, 8],
-        "velocidade": 4, "alcance": 6
+        "stats": { "carisma": 16, "constituicao": 14 },
+        "dado_vida": [1, 8], "ac": 11, "dado_dano": [1, 8],
+        "velocidade": 4, "alcance": 6, "tipo_dano": "Sombrio"
     },
     "ReiGoblin": {
-        "stats": {
-            "destreza": 18, "constituicao": 16
-        },
-        "dado_vida": [1, 10],
-        "hp": 250,
-        "ac": 18,
-        "dado_dano": [2, 6],
-        "velocidade": 5, "alcance": 1
+        "stats": { "destreza": 18, "constituicao": 16 },
+        "dado_vida": [1, 10], "hp": 250, "ac": 18, "dado_dano": [2, 6],
+        "velocidade": 5, "alcance": 1, "tipo_dano": "Cortante"
     },
     "LordeLich": {
-        "stats": {
-            "inteligencia": 22, "constituicao": 18
-        },
-        "dado_vida": [1, 8],
-        "hp": 280,
-        "ac": 17,
-        "dado_dano": [3, 6],
-        "velocidade": 4, "alcance": 6
+        "stats": { "inteligencia": 22, "constituicao": 18 },
+        "dado_vida": [1, 8], "hp": 280, "ac": 17, "dado_dano": [3, 6],
+        "velocidade": 4, "alcance": 6, "tipo_dano": "Necrotico",
+        "resistencias": { "Necrotico": 0.5, "Perfurante": 0.5 },
+        "imunidades": ["Frio", "Veneno"]
     },
     "DragaoAnciao": {
-        "stats": {
-            "forca": 25, "constituicao": 22
-        },
-        "dado_vida": [1, 20],
-        "hp": 400,
-        "ac": 22,
-        "dado_dano": [3, 10],
-        "velocidade": 4, "alcance": 1
+        "stats": { "forca": 25, "constituicao": 22 },
+        "dado_vida": [1, 20], "hp": 400, "ac": 22, "dado_dano": [3, 10],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Fogo",
+        "resistencias": { "Fogo": 0.5 },
+        "imunidades": ["Paralisia"]
     },
     "Goblin": {
-        "stats": {
-            "destreza": 14, "constituicao": 10
-        },
-        "dado_vida": [1, 6],
-        "hp": 7,
-        "ac": 15,
-        "dado_dano": [1, 6],
-        "velocidade": 5, "alcance": 1
+        "stats": { "destreza": 14, "constituicao": 10 },
+        "dado_vida": [1, 6], "hp": 7, "ac": 15, "dado_dano": [1, 6],
+        "velocidade": 5, "alcance": 1, "tipo_dano": "Cortante"
     },
     "Esqueleto": {
-        "stats": {
-            "destreza": 14, "constituicao": 15
-        },
-        "dado_vida": [1, 8],
-        "hp": 13,
-        "ac": 13,
-        "dado_dano": [1, 6],
-        "velocidade": 4, "alcance": 1
+        "stats": { "destreza": 14, "constituicao": 15 },
+        "dado_vida": [1, 8], "hp": 13, "ac": 13, "dado_dano": [1, 6],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Cortante",
+        "vulnerabilidades": { "Esmagamento": 2.0 },
+        "resistencias": { "Perfurante": 0.5 },
+        "imunidades": ["Veneno", "Doença"]
     },
     "Kobold": {
-        "stats": {
-            "destreza": 15, "constituicao": 9
-        },
-        "dado_vida": [1, 6],
-        "hp": 5,
-        "ac": 12,
-        "dado_dano": [1, 4],
-        "velocidade": 4, "alcance": 5
+        "stats": { "destreza": 15, "constituicao": 9 },
+        "dado_vida": [1, 6], "hp": 5, "ac": 12, "dado_dano": [1, 4],
+        "velocidade": 4, "alcance": 5, "tipo_dano": "Perfurante"
     }
 }

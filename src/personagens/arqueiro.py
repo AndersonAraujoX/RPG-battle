@@ -4,6 +4,7 @@ from .personagem_base import Personagem, calcular_distancia
 class Arqueiro(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
+        self.threat_level = 1.3
         
         self.cooldowns['tiro_duplo'] = 0
         self.cooldown_max['tiro_duplo'] = 3
@@ -15,8 +16,6 @@ class Arqueiro(Personagem):
     def bonus_ataque(self): return self.mod_des + self.bonus_proficiencia
     @property
     def bonus_dano(self): return self.mod_des
-    @property
-    def threat_level(self): return 2
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
         super().atacar(alvo, time_inimigo, time_aliado, tabuleiro, logger)

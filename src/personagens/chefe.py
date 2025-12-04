@@ -4,6 +4,7 @@ from .personagem_base import Personagem, calcular_distancia
 class Chefe(Personagem):
     def __init__(self, nome, time, nivel=10, sound_player=None, stats=None):
         super().__init__(nome, time, nivel, sound_player)
+        self.threat_level = 5.0
         
         self.hp_atual = self.hp_max
         self.cooldowns['pisao_trovejante'] = 0
@@ -13,8 +14,6 @@ class Chefe(Personagem):
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia
     @property
     def bonus_dano(self): return self.mod_for
-    @property
-    def threat_level(self): return 10
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
         if self.cooldowns['pisao_trovejante'] == 0:
@@ -28,7 +27,7 @@ class Chefe(Personagem):
             if self.sound_player: self.sound_player('attack')
 
             for vitima in alvos_afetados:
-                vitima.receber_dano(dano, self, logger)
+                vitima.receber_dano(dano, self, tabuleiro, logger)
                 self.eventos_animacao.append({'tipo': 'dano', 'alvo': vitima, 'dano': dano})
             return
 

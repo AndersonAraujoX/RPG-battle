@@ -8,6 +8,7 @@ from .minions import Goblin
 class ReiGoblin(Personagem):
     def __init__(self, nome, time, nivel=10, sound_player=None, stats=None):
         super().__init__(nome, time, nivel, sound_player)
+        self.threat_level = 3.0
         
         # Fury system
         self.furia_max = 4
@@ -20,8 +21,6 @@ class ReiGoblin(Personagem):
     def bonus_ataque(self): return self.mod_des + self.bonus_proficiencia
     @property
     def bonus_dano(self): return self.mod_des
-    @property
-    def threat_level(self): return 8
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
         if 'convocar_goblin' in self.custo_habilidades and self.furia_atual >= self.custo_habilidades['convocar_goblin']:

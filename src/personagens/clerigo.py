@@ -4,6 +4,7 @@ from .personagem_base import Personagem, calcular_distancia
 class Clerigo(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
+        self.threat_level = 1.4
         
         self.alcance_cura = 5
         
@@ -11,13 +12,12 @@ class Clerigo(Personagem):
         self.fe_max = 10 + nivel
         self.fe_atual = self.fe_max
         self.custo_habilidades = {'canalizar_divindade': 4}
+        self.threat_level = 4
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia
     @property
     def bonus_dano(self): return self.mod_for
-    @property
-    def threat_level(self): return 4
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         # 1. Tentar curar aliado ferido

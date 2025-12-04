@@ -14,6 +14,7 @@ class HealthPotion(Item):
 
     def usar(self, personagem, logger=print):
         import random
+        from src.config import COR_TEXTO, COR_CURA
         cura = sum(random.randint(1, self.cura_dado[1]) for _ in range(self.cura_dado[0])) + self.cura_bonus
-        super().usar(personagem, logger)
+        logger((f"{personagem.nome} usa {self.nome}.", COR_TEXTO))
         personagem.receber_cura(cura, logger)

@@ -1,6 +1,6 @@
 # --- Constantes de Tela e Tabuleiro ---
 LARGURA_TELA = 1024
-ALTURA_BARRA_INICIATIVA = 60
+ALTURA_BARRA_INICIATIVA = 80
 ALTURA_TELA = 768 + ALTURA_BARRA_INICIATIVA
 TAMANHO_CELULA = 30
 LARGURA_TABULEIRO = 20 * TAMANHO_CELULA
@@ -17,8 +17,18 @@ COR_BOTAO_DESABILITADO = (50, 50, 50)
 CORES_TIME = {"A": (60, 120, 220), "B": (220, 60, 60)}
 COR_HP_BAR_FUNDO = (50, 50, 50)
 COR_HP_BAR_FRENTE = (60, 200, 60)
+COR_CURA = (60, 220, 60)
+COR_DANO = (255, 100, 100)
+COR_CRITICO = (255, 255, 100)
+COR_STATUS = (150, 150, 255)
+COR_XP = (200, 200, 200)
+COR_LEVEL_UP = (255, 215, 0)
 COR_MANA_BAR = (60, 100, 220)
 COR_ENERGIA_BAR = (220, 200, 60)
+COR_ACCENT = (138, 43, 226) # Roxo
+COR_FUNDO_MENU = (10, 10, 15)
+COR_BOTAO_MENU = (40, 30, 50)
+COR_BOTAO_MENU_HOVER = (60, 50, 80)
 
 # --- Constantes de Terreno (importadas para uso nas cores) ---
 TERRENO_NORMAL = "NORMAL"
@@ -36,8 +46,21 @@ CORES_TERRENO = {
 }
 
 # --- Constantes de Estado de Jogo ---
-ESTADO_JOGO_MENU = "MENU"
+ESTADO_JOGO_MENU_PRINCIPAL = "MENU_PRINCIPAL" # Novo estado
+ESTADO_JOGO_SETUP = "SETUP" # Antigo MENU
+ESTADO_JOGO_MENU = "MENU" # Deprecated, alias for SETUP for compatibility or removed
 ESTADO_JOGO_COMBATE = "COMBATE"
+ESTADO_JOGO_LEVEL_UP = "LEVEL_UP"
+ESTADO_JOGO_SALVANDO = "SALVANDO"
+ESTADO_JOGO_CARREGANDO = "CARREGANDO"
+ESTADO_JOGO_EDITOR = "EDITOR"
+
+# --- Cores do Novo Menu ---
+COR_FUNDO_MENU = (5, 5, 5) # Quase preto
+COR_ACCENT = (106, 13, 173) # Roxo
+COR_BOTAO_MENU = (30, 10, 40) # Roxo escuro
+COR_BOTAO_MENU_HOVER = (50, 20, 60)
+COR_SUBTITULO = (150, 100, 200)
 
 # --- Constantes de Estado de Combate ---
 ESTADO_COMBATE_VEZ_IA = "VEZ_IA"
@@ -47,6 +70,7 @@ ESTADO_COMBATE_JOGADOR_SELECIONOU = "JOGADOR_SELECIONOU"
 # --- Constantes de Modo de Painel ---
 PAINEL_MODO_LOG = "LOG"
 PAINEL_MODO_INFO = "INFO"
+PAINEL_MODO_INVENTARIO = "INVENTARIO"
 
 # --- Constantes de Time ---
 TIME_A = "A"
@@ -112,6 +136,9 @@ IMAGE_PERSONAGENS = {
     "DragaoAnciao": "assets/images/dragao_anciao.png",
     "Druida": "assets/images/druida.png",
     "Bruxo": "assets/images/bruxo.png",
+    "Goblin": "assets/images/goblin.png",
+    "Esqueleto": "assets/images/esqueleto.png",
+    "Kobold": "assets/images/kobold.png",
     # Adicione outros personagens conforme necessário
 }
 

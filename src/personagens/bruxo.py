@@ -5,6 +5,7 @@ from ..utils import calcular_distancia
 class Bruxo(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
+        self.threat_level = 1.5
         
         # Mana system
         self.mana_max = 15 + (nivel * 2)
@@ -15,8 +16,6 @@ class Bruxo(Personagem):
     def bonus_ataque(self): return self.mod_car + self.bonus_proficiencia
     @property
     def bonus_dano(self): return self.mod_car
-    @property
-    def threat_level(self): return 4
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         # 1. Tentar amaldiçoar um inimigo sem o debuff

@@ -1,27 +1,48 @@
 import pygame
 import math
 from src.config import (
-    TAMANHO_CELULA, CORES_TERRENO, COR_FUNDO, COR_LINHA, CORES_TIME,
-    COR_HP_BAR_FUNDO, COR_HP_BAR_FRENTE, COR_TEXTO, PROPRIEDADES_STATUS_EFEITO,
-    TERRENO_PAREDE, LARGURA_TABULEIRO, LARGURA_LOG, ALTURA_TELA, COR_BOTAO_HOVER, LARGURA_TELA
+    LARGURA_TELA, ALTURA_TELA, COR_TEXTO, COR_FUNDO, COR_LINHA, COR_HP_BAR_FUNDO, COR_HP_BAR_FRENTE,
+    COR_DANO, COR_CURA, COR_XP, COR_LEVEL_UP, COR_STATUS, COR_CRITICO, TIME_A, TIME_B,
+    TAMANHO_CELULA, CORES_TERRENO, CORES_TIME, PROPRIEDADES_STATUS_EFEITO, TERRENO_PAREDE, 
+    LARGURA_TABULEIRO, LARGURA_LOG, COR_BOTAO_HOVER,    COR_MANA_BAR, COR_ENERGIA_BAR, COR_BOTAO, COR_BOTAO_HOVER
 )
 from src.personagens import (
     Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe, Paladino,
     ReiGoblin, LordeLich, DragaoAnciao, Druida, Bruxo
 )
+from src.utils import calcular_distancia
 
-def desenhar_cenario(tela, motor, game_images, y_offset):
+def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
+    # Crie superfícies para o nevoeiro uma vez para reutilização
+    nevoeiro_visto = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
+    nevoeiro_visto.fill((0, 0, 0, 180))  # Cinza escuro para áreas já vistas
+    nevoeiro_nao_visto = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA))
+    nevoeiro_nao_visto.fill((0, 0, 0))    # Preto para áreas não exploradas
+
     for y in range(motor.tabuleiro.altura):
         for x in range(motor.tabuleiro.largura):
             rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
+            
+            visibilidade = visibilidade_map[y][x]
+
+            if visibilidade == 0: # Não visto
+                tela.blit(nevoeiro_nao_visto, rect.topleft)
+                continue # Pula o resto do desenho para esta célula
+
+            # Desenha o terreno
             terreno = motor.tabuleiro.get_terrain_em(x, y)
             terreno_img_key = f"terreno_{terreno.lower()}"
             if terreno_img_key in game_images and game_images[terreno_img_key]:
                 scaled_img = pygame.transform.scale(game_images[terreno_img_key], (TAMANHO_CELULA, TAMANHO_CELULA))
-                tela.blit(scaled_img, (x * TAMANHO_CELULA, y * TAMANHO_CELULA + y_offset))
+                tela.blit(scaled_img, rect.topleft)
             else:
                 pygame.draw.rect(tela, CORES_TERRENO.get(terreno, COR_FUNDO), rect)
+            
+            # Desenha a grade
             pygame.draw.rect(tela, COR_LINHA, rect, 1)
+
+            if visibilidade == 1: # Visto, mas não na visão atual
+                tela.blit(nevoeiro_visto, rect.topleft)
 
 def desenhar_sprite(tela, personagem, rect, cor, game_images): # Added game_images
     personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
@@ -69,47 +90,45 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images): # Added game_imag
             pygame.draw.polygon(tela, cor, points)
         else: pygame.draw.rect(tela, cor, rect)
 
-def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, game_images, y_offset):
+def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, game_images, y_offset, visibilidade_map):
     personagens_desenhados = set()
     atacante_animacao = animacao_atual['atacante'] if animacao_atual and 'atacante' in animacao_atual else None
+    
     for p in motor.combatentes:
-        if p.esta_vivo and p != atacante_animacao:
-            cor = CORES_TIME.get(p.time, (200, 200, 200))
-            rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
-            if hasattr(p, 'dano_timer') and p.dano_timer > 0:
-                fator = p.dano_timer / 15.0
-                cor = (int(cor[0]*(1-fator) + 255*fator), int(cor[1]*(1-fator) + 50*fator), int(cor[2]*(1-fator) + 50*fator))
-                p.dano_timer -= 1
-            if p == personagem_ativo and not animacao_atual:
-                escala = 1.0 + 0.15 * abs(math.sin(tick * 0.1))
-                largura, altura = int(TAMANHO_CELULA * escala), int(TAMANHO_CELULA * escala)
-                sprite_rect = pygame.Rect(rect.centerx - largura // 2, rect.centery - altura // 2, largura, altura)
-                desenhar_sprite(tela, p, sprite_rect, cor, game_images)
-            else:
-                desenhar_sprite(tela, p, rect, cor, game_images)
-            personagens_desenhados.add(p)
+        # Só desenha o personagem se ele estiver visível ou se for do time do jogador
+        if p.esta_vivo and (visibilidade_map[p.pos_y][p.pos_x] == 2 or p.time == TIME_A):
+            if p != atacante_animacao:
+                cor = CORES_TIME.get(p.time, (200, 200, 200))
+                rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
+                if hasattr(p, 'dano_timer') and p.dano_timer > 0:
+                    fator = p.dano_timer / 15.0
+                    cor = (int(cor[0]*(1-fator) + 255*fator), int(cor[1]*(1-fator) + 50*fator), int(cor[2]*(1-fator) + 50*fator))
+                    p.dano_timer -= 1
+                if p == personagem_ativo and not animacao_atual:
+                    escala = 1.0 + 0.15 * abs(math.sin(tick * 0.1))
+                    largura, altura = int(TAMANHO_CELULA * escala), int(TAMANHO_CELULA * escala)
+                    sprite_rect = pygame.Rect(rect.centerx - largura // 2, rect.centery - altura // 2, largura, altura)
+                    desenhar_sprite(tela, p, sprite_rect, cor, game_images)
+                else:
+                    desenhar_sprite(tela, p, rect, cor, game_images)
+                personagens_desenhados.add(p)
 
-            # Desenhar indicadores de status
-            if p.status_efeitos:
-                status_x_offset = 0
-                for efeito in p.status_efeitos:
-                    prop = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome)
-                    if prop:
-                        # Desenha um pequeno quadrado colorido
-                        cor_status = prop.get("cor", (255, 255, 255))
-                        status_rect = pygame.Rect(rect.right - 10 - status_x_offset, rect.top + 2, 8, 8)
-                        pygame.draw.rect(tela, cor_status, status_rect)
-
-                        # Desenha o ícone do status
-                        icone = prop.get("icone")
-                        if icone:
-                            # Create a smaller font for the icon
-                            fonte_icone = pygame.font.Font(None, 10) # Smaller font for icon
-                            icone_render = fonte_icone.render(icone, True, COR_TEXTO)
-                            icone_rect = icone_render.get_rect(center=status_rect.center)
-                            tela.blit(icone_render, icone_rect)
-                            
-                        status_x_offset += 10 # Offset para o próximo status
+                # Desenhar indicadores de status
+                if p.status_efeitos:
+                    status_x_offset = 0
+                    for efeito in p.status_efeitos:
+                        prop = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome)
+                        if prop:
+                            cor_status = prop.get("cor", (255, 255, 255))
+                            status_rect = pygame.Rect(rect.right - 10 - status_x_offset, rect.top + 2, 8, 8)
+                            pygame.draw.rect(tela, cor_status, status_rect)
+                            icone = prop.get("icone")
+                            if icone:
+                                fonte_icone = pygame.font.Font(None, 10)
+                                icone_render = fonte_icone.render(icone, True, COR_TEXTO)
+                                icone_rect = icone_render.get_rect(center=status_rect.center)
+                                tela.blit(icone_render, icone_rect)
+                            status_x_offset += 10
         
     if atacante_animacao and atacante_animacao.esta_vivo:
         p = atacante_animacao
@@ -123,17 +142,25 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
         cor = CORES_TIME.get(p.time, (200, 200, 200))
         desenhar_sprite(tela, p, rect, cor, game_images)
         personagens_desenhados.add(p)
+    
     for p in motor.combatentes:
-        if p.esta_vivo:
+        if p.esta_vivo and (visibilidade_map[p.pos_y][p.pos_x] == 2 or p.time == TIME_A):
             rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
             hp_percent = p.hp_atual / p.hp_max
-            hp_bar_fundo = pygame.Rect(rect.left, rect.top - 8, TAMANHO_CELULA, 5)
-            hp_bar_frente = pygame.Rect(rect.left, rect.top - 8, int(TAMANHO_CELULA * hp_percent), 5)
-            pygame.draw.rect(tela, COR_HP_BAR_FUNDO, hp_bar_fundo)
-            pygame.draw.rect(tela, COR_HP_BAR_FRENTE, hp_bar_frente)
+            
+            # HP Bar Background (Darker)
+            hp_bar_bg = pygame.Rect(rect.left, rect.top - 8, TAMANHO_CELULA, 6)
+            pygame.draw.rect(tela, (30, 30, 30), hp_bar_bg)
+            
+            # HP Bar Foreground (Green to Red gradient logic could be added here)
+            hp_color = (60, 200, 60) if hp_percent > 0.5 else (200, 200, 60) if hp_percent > 0.25 else (200, 60, 60)
+            hp_bar_fg = pygame.Rect(rect.left, rect.top - 8, int(TAMANHO_CELULA * hp_percent), 6)
+            pygame.draw.rect(tela, hp_color, hp_bar_fg)
+            
+            # Border for HP Bar
+            pygame.draw.rect(tela, (0, 0, 0), hp_bar_bg, 1)
             
             bar_y = rect.top - 2
-            # Draw Mana bar
             if p.mana_max > 0:
                 mana_percent = p.mana_atual / p.mana_max
                 mana_bar_fundo = pygame.Rect(rect.left, bar_y, TAMANHO_CELULA, 3)
@@ -142,7 +169,6 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
                 pygame.draw.rect(tela, COR_MANA_BAR, mana_bar_frente)
                 bar_y += 4
             
-            # Draw Energy bar
             if p.energia_max > 0:
                 energia_percent = p.energia_atual / p.energia_max
                 energia_bar_fundo = pygame.Rect(rect.left, bar_y, TAMANHO_CELULA, 3)
@@ -154,28 +180,19 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
             pygame.draw.circle(tela, (0,0,0), (rect.left + 6, rect.top + 6), 8)
             tela.blit(level_render, (rect.left + 2, rect.top))
 
-            # Draw cooldown indicator
             if p.cooldowns:
                 cooldown_x_offset = 0
                 for i, (nome, cd) in enumerate(p.cooldowns.items()):
                     if p.cooldown_max.get(nome, 0) > 0:
-                        # Draw a small pie chart indicator
                         angle = (cd / p.cooldown_max[nome]) * 2 * math.pi
                         rect_cooldown = pygame.Rect(rect.left + cooldown_x_offset, rect.bottom - 8, 8, 8)
-                        
-                        # Background
                         pygame.draw.ellipse(tela, (50, 50, 50), rect_cooldown)
-                        
                         if angle > 0:
-                            # foreground
                             start_angle = math.pi / 2
                             end_angle = start_angle + angle
-                            
-                            # Create a surface for the arc
                             arc_surface = pygame.Surface((rect_cooldown.width, rect_cooldown.height), pygame.SRCALPHA)
                             pygame.draw.arc(arc_surface, (200, 200, 50, 200), (0,0,rect_cooldown.width, rect_cooldown.height), start_angle, end_angle, 4)
                             tela.blit(arc_surface, rect_cooldown.topleft)
-                        
                         cooldown_x_offset += 10
 
 def desenhar_pre_visualizacao_ataque(tela, motor, hovered_enemy, game_images, y_offset):
@@ -188,18 +205,18 @@ def desenhar_pre_visualizacao_ataque(tela, motor, hovered_enemy, game_images, y_
 
     for p in motor.combatentes:
         if p.esta_vivo and p.time == TIME_A: # Only allied units (Team A)
-            # Use motor.calcular_distancia for consistency and to avoid re-importing utils
-            if motor.tabuleiro.calcular_distancia(p, hovered_enemy) <= p.alcance:
+            # Use standalone calcular_distancia function
+            if calcular_distancia(p, hovered_enemy) <= p.alcance:
                 rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
                 tela.blit(highlight_surf, rect.topleft)
 
 
-                        cooldown_x_offset += 10
+
 
 def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_images):
-    BARRA_ALTURA = 60
-    SPRITE_SIZE = 40
-    SPRITE_PADDING = 10
+    BARRA_ALTURA = 80 # Increased height
+    SPRITE_SIZE = 50 # Increased size
+    SPRITE_PADDING = 20 # Increased padding
     
     # Draw background bar
     pygame.draw.rect(tela, (20, 20, 30), (0, 0, LARGURA_TELA, BARRA_ALTURA))
@@ -212,7 +229,7 @@ def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_ima
         
         # Highlight active character
         if personagem == personagem_ativo:
-            pygame.draw.rect(tela, (255, 255, 0, 150), (x_offset - 2, BARRA_ALTURA // 2 - SPRITE_SIZE // 2 - 2, SPRITE_SIZE + 4, SPRITE_SIZE + 4), border_radius=5)
+            pygame.draw.rect(tela, (255, 255, 0, 150), (x_offset - 4, BARRA_ALTURA // 2 - SPRITE_SIZE // 2 - 4, SPRITE_SIZE + 8, SPRITE_SIZE + 8), border_radius=5)
 
         sprite_rect = pygame.Rect(x_offset, BARRA_ALTURA // 2 - SPRITE_SIZE // 2, SPRITE_SIZE, SPRITE_SIZE)
         cor = CORES_TIME.get(personagem.time, (200, 200, 200))
@@ -220,17 +237,78 @@ def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_ima
         
         x_offset += SPRITE_SIZE + SPRITE_PADDING
 
+# ... (projeteis function skipped)
 
-def desenhar_projeteis_e_efeitos(tela, animacao_atual, y_offset):
+def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images):
+    # This function seems redundant with desenhar_barra_iniciativa but is used for the HUD panel?
+    # Let's keep it but improve spacing if used
+    area_iniciativa = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 250, LARGURA_LOG, 100)
+    pygame.draw.rect(tela, (15, 15, 15), area_iniciativa)
+    
+    titulo_render = fonte.render("Ordem de Iniciativa:", True, COR_TEXTO)
+    tela.blit(titulo_render, (area_iniciativa.x + 10, area_iniciativa.y + 5))
+    
+    x_offset = area_iniciativa.x + 15
+    y_offset = area_iniciativa.y + 35
+    
+    for personagem in ordem:
+        if not personagem.esta_vivo:
+            continue
+            
+        cor = CORES_TIME.get(personagem.time)
+        
+        # Highlight the active character
+        if personagem == personagem_ativo:
+            pygame.draw.rect(tela, COR_BOTAO_HOVER, (x_offset - 2, y_offset - 2, 34, 34), border_radius=4)
+
+        # Draw a smaller version of the character sprite
+        sprite_rect = pygame.Rect(x_offset, y_offset, 30, 30) # Increased size
+        desenhar_sprite(tela, personagem, sprite_rect, cor, game_images)
+        
+        x_offset += 40 # Increased spacing
+        if x_offset > area_iniciativa.right - 35:
+            x_offset = area_iniciativa.x + 15
+            y_offset += 40
+
+
+def desenhar_projeteis_e_efeitos(tela, animacao_atual, y_offset, game_images):
     if not animacao_atual: return
     progresso = animacao_atual['progresso']
-    if animacao_atual['tipo'] == 'ataque' and animacao_atual['atacante'].alcance > 1:
-        atacante, alvo = animacao_atual['atacante'], animacao_atual['alvo']
+    
+    if animacao_atual['tipo'] == 'ataque':
+        atacante = animacao_atual['atacante']
+        alvo = animacao_atual['alvo']
         start_pos = pygame.Vector2(atacante.pos_x * TAMANHO_CELULA + 15, atacante.pos_y * TAMANHO_CELULA + 15 + y_offset)
         end_pos = pygame.Vector2(alvo.pos_x * TAMANHO_CELULA + 15, alvo.pos_y * TAMANHO_CELULA + 15 + y_offset)
+
         if progresso <= 0.5:
             pos_interp = start_pos.lerp(end_pos, progresso * 2)
-            pygame.draw.circle(tela, (255, 255, 0), pos_interp, 5)
+            
+            if isinstance(atacante, Arqueiro):
+                # Desenha uma flecha
+                vetor_direcao = (end_pos - start_pos).normalize()
+                angulo = vetor_direcao.angle_to(pygame.Vector2(1, 0))
+                # Placeholder para imagem de flecha
+                ponta = pos_interp
+                base1 = pos_interp - vetor_direcao * 15 + vetor_direcao.rotate(90) * 4
+                base2 = pos_interp - vetor_direcao * 15 - vetor_direcao.rotate(90) * 4
+                pygame.draw.line(tela, (139, 69, 19), pos_interp, pos_interp - vetor_direcao * 15, 2)
+                pygame.draw.polygon(tela, (200, 200, 200), [ponta, base1, base2])
+            elif animacao_atual.get('habilidade') == 'raio_de_gelo':
+                # Bola de gelo pulsante
+                raio = 5 + 3 * math.sin(progresso * 20)
+                pygame.draw.circle(tela, (173, 216, 230), pos_interp, raio)
+            elif atacante.alcance > 1:
+                 # Projétil genérico
+                pygame.draw.circle(tela, (255, 255, 0), pos_interp, 5)
+        
+        # Efeito de corte para ataques corpo a corpo
+        if atacante.alcance == 1 and progresso > 0.4 and progresso < 0.8:
+            meio_anim = (progresso - 0.4) / 0.4
+            ponto1 = end_pos + pygame.Vector2(-15, -15).lerp(pygame.Vector2(15, 15), meio_anim)
+            ponto2 = end_pos + pygame.Vector2(15, -15).lerp(pygame.Vector2(-15, 15), meio_anim)
+            pygame.draw.line(tela, (255, 255, 255), ponto1, ponto2, 3)
+
     elif animacao_atual['tipo'] == 'ataque_area':
         raio_max = animacao_atual['raio'] * TAMANHO_CELULA
         raio_atual = raio_max * progresso
@@ -246,10 +324,10 @@ def desenhar_log(tela, fonte, logs, max_altura, y_offset):
     titulo = fonte.render("LOG DE COMBATE", True, COR_TEXTO)
     tela.blit(titulo, (LARGURA_TABULEIRO + 20, y_offset + 20))
     y_offset_texto = y_offset + 50
-    for log_msg in logs:
+    for log_msg, cor in logs:
         if y_offset_texto + 20 > max_altura: # Evita desenhar fora da área
             break
-        log_render = fonte.render(''.join(c for c in log_msg if c.isprintable()), True, COR_TEXTO)
+        log_render = fonte.render(''.join(c for c in log_msg if c.isprintable()), True, cor)
         tela.blit(log_render, (LARGURA_TABULEIRO + 20, y_offset_texto))
         y_offset_texto += 20
 
@@ -281,6 +359,34 @@ def desenhar_info_personagem(tela, fonte, personagem, max_altura, y_offset):
         cor_status = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome, {}).get("cor", COR_TEXTO) # Pega a cor do config
         tela.blit(fonte.render(f"  - {efeito.nome} ({efeito.duracao_restante} turnos)", True, cor_status), (LARGURA_TABULEIRO + 20, y)); y += 25
 
+def desenhar_inventario(tela, fonte, personagem, max_altura, y_offset, mouse_pos):
+    area_inventario = pygame.Rect(LARGURA_TABULEIRO, y_offset, LARGURA_LOG, max_altura - y_offset)
+    pygame.draw.rect(tela, (15, 15, 25), area_inventario) # Fundo azul escuro
+    
+    y = y_offset + 20
+    titulo = fonte.render(f"Inventário de {personagem.nome}", True, COR_TEXTO)
+    tela.blit(titulo, (LARGURA_TABULEIRO + 20, y)); y += 40
+
+    if not personagem.inventario:
+        tela.blit(fonte.render("  Vazio", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
+        return
+
+    for i, item in enumerate(personagem.inventario):
+        if y + 40 > max_altura:
+            break
+        
+        item_rect = pygame.Rect(LARGURA_TABULEIRO + 20, y, LARGURA_LOG - 40, 35)
+        
+        # Highlight se o mouse estiver sobre o item
+        cor_fundo_item = COR_BOTAO_HOVER if item_rect.collidepoint(mouse_pos) else COR_BOTAO
+        pygame.draw.rect(tela, cor_fundo_item, item_rect, border_radius=5)
+        
+        nome_item_render = fonte.render(item.nome, True, COR_TEXTO)
+        tela.blit(nome_item_render, (item_rect.x + 10, item_rect.y + 10))
+        
+        y += 40
+
+
 def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
     if not unidade: return
 
@@ -309,13 +415,19 @@ def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
             if dist <= unidade.alcance:
                 tela.blit(ataque_surf, (inimigo.pos_x * TAMANHO_CELULA, inimigo.pos_y * TAMANHO_CELULA + y_offset))
 
-def desenhar_tela_fim(tela, fonte, vencedor, y_offset):
+def desenhar_tela_fim(tela, fonte, vencedor, y_offset, botoes, mouse_pos):
     overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     tela.blit(overlay, (0, 0))
+    
     texto = f"O {vencedor} VENCEU!"
     texto_render = fonte.render(texto, True, COR_TEXTO)
-    tela.blit(texto_render, texto_render.get_rect(center=(LARGURA_TELA // 2, ALTURA_TELA // 2 + y_offset // 2)))
+    tela.blit(texto_render, texto_render.get_rect(center=(LARGURA_TELA // 2, ALTURA_TELA // 2 - 50)))
+
+    botoes['reiniciar'].update_hover(mouse_pos)
+    botoes['reiniciar'].desenhar(tela, fonte)
+    botoes['voltar_menu'].update_hover(mouse_pos)
+    botoes['voltar_menu'].desenhar(tela, fonte)
 
 def desenhar_comandos(tela, fonte, y_offset):
     area_comandos = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 150 + y_offset, LARGURA_LOG, 150)
@@ -362,6 +474,109 @@ def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images)
         if x_offset > area_iniciativa.right - 25:
             x_offset = area_iniciativa.x + 10
             y_offset += 25
+
+def desenhar_floating_texts(tela, floating_texts):
+    for texto in floating_texts:
+        texto.draw(tela)
+
+def desenhar_editor(tela, fonte_menu, editor_mapa, botoes, terreno_selecionado, game_images, mouse_pos):
+    tela.fill(COR_FUNDO)
+    
+    # Desenha o tabuleiro do editor
+    for y, linha in enumerate(editor_mapa):
+        for x, terreno in enumerate(linha):
+            rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
+            terreno_img_key = f"terreno_{terreno.lower()}"
+            if terreno_img_key in game_images and game_images[terreno_img_key]:
+                scaled_img = pygame.transform.scale(game_images[terreno_img_key], (TAMANHO_CELULA, TAMANHO_CELULA))
+                tela.blit(scaled_img, rect.topleft)
+            else:
+                pygame.draw.rect(tela, CORES_TERRENO.get(terreno, COR_FUNDO), rect)
+            pygame.draw.rect(tela, COR_LINHA, rect, 1)
+            
+    # Desenha a UI do editor na lateral
+    area_ui = pygame.Rect(LARGURA_TABULEIRO, 0, LARGURA_LOG, ALTURA_TELA)
+    pygame.draw.rect(tela, (30, 30, 40), area_ui)
+    
+    titulo_render = fonte_menu.render("Editor de Mapas", True, COR_TEXTO)
+    tela.blit(titulo_render, titulo_render.get_rect(center=(LARGURA_TABULEIRO + LARGURA_LOG // 2, 50)))
+
+    for nome, botao in botoes.items():
+        botao.update_hover(mouse_pos)
+        # Highlight no terreno selecionado
+        if nome == terreno_selecionado:
+            pygame.draw.rect(tela, COR_BOTAO_HOVER, botao.rect.inflate(4, 4), border_radius=7)
+        botao.desenhar(tela, fonte_menu)
+
+def desenhar_itens_no_chao(tela, tabuleiro, y_offset, visibilidade_map):
+    for y in range(tabuleiro.altura):
+        for x in range(tabuleiro.largura):
+            if visibilidade_map[y][x] > 0: # Visto ou visível
+                item = tabuleiro.get_item_em(x, y)
+                if item:
+                    rect = pygame.Rect(x * TAMANHO_CELULA + 5, y * TAMANHO_CELULA + 5 + y_offset, TAMANHO_CELULA - 10, TAMANHO_CELULA - 10)
+                    # Simples representação de item como um círculo dourado
+                    pygame.draw.circle(tela, (255, 215, 0), rect.center, 5)
+                    if visibilidade_map[y][x] == 1: # Efeito de nevoeiro se apenas visto
+                         nevoeiro_visto = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
+                         nevoeiro_visto.fill((0, 0, 0, 180))
+                         tela.blit(nevoeiro_visto, (x * TAMANHO_CELULA, y * TAMANHO_CELULA + y_offset))
+
+def desenhar_tela_carregando(tela, fonte_titulo, fonte_menu, save_files, mouse_pos):
+    overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 220))
+    tela.blit(overlay, (0, 0))
+
+    titulo_render = fonte_titulo.render("Carregar Jogo", True, COR_TEXTO)
+    tela.blit(titulo_render, titulo_render.get_rect(center=(LARGURA_TELA // 2, 100)))
+
+    if not save_files:
+        sem_saves_render = fonte_menu.render("Nenhum jogo salvo encontrado.", True, COR_TEXTO)
+        tela.blit(sem_saves_render, sem_saves_render.get_rect(center=(LARGURA_TELA // 2, 200)))
+        return
+
+    for i, nome_arquivo in enumerate(save_files):
+        botao_rect = pygame.Rect(LARGURA_TELA // 2 - 150, 150 + i * 50, 300, 40)
+        cor_fundo = COR_BOTAO_HOVER if botao_rect.collidepoint(mouse_pos) else COR_BOTAO
+        pygame.draw.rect(tela, cor_fundo, botao_rect, border_radius=5)
+        
+        nome_render = fonte_menu.render(nome_arquivo, True, COR_TEXTO)
+        tela.blit(nome_render, nome_render.get_rect(center=botao_rect.center))
+
+def desenhar_tela_salvando(tela, fonte_titulo, fonte_menu, nome_arquivo):
+    overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 220))
+    tela.blit(overlay, (0, 0))
+
+    titulo_render = fonte_titulo.render("Salvar Jogo", True, COR_TEXTO)
+    tela.blit(titulo_render, titulo_render.get_rect(center=(LARGURA_TELA // 2, 200)))
+
+    input_box = pygame.Rect(LARGURA_TELA // 2 - 150, 300, 300, 40)
+    pygame.draw.rect(tela, (255, 255, 255), input_box, 2)
+
+    nome_render = fonte_menu.render(nome_arquivo, True, COR_TEXTO)
+    tela.blit(nome_render, (input_box.x + 5, input_box.y + 5))
+
+    instrucao_render = fonte_menu.render("Pressione Enter para salvar", True, COR_TEXTO)
+    tela.blit(instrucao_render, instrucao_render.get_rect(center=(LARGURA_TELA // 2, 400)))
+
+def desenhar_tela_level_up(tela, fonte_titulo, fonte_menu, personagem, botoes, mouse_pos):
+    overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 220))
+    tela.blit(overlay, (0, 0))
+
+    titulo_render = fonte_titulo.render("LEVEL UP!", True, (255, 215, 0))
+    tela.blit(titulo_render, titulo_render.get_rect(center=(LARGURA_TELA // 2, 100)))
+
+    nome_render = fonte_menu.render(f"{personagem.nome} subiu para o nível {personagem.nivel}!", True, COR_TEXTO)
+    tela.blit(nome_render, nome_render.get_rect(center=(LARGURA_TELA // 2, 180)))
+    
+    subtitulo_render = fonte_menu.render("Escolha um atributo para aumentar:", True, COR_TEXTO)
+    tela.blit(subtitulo_render, subtitulo_render.get_rect(center=(LARGURA_TELA // 2, 250)))
+
+    for nome, botao in botoes.items():
+        botao.update_hover(mouse_pos)
+        botao.desenhar(tela, fonte_menu)
 
 def desenhar_feedback_invalido(tela, alpha, y_offset):
     overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA - y_offset), pygame.SRCALPHA)

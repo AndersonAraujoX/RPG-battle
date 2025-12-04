@@ -4,6 +4,7 @@ from .personagem_base import Personagem
 class LordeLich(Personagem):
     def __init__(self, nome, time, nivel=12, sound_player=None, stats=None):
         super().__init__(nome, time, nivel, sound_player)
+        self.threat_level = 5.0
         
         self.cooldowns['toque_drenante'] = 0
         self.cooldown_max['toque_drenante'] = 3
@@ -13,8 +14,6 @@ class LordeLich(Personagem):
     def bonus_ataque(self): return self.mod_int + self.bonus_proficiencia
     @property
     def bonus_dano(self): return self.mod_int
-    @property
-    def threat_level(self): return 9
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
         if self.cooldowns['toque_drenante'] == 0 and self.hp_atual < self.hp_max:
@@ -23,7 +22,7 @@ class LordeLich(Personagem):
             
             dano = sum(random.randint(1, 6) for _ in range(4)) + self.bonus_dano
             logger(f"  {alvo.nome} sofre {dano} de dano necrótico.")
-            alvo.receber_dano(dano, self, logger)
+            alvo.receber_dano(dano, self, tabuleiro, logger)
             
             cura = dano // 2
             self.hp_atual = min(self.hp_max, self.hp_atual + cura)

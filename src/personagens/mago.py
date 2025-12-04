@@ -6,6 +6,7 @@ from ..config import TERRENO_PAREDE
 class Mago(Personagem):
     def __init__(self, nome, time, nivel=1, sound_player=None):
         super().__init__(nome, time, nivel, sound_player)
+        self.threat_level = 1.5
         
         # Mana system
         self.mana_max = 20 + (nivel * 2)
@@ -14,8 +15,6 @@ class Mago(Personagem):
 
     @property
     def bonus_ataque(self): return self.mod_int + self.bonus_proficiencia
-    @property
-    def threat_level(self): return 4
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         # 1. Tentar usar Bola de Fogo
@@ -71,7 +70,7 @@ class Mago(Personagem):
         # 3. Lógica padrão da classe base (fugir ou atacar)
         return super().decidir_acao(inimigos, aliados, tabuleiro, logs_turno)
 
-    def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
+    def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print, **kwargs):
         # A lógica da Bola de Fogo foi movida para o MotorCombate para uma IA mais inteligente.
         # Se o Mago chega aqui, é porque decidiu fazer um ataque normal.
-        super().atacar(alvo, time_inimigo, time_aliado, tabuleiro, logger)
+        super().atacar(alvo, time_inimigo, time_aliado, tabuleiro, logger, **kwargs)

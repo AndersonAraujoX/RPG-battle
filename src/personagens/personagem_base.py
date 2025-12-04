@@ -17,6 +17,11 @@ class Personagem:
         self.xp = 0
         self.xp_para_upar = 2 ** self.nivel
         self.kills = 0
+        
+        # Initialize equipment early as stats calculation depends on it
+        self.arma_equipada = None
+        self.armadura_equipada = None
+        self.acessorios_equipados = []
 
         class_name = self.__class__.__name__
         if class_name in DADOS_PERSONAGENS:
@@ -34,6 +39,7 @@ class Personagem:
             self.dado_vida = tuple(data.get("dado_vida", [1, 6]))
             self._velocidade = data.get("velocidade", 4)
             self.alcance = data.get("alcance", 1)
+            self.tipo_dano_base = data.get("tipo_dano", "Físico")
             
             # Calculate hp_max based on provided value or formula
             base_hp = data.get("hp", (self.dado_vida[1] + self.mod_con))
@@ -46,6 +52,7 @@ class Personagem:
             self.dado_vida = (1, 6)
             self._velocidade = 4
             self.alcance = 1
+            self.tipo_dano_base = "Físico"
             self.hp_max = 10 + self.mod_con
 
         self.hp_atual = self.hp_max
@@ -59,12 +66,12 @@ class Personagem:
         self.sound_player = sound_player
         self.eventos_animacao = []
         self.status_efeitos = []
-        self.imunidades = []
+        self.imunidades = data.get("imunidades", {}) # Agora um dicionário
+        self.resistencias = data.get("resistencias", {}) # Novo atributo
+        self.vulnerabilidades = data.get("vulnerabilidades", {}) # Novo atributo
         self.inventario = [HealthPotion()]
-        self.arma_equipada = None
-        self.armadura_equipada = None
-        self.acessorios_equipados = []
         self.elevacao = 0
+        self.threat_level = 1
 
     def equipar_arma(self, arma):
         self.arma_equipada = arma
@@ -88,35 +95,36 @@ class Personagem:
             self.energia_atual = min(self.energia_max, self.energia_atual + 1)
 
     def aplicar_status_efeito(self, nome_efeito, duracao_turnos=1, logger=print):
+        from src.config import COR_STATUS, COR_TEXTO
         if nome_efeito in self.imunidades:
-            logger(f"  {self.nome} é imune a {nome_efeito}!")
+            logger((f"  {self.nome} é imune a {nome_efeito}!", COR_TEXTO))
             return
 
         if nome_efeito not in PROPRIEDADES_STATUS_EFEITO:
-            logger(f"  ERRO: Efeito de status '{nome_efeito}' não encontrado.")
+            logger((f"  ERRO: Efeito de status '{nome_efeito}' não encontrado.", COR_DANO))
             return
 
-        # Verifica se o efeito já existe e atualiza a duração
         for efeito in self.status_efeitos:
             if efeito.nome == nome_efeito:
                 efeito.duracao_restante += duracao_turnos
-                logger(f"  {self.nome} teve a duração de {nome_efeito} estendida para {efeito.duracao_restante} turnos.")
+                logger((f"  {self.nome} teve a duração de {nome_efeito} estendida para {efeito.duracao_restante} turnos.", COR_STATUS))
                 return
 
         novo_efeito = StatusEfeito(nome_efeito, duracao_turnos)
         self.status_efeitos.append(novo_efeito)
-        logger(f"  {self.nome} foi afetado por {novo_efeito.nome} por {novo_efeito.duracao_restante} turnos.")
+        logger((f"  {self.nome} foi afetado por {novo_efeito.nome} por {novo_efeito.duracao_restante} turnos.", COR_STATUS))
         self.eventos_animacao.append({'tipo': 'status_aplicado', 'personagem': self, 'efeito': novo_efeito.nome})
 
     def remover_status_efeito(self, nome_efeito, logger=print):
+        from src.config import COR_TEXTO
         self.status_efeitos = [e for e in self.status_efeitos if e.nome != nome_efeito]
-        logger(f"  {self.nome} não está mais sob efeito de {nome_efeito}.")
+        logger((f"  {self.nome} não está mais sob efeito de {nome_efeito}.", COR_TEXTO))
         self.eventos_animacao.append({'tipo': 'status_removido', 'personagem': self, 'efeito': nome_efeito})
 
-    def tick_status_efeitos(self, logger=print):
+    def tick_status_efeitos(self, tabuleiro, logger=print):
         efeitos_a_remover = []
         for efeito in self.status_efeitos:
-            efeito.aplicar_efeito_por_turno(self, logger)
+            efeito.aplicar_efeito_por_turno(self, tabuleiro, logger)
             if not efeito.tick():
                 efeitos_a_remover.append(efeito.nome)
         
@@ -138,15 +146,17 @@ class Personagem:
         return True
 
     def ganhar_xp(self, quantidade, logger=print):
+        from src.config import COR_XP
         if not self.esta_vivo: return
         self.xp += quantidade
-        logger(f"  {self.nome} ganha {quantidade} XP!")
+        logger((f"  {self.nome} ganha {quantidade} XP!", COR_XP))
         if self.xp >= self.xp_para_upar:
             self.subir_de_nivel(logger)
 
     def subir_de_nivel(self, logger=print):
+        from src.config import COR_LEVEL_UP
         self.nivel += 1
-        self.xp = 0 
+        self.xp = 0
         self.xp_para_upar = 2 ** self.nivel
         
         aumento_hp = random.randint(1, self.dado_vida[1]) + self.mod_con
@@ -155,10 +165,13 @@ class Personagem:
         self.hp_max += aumento_hp
         self.hp_atual += aumento_hp
         
-        logger(f"  *** {self.nome} SUBIU PARA O NÍVEL {self.nivel}! ***")
-        logger(f"  (HP máximo aumentado em {aumento_hp})")
+        logger((f"  *** {self.nome} SUBIU PARA O NÍVEL {self.nivel}! ***", COR_LEVEL_UP))
+        logger((f"  (HP máximo aumentado em {aumento_hp})", COR_LEVEL_UP))
         if self.sound_player: self.sound_player('level_up')
         self.eventos_animacao.append({'tipo': 'level_up', 'personagem': self})
+
+        # A lógica de escolha de atributos será tratada na classe Game
+        self.eventos_animacao.append({'tipo': 'escolha_atributo', 'personagem': self})
 
     def get_bonus_acessorio(self, stat):
         bonus = 0
@@ -188,11 +201,7 @@ class Personagem:
             return self.armadura_equipada.bonus_ac
         return self.ac_base
 
-    @property
-    def ac(self):
-        if self.armadura_equipada:
-            return self.armadura_equipada.bonus_ac
-        return self.ac_base
+
 
     @property
     def mod_for(self): return (self.forca - 10) // 2
@@ -204,6 +213,8 @@ class Personagem:
     def mod_int(self): return (self.inteligencia - 10) // 2
     @property
     def mod_sab(self): return (self.sabedoria - 10) // 2
+    @property
+    def mod_car(self): return (self.carisma - 10) // 2
     
     @property
     def bonus_proficiencia(self): return 1 + math.ceil(self.nivel / 4)
@@ -224,30 +235,34 @@ class Personagem:
                 bonus += efeito.propriedades["bonus_dano_ataque"]
         return bonus
 
-    @property
-    def threat_level(self): return 1
+
 
     def rolar_iniciativa(self):
         self.iniciativa = random.randint(1, 20) + self.mod_des
         return self.iniciativa
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
+        from src.config import COR_TEXTO
         if not self.pode_agir:
-            logs_turno.append(f"  {self.nome} está impedido de agir devido a um efeito de status.")
+            logs_turno.append((f"  {self.nome} está impedido de agir devido a um efeito de status.", COR_TEXTO))
             return {'acao': 'passar'}
+
+        # 0. Pegar item se estiver em cima de um
+        item_no_chao = tabuleiro.get_item_em(self.pos_x, self.pos_y)
+        if item_no_chao:
+            return {'acao': 'pegar_item', 'item': item_no_chao}
 
         # 1. Usar Poção de Cura se com pouca vida
         if self.hp_atual / self.hp_max < 0.35:
             for item in self.inventario:
                 if isinstance(item, HealthPotion):
-                    logs_turno.append(f"  {self.nome} está com pouca vida e usa uma Poção de Cura!")
+                    logs_turno.append((f"  {self.nome} está com pouca vida e usa uma Poção de Cura!", COR_TEXTO))
                     item.usar(self, logs_turno.append)
                     self.inventario.remove(item)
                     return {'acao': 'usar_item', 'item': item}
         
         # 2. Tentar fugir se com pouca vida
         if self.hp_atual / self.hp_max < 0.25 and inimigos and self.pode_fugir:
-            logs_turno.append(f"  {self.nome} está com pouca vida e tenta fugir!")
             return {'acao': 'fugir'}
 
         if not inimigos:
@@ -262,57 +277,68 @@ class Personagem:
         alvos_finalizaveis = [p for p in inimigos_em_range if p.hp_atual <= avg_damage]
         if alvos_finalizaveis:
             alvo = max(alvos_finalizaveis, key=lambda p: p.threat_level)
-            logs_turno.append(f"  ({self.nome} identifica uma oportunidade de finalizar {alvo.nome}!)")
+            logs_turno.append((f"  ({self.nome} identifica uma oportunidade de finalizar {alvo.nome}!)", COR_TEXTO))
             return {'acao': 'atacar', 'alvo': alvo}
         
         # Prioridade 2: Atacar o inimigo mais próximo em range
         if inimigos_em_range:
             alvo = min(inimigos_em_range, key=lambda p: calcular_distancia(self,p))
-            logs_turno.append(f"  ({self.nome} ataca o inimigo mais próximo ao seu alcance: {alvo.nome}.)")
+            logs_turno.append((f"  ({self.nome} ataca o inimigo mais próximo ao seu alcance: {alvo.nome}.)", COR_TEXTO))
             return {'acao': 'atacar', 'alvo': alvo}
 
         # Prioridade 3: Mover-se em direção ao inimigo com menor HP
         alvo = min(inimigos, key=lambda p: p.hp_atual)
-        logs_turno.append(f"  ({self.nome} se move em direção a {alvo.nome}, o inimigo com menos vida.)")
+        logs_turno.append((f"  ({self.nome} se move em direção a {alvo.nome}, o inimigo com menos vida.)", COR_TEXTO))
         return {'acao': 'mover', 'alvo': alvo}
         
         return {'acao': 'passar'}
 
-    def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
+    def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print, tipo_dano_override=None, habilidade=None):
+        from src.config import COR_TEXTO, COR_CRITICO
         if not self.esta_vivo: return
         
-        self.eventos_animacao.append({'tipo': 'ataque', 'atacante': self, 'alvo': alvo})
+        self.eventos_animacao.append({'tipo': 'ataque', 'atacante': self, 'alvo': alvo, 'habilidade': habilidade})
         if self.sound_player: self.sound_player('attack')
 
         flanking_bonus = 0
         if self.alcance == 1 and time_aliado:
-            for aliado in time_aliado:
-                if aliado is not self and aliado.esta_vivo and aliado.alcance == 1 and calcular_distancia(aliado, alvo) <= aliado.alcance:
-                    flanking_bonus = 2
-                    logger(f"  {self.nome} está flanqueando {alvo.nome} com um aliado! (+2 para atacar)")
-                    break
+            # Posição do atacante em relação ao alvo
+            dx_atacante = self.pos_x - alvo.pos_x
+            dy_atacante = self.pos_y - alvo.pos_y
 
-        logger(f"{self.nome} (Lvl {self.nivel}) ataca {alvo.nome} (Lvl {alvo.nivel}).")
+            for aliado in time_aliado:
+                if aliado is not self and aliado.esta_vivo and aliado.alcance == 1 and calcular_distancia(aliado, alvo) <= 1:
+                    # Posição do aliado em relação ao alvo
+                    dx_aliado = aliado.pos_x - alvo.pos_x
+                    dy_aliado = aliado.pos_y - alvo.pos_y
+
+                    # Verifica se estão em lados opostos (vetores opostos)
+                    if dx_atacante == -dx_aliado and dy_atacante == -dy_aliado:
+                        flanking_bonus = 2
+                        logger((f"  {self.nome} está flanqueando GEOMETRICAMENTE {alvo.nome} com {aliado.nome}! (+2 para atacar)", COR_TEXTO))
+                        break
+
+        logger((f"{self.nome} (Lvl {self.nivel}) ataca {alvo.nome} (Lvl {alvo.nivel}).", COR_TEXTO))
         
         ac_alvo = alvo.ac
             
         terreno_alvo = tabuleiro.get_terrain_em(alvo.pos_x, alvo.pos_y)
         if terreno_alvo == TERRENO_FLORESTA:
             if self.alcance > 1: # Ranged attack
-                logger(f"  {alvo.nome} está em uma floresta, o ataque pode errar!")
+                logger((f"  {alvo.nome} está em uma floresta, o ataque pode errar!", COR_TEXTO))
                 if random.random() < 0.5: # 50% chance to miss
-                    logger(f"  O ataque se perde na vegetação e erra!")
+                    logger((f"  O ataque se perde na vegetação e erra!", COR_TEXTO))
                     if self.sound_player: self.sound_player('miss')
                     self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': 'ERROU!'})
                     return
             else: # Melee attack
                 ac_alvo += 2
-                logger(f"  {alvo.nome} recebe cobertura da floresta (+2 AC)!")
+                logger((f"  {alvo.nome} recebe cobertura da floresta (+2 AC)!", COR_TEXTO))
 
         # Elevation advantage
         bonus_elevacao = 0
         if self.elevacao > alvo.elevacao and self.alcance > 1: # Ranged attack from higher ground
-            logger(f"  {self.nome} tem vantagem de elevação! (+1 Ataque, +1 Dano)")
+            logger((f"  {self.nome} tem vantagem de elevação! (+1 Ataque, +1 Dano)", COR_TEXTO))
             bonus_elevacao = 1
             
         rolagem_ataque = random.randint(1, 20)
@@ -320,60 +346,135 @@ class Personagem:
         log_ataque = f"  Rolagem de Ataque: {rolagem_ataque} (d20) + {self.bonus_ataque} (bônus) + {flanking_bonus} (flanco) + {bonus_elevacao} (elevação) = {total_ataque}."
 
         if rolagem_ataque == 20:
-            logger(f"{log_ataque} Acerto CRÍTICO!")
+            logger((f"{log_ataque} Acerto CRÍTICO!", COR_CRITICO))
             if self.sound_player: self.sound_player('critical_hit')
-            self.causar_dano(alvo, logger, is_critico=True)
+            self.causar_dano(alvo, tabuleiro, logger, is_critico=True, tipo_dano_override=tipo_dano_override)
         elif total_ataque >= ac_alvo:
-            logger(f"{log_ataque} Acerta (AC do alvo é {ac_alvo})!")
-            self.causar_dano(alvo, logger)
+            logger((f"{log_ataque} Acerta (AC do alvo é {ac_alvo})!", COR_TEXTO))
+            self.causar_dano(alvo, tabuleiro, logger, tipo_dano_override=tipo_dano_override)
         else:
-            logger(f"{log_ataque} Erra (AC do alvo é {ac_alvo}).")
+            logger((f"{log_ataque} Erra (AC do alvo é {ac_alvo}).", COR_TEXTO))
             if self.sound_player: self.sound_player('miss')
             self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': 'ERROU!'})
 
-    def causar_dano(self, alvo, logger=print, is_critico=False):
+    def causar_dano(self, alvo, tabuleiro, logger=print, is_critico=False, tipo_dano_override=None):
+        from src.config import COR_DANO, COR_CRITICO
         if self.arma_equipada:
             dado_dano = self.arma_equipada.dado_dano
+            tipo_dano = self.arma_equipada.tipo_dano
         else:
             dado_dano = self.dado_dano
+            tipo_dano = self.tipo_dano_base
+
+        if tipo_dano_override:
+            tipo_dano = tipo_dano_override
             
         num_rolagens = dado_dano[0] * 2 if is_critico else dado_dano[0]
         dano_rolado = sum(random.randint(1, dado_dano[1]) for _ in range(num_rolagens))
         
-        if is_critico: logger(f"  Dano CRÍTICO!")
+        if is_critico: logger((f"  Dano CRÍTICO!", COR_CRITICO))
 
         dano_total = max(1, dano_rolado + self.bonus_dano)
-        logger(f"  Rolagem de Dano: {dano_rolado} ({num_rolagens}d{dado_dano[1]}) + {self.bonus_dano} (bônus) = {dano_total} de dano.")
+        logger((f"  Rolagem de Dano: {dano_rolado} ({num_rolagens}d{dado_dano[1]}) + {self.bonus_dano} (bônus) = {dano_total} de dano {tipo_dano}.", COR_DANO))
         
-        alvo.receber_dano(dano_total, self, logger)
+        alvo.receber_dano(dano_total, self, tabuleiro, logger, tipo_dano=tipo_dano)
         
         if self.sound_player: self.sound_player('hit')
-        self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': dano_total})
 
-    def receber_dano(self, quantidade, atacante, logger=print):
-        dano_final = quantidade
+    def receber_dano(self, quantidade, atacante, tabuleiro, logger=print, tipo_dano="Fisico"):
+        from src.config import COR_DANO, COR_TEXTO
+        if tipo_dano in self.imunidades:
+            logger((f"  {self.nome} é imune a dano do tipo '{tipo_dano}'!", COR_TEXTO))
+            self.eventos_animacao.append({'tipo': 'dano', 'alvo': self, 'dano': 'IMUNE'})
+            self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'IMUNE', 'cor': (200, 200, 200)})
+            return
+
+        dano_final = float(quantidade)
+
+        # Aplica vulnerabilidades (dano dobrado)
+        if tipo_dano in self.vulnerabilidades:
+            dano_final *= 2.0
+            logger((f"  Dano dobrado! {self.nome} é vulnerável a '{tipo_dano}'.", COR_DANO))
+
+        # Aplica resistências (meio dano)
+        if tipo_dano in self.resistencias:
+            dano_final *= 0.5
+            logger((f"  Dano reduzido! {self.nome} é resistente a '{tipo_dano}'.", COR_TEXTO))
+        
+        dano_final = int(round(dano_final))
+
         for efeito in self.status_efeitos:
             if efeito.propriedades.get("resistencia_dano_percentual"):
                 dano_final -= int(dano_final * efeito.propriedades["resistencia_dano_percentual"])
-            # Futuramente, adicionar imunidades/vulnerabilidades
         
         self.hp_atual -= dano_final
+        self.eventos_animacao.append({'tipo': 'dano', 'alvo': self, 'dano': dano_final})
+        self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': f'-{dano_final}', 'cor': COR_DANO})
+
         if self.hp_atual <= 0:
             self.hp_atual = 0
             self.esta_vivo = False
-            logger(f"  {self.nome} foi derrotado por {atacante.nome}!")
+            nome_atacante = atacante.nome if atacante else "um efeito de status"
+            logger((f"  {self.nome} foi derrotado por {nome_atacante}!", COR_DANO))
             if atacante:
                 atacante.kills += 1
                 atacante.ganhar_xp(1, logger)
+            
+            # Chance de dropar um item
+            if self.inventario and random.random() < 0.5: # 50% de chance de dropar
+                item_dropado = random.choice(self.inventario)
+                tabuleiro.itens_no_chao[self.pos_y][self.pos_x] = item_dropado
+                logger((f"  {self.nome} dropou {item_dropado.nome}!", (255, 215, 0)))
+
             self.eventos_animacao.append({'tipo': 'morte', 'personagem': self})
         else:
-            logger(f"  {self.nome} está com {self.hp_atual}/{self.hp_max} HP.")
+            logger((f"  {self.nome} está com {self.hp_atual}/{self.hp_max} HP.", COR_TEXTO))
 
     def receber_cura(self, quantidade, logger=print):
+        from src.config import COR_CURA
         self.hp_atual = min(self.hp_max, self.hp_atual + quantidade)
-        logger(f"  {self.nome} é curado em {quantidade} e agora tem {self.hp_atual}/{self.hp_max} HP.")
+        logger((f"  {self.nome} é curado em {quantidade} e agora tem {self.hp_atual}/{self.hp_max} HP.", COR_CURA))
+        self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': f'+{quantidade}', 'cor': COR_CURA})
         if self.sound_player: self.sound_player('heal')
         self.eventos_animacao.append({'tipo': 'cura', 'alvo': self, 'cura': quantidade})
 
-    def __str__(self):
-        return f"{self.nome} (HP: {self.hp_atual}/{self.hp_max}, AC: {self.ac})"
+    def to_dict(self):
+        return {
+            "nivel": self.nivel,
+            "xp": self.xp,
+            "hp_atual": self.hp_atual,
+            "mana_atual": self.mana_atual,
+            "inventario": [item.__class__.__name__ for item in self.inventario],
+            "stats": {
+                "_forca": self._forca,
+                "_destreza": self._destreza,
+                "_constituicao": self._constituicao,
+                "_inteligencia": self._inteligencia,
+                "_sabedoria": self._sabedoria,
+                "_carisma": self._carisma,
+            }
+        }
+
+    def from_dict(self, data):
+        self.nivel = data.get("nivel", self.nivel)
+        self.xp = data.get("xp", self.xp)
+        self.hp_atual = data.get("hp_atual", self.hp_atual)
+        self.mana_atual = data.get("mana_atual", self.mana_atual)
+        
+        # Recria o inventário a partir dos nomes das classes
+        # (Isso requer um mapeamento de nome de classe para classe)
+        # Por simplicidade, vamos pular a recriação do inventário por enquanto
+
+        stats = data.get("stats", {})
+        self._forca = stats.get("_forca", self._forca)
+        self._destreza = stats.get("_destreza", self._destreza)
+        self._constituicao = stats.get("_constituicao", self._constituicao)
+        self._inteligencia = stats.get("_inteligencia", self._inteligencia)
+        self._sabedoria = stats.get("_sabedoria", self._sabedoria)
+        self._carisma = stats.get("_carisma", self._carisma)
+        
+        # Recalcula os atributos derivados
+        self.xp_para_upar = 2 ** self.nivel
+        base_hp = DADOS_PERSONAGENS.get(self.__class__.__name__, {}).get("hp", (self.dado_vida[1] + self.mod_con))
+        self.hp_max = base_hp + ((self.nivel - 1) * (random.randint(1, self.dado_vida[1]) + self.mod_con))
+
