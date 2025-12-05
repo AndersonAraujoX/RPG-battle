@@ -401,7 +401,7 @@ def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
     # Mostra alcance de movimento
     for r in range(-unidade.velocidade, unidade.velocidade + 1):
         for c in range(-unidade.velocidade, unidade.velocidade + 1):
-            if abs(r) + abs(c) > unidade.velocidade: continue
+            # if abs(r) + abs(c) > unidade.velocidade: continue # Removed for Square Distance
             
             nx, ny = x + c, y + r
             if 0 <= nx < motor.tabuleiro.largura and 0 <= ny < motor.tabuleiro.altura:

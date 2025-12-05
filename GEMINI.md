@@ -11,7 +11,7 @@ O projeto começou com a ideia de um simulador de combate por turnos, onde perso
 O projeto evoluiu significativamente, passando de uma simulação puramente em console para uma aplicação Pygame completa. Diversas melhorias arquitetônicas foram implementadas para aumentar a modularidade, manutenibilidade e extensibilidade do código.
 
 ### 1. Estrutura Básica de Combate & Personagens
--   **Engine:** O jogo agora utiliza `Pygame` para renderização gráfica, áudio e tratamento de eventos.
+-   **Engine:** O jogo utiliza `Pygame` para renderização gráfica, áudio e tratamento de eventos.
 -   **Classes de Personagem:** `Personagem` (base), `Guerreiro`, `Mago`, `Ladino`, `Arqueiro`, `Bárbaro`, `Clérigo`, `Paladino`, `Druida`, `Bruxo` e `Chefe`, `ReiGoblin`, `LordeLich`, `DragaoAnciao`, `Goblin`, `Esqueleto`, `Kobold` com atributos e dados de dano distintos.
 -   **Configuração de Times:** A composição dos times é configurada via UI no menu principal, incluindo seleção de chefes.
 -   **Iniciativa:** Rolagem de d20 + modificador de destreza para determinar a ordem de combate.
@@ -21,7 +21,7 @@ O projeto evoluiu significativamente, passando de uma simulação puramente em c
 
 ### 2. Melhorias Arquitetônicas e Refinamentos
 
--   **Modularização do `visualizador.py`:** O loop principal do jogo foi refatorado e dividido em funções menores (`handle_events`, `update_game_logic`, `draw_elements`) para melhor organização e legibilidade. Variáveis de estado globais foram centralizadas.
+-   **Modularização da UI (`src/ui/`):** A interface gráfica foi modularizada em `menu.py` (menus e setup), `desenho.py` (renderização do jogo) e `componentes.py` (elementos de UI reutilizáveis), substituindo o antigo `visualizador.py`.
 -   **Refatoração do Módulo de IA:** A lógica de Inteligência Artificial foi desacoplada de `motor_combate.py` e integrada diretamente nas classes de personagem através do método `decidir_acao()`. Cada personagem agora decide sua própria ação (curar, atacar, mover, fugir, usar habilidade) com base no contexto do combate. A IA foi aprimorada para uso inteligente de cobertura e ataques de oportunidade, e para coordenação de ataques entre unidades.
 -   **Módulo de Utilidades (`src/utils.py`):** Funções genéricas, como `calcular_distancia`, e carregamento de dados JSON para personagens, foram movidas para um módulo dedicado, evitando duplicação de código.
 -   **Centralização de Constantes:** Strings "mágicas" e valores fixos foram movidos para `src/config.py`, melhorando a manutenibilidade.
@@ -53,14 +53,18 @@ A maior evolução do projeto foi a introdução de um tabuleiro 2D, transforman
 -   **Armaduras:** Implementado sistema de armaduras (Couraça de Couro, Cota de Malha, Placas de Aço), que alteram a AC base do personagem.
 -   **Acessórios:** Implementado sistema de acessórios (Anel de Força, Amuleto de Vitalidade, Botas da Velocidade), que fornecem bônus passivos aos atributos dos personagens.
 
-### 6. Melhorias de UI/UX
+### 6. Novos Modos e Funcionalidades
+-   **Modo Campanha:** Um sistema de progressão onde o jogador enfrenta uma série de batalhas com dificuldade crescente, mantendo o progresso dos personagens (nível, XP).
+-   **Editor de Mapas:** Uma ferramenta integrada que permite criar e salvar mapas personalizados, definindo tipos de terreno para cada célula do tabuleiro.
+
+### 7. Melhorias de UI/UX
 -   **Indicadores Visuais de Status:** Exibição de ícones para efeitos de status.
 -   **Pré-visualização de Movimento e Ataque:** Destaque de unidades aliadas que podem atacar um inimigo sob o mouse.
 -   **Ordem de Turnos Visual:** Barra de iniciativa no topo da tela com retratos dos personagens.
 -   **Feedback de Ação Inválida:** Som e visual "X" vermelho para ações impossíveis.
 -   **Controles de Volume:** Opções no menu principal para ajustar o volume dos efeitos sonoros.
 
-### 7. Melhorias Técnicas
+### 8. Melhorias Técnicas
 -   **Salvar/Carregar Jogo:** Funcionalidade completa para salvar e carregar o estado atual do combate usando `pickle`.
 -   **Definições em Arquivos Externos:** Estatísticas de todos os personagens carregadas dinamicamente de `dados/personagens.json`, facilitando a configuração e o balanceamento.
 

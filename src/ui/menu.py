@@ -35,7 +35,7 @@ def desenhar_menu_principal(tela, fonte, botoes_menu):
         botao.update_hover(pygame.mouse.get_pos())
         botao.desenhar(tela, fonte)
 
-def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id): # Renamed from desenhar_menu
+def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id): # Renamed from desenhar_menu
     tela.fill(COR_FUNDO)
     
     # Título da Tela de Setup
@@ -143,9 +143,11 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
         checkbox_mapa_custom.desenhar(tela)
         checkbox_campanha.rect.topleft = (config_x, config_y + 200)
         checkbox_campanha.desenhar(tela)
+        checkbox_limitadores.rect.topleft = (config_x, config_y + 240)
+        checkbox_limitadores.desenhar(tela)
         
         # Draw volume controls separately
-        y_volume = config_y + 240 # Below campaign checkbox
+        y_volume = config_y + 280 # Below limiters checkbox
         tela.blit(fonte.render(f"Volume SFX: {int(volume_sfx * 100)}%", True, COR_TEXTO), (config_x, y_volume))
         botoes_ui['sfx_vol_down'].rect.topleft = (config_x + 200, y_volume)
         botoes_ui['sfx_vol_down'].update_hover(pygame.mouse.get_pos())
@@ -251,12 +253,13 @@ def setup_menu_ui():
     botoes_ui['sfx_vol_down'] = Botao(0, 0, 40, 30, "-", fonte_menu)
     botoes_ui['sfx_vol_up'] = Botao(0, 0, 40, 30, "+", fonte_menu)
 
-    checkbox_terreno = Checkbox(LARGURA_TELA // 2 - 100, y_start + 250, 20, "Gerar Terreno Aleatório", fonte_menu)
+    checkbox_terreno = Checkbox(LARGURA_TELA // 2 - 100, y_start + 250, 20, "Gerar Terreno Aleatório", fonte_menu, checked=True)
     checkbox_auto = Checkbox(LARGURA_TELA // 2 - 100, y_start + 290, 20, "Auto-Batalha (IA vs IA)", fonte_menu)
     checkbox_chefe = Checkbox(LARGURA_TELA // 2 - 100, y_start + 330, 20, "Modo Chefe (Time B)", fonte_menu)
     checkbox_autoplay = Checkbox(LARGURA_TELA // 2 - 100, y_start + 370, 20, "Auto-Play (IA joga por você)", fonte_menu)
     checkbox_mapa_custom = Checkbox(LARGURA_TELA // 2 - 100, y_start + 410, 20, "Usar Mapa Customizado", fonte_menu)
     checkbox_campanha = Checkbox(LARGURA_TELA // 2 - 100, y_start + 450, 20, "Modo Campanha", fonte_menu)
+    checkbox_limitadores = Checkbox(LARGURA_TELA // 2 - 100, y_start + 490, 20, "Adicionar Limitadores (Paredes)", fonte_menu)
     
     bosses = [
         {"classe": ReiGoblin, "nome": "Rei Goblin"},
@@ -264,4 +267,4 @@ def setup_menu_ui():
         {"classe": DragaoAnciao, "nome": "Dragão Ancião"}
     ]
 
-    return config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, bosses
+    return config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, bosses

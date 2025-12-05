@@ -28,6 +28,20 @@ class Tabuleiro:
                 
                 self.elevation_grid[y][x] = random.randint(0, 2)
 
+    def adicionar_limitadores(self):
+        """Adiciona paredes nas bordas do mapa para limitar a área de combate."""
+        for x in range(self.largura):
+            self.terrain_grid[0][x] = TERRENO_PAREDE
+            self.terrain_grid[self.altura - 1][x] = TERRENO_PAREDE
+            self.grid[0][x] = None # Remove anyone unlucky enough to be there (though spawn logic should prevent this)
+            self.grid[self.altura - 1][x] = None
+
+        for y in range(self.altura):
+            self.terrain_grid[y][0] = TERRENO_PAREDE
+            self.terrain_grid[y][self.largura - 1] = TERRENO_PAREDE
+            self.grid[y][0] = None
+            self.grid[y][self.largura - 1] = None
+
     def get_terrain_em(self, x, y):
         if 0 <= x < self.largura and 0 <= y < self.altura:
             return self.terrain_grid[y][x]

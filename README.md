@@ -4,49 +4,43 @@ Este projeto é um simulador de batalha por turnos com elementos de RPG de mesa,
 
 ## Funcionalidades Principais
 
--   **Interface Gráfica (Pygame):** O simulador agora conta com uma interface visual que exibe o tabuleiro 2D, a movimentação dos personagens, efeitos de combate e um log detalhado das ações.
--   **Classes de Personagem:** Inclui classes como Guerreiro, Mago, Ladino, Arqueiro, Bárbaro, Clérigo e um chefe, cada um com atributos (HP, AC, dados de dano) e habilidades especiais.
+-   **Interface Gráfica (Pygame):** O simulador conta com uma interface visual rica que exibe o tabuleiro 2D, a movimentação dos personagens, efeitos de combate e um log detalhado das ações.
+-   **Classes de Personagem:** Inclui classes como Guerreiro, Mago, Ladino, Arqueiro, Bárbaro, Clérigo, Paladino, Druida, Bruxo e diversos inimigos (Rei Goblin, Lorde Lich, Dragão Ancião), cada um com atributos e habilidades especiais.
 -   **Combate Tático em Turnos:** Os personagens agem em uma ordem definida por iniciativa. O combate ocorre em um tabuleiro 2D, onde o posicionamento e a movimentação são cruciais.
--   **Habilidades Especiais:** Personagens possuem habilidades únicas baseadas em `cooldowns` (tempo de recarga), como "Surto de Ação" (Guerreiro), "Bola de Fogo" (Mago) e "Ataque Furtivo" (Ladino), e "Canalizar Divindade" (Clérigo).
--   **Inteligência Artificial (IA):** Inimigos controlados pela IA decidem suas ações (atacar, mover, usar habilidades, fugir) de forma estratégica, priorizando alvos e maximizando o impacto de suas habilidades.
--   **Sistema de Terreno:** O tabuleiro pode gerar diferentes tipos de terreno (normal, floresta, difícil, parede) que afetam a movimentação e a defesa dos personagens.
--   **Efeitos de Status:** Implementado um sistema para aplicar, gerenciar e processar efeitos de status (e.g., "Envenenado", "Atordoado", "Sangrando", "Fúria") nos personagens, impactando suas ações e atributos.
--   **Progressão de Personagem:** Personagens ganham XP e podem subir de nível.
+-   **Habilidades Especiais:** Personagens possuem habilidades únicas baseadas em recursos (Mana, Energia, Fé) e cooldowns, como "Bola de Fogo", "Ataque Furtivo", "Canalizar Divindade" e "Forma de Urso".
+-   **Inteligência Artificial (IA):** Inimigos controlados pela IA decidem suas ações (atacar, mover, usar habilidades, fugir) de forma estratégica.
+-   **Sistema de Terreno:** O tabuleiro suporta diferentes tipos de terreno (normal, floresta, difícil, parede, gelo) que afetam a movimentação e a defesa.
+-   **Efeitos de Status:** Sistema robusto de status (Envenenado, Atordoado, Sangrando, etc.) com indicadores visuais.
+-   **Modo Campanha:** Sistema de progressão onde o jogador enfrenta batalhas de dificuldade crescente.
+-   **Editor de Mapas:** Ferramenta para criar e salvar mapas personalizados.
+-   **Sistema de Equipamentos:** Armas, armaduras e acessórios que alteram os atributos dos personagens.
 
-## Estrutura do Projeto e Melhorias Arquitetônicas
-
-O projeto foi refatorado para melhorar a modularidade e a manutenibilidade:
+## Estrutura do Projeto
 
 -   **`main.py`:** Ponto de entrada da aplicação.
--   **`src/ui/visualizador.py`:** Contém o loop principal do jogo e a lógica de renderização da interface Pygame, agora modularizado em funções para eventos, lógica de jogo e desenho.
--   **`src/motor_combate.py`:** A lógica central do combate. Foi refatorado para integrar as decisões de IA diretamente nos objetos dos personagens.
--   **`src/personagens/`:** Contém as definições de todas as classes de personagem, incluindo seus atributos, habilidades e lógica de IA (`decidir_acao`). Inclui o novo módulo `status_efeito.py` para gerenciamento de efeitos de status.
--   **`src/tabuleiro.py`:** Gerencia o estado do tabuleiro 2D, o posicionamento dos personagens e os tipos de terreno.
--   **`src/config.py`:** Centraliza todas as constantes do jogo (tamanhos de tela, cores, estados de jogo, tipos de terreno, etc.), incluindo as propriedades dos efeitos de status.
--   **`src/utils.py`:** Módulo para funções utilitárias genéricas, como `calcular_distancia`.
--   **`assets/`:** Recursos do jogo, como arquivos de áudio.
+-   **`src/game.py`:** Gerencia o loop principal do jogo e estados.
+-   **`src/ui/`:** Módulos de interface gráfica (`menu.py`, `desenho.py`, `componentes.py`).
+-   **`src/motor_combate.py`:** Lógica central do combate.
+-   **`src/personagens/`:** Definições das classes de personagem e IA.
+-   **`src/tabuleiro.py`:** Gerenciamento do tabuleiro e terrenos.
+-   **`src/itens/`:** Implementação de armas, armaduras e acessórios.
+-   **`src/config.py`:** Constantes e configurações globais.
+-   **`src/utils.py`:** Funções utilitárias.
 
 ## Como Executar
 
-Para executar o simulador, siga os passos abaixo:
-
-1.  **Pré-requisitos:** Certifique-se de ter o Python 3 instalado.
-2.  **Instalar Pygame:** Se ainda não tiver, instale a biblioteca Pygame:
+1.  **Pré-requisitos:** Python 3 instalado.
+2.  **Instalar Pygame:**
     ```bash
     pip install pygame
     ```
-3.  **Executar o Jogo:** Navegue até a pasta raiz do projeto no terminal e execute:
+3.  **Executar o Jogo:**
     ```bash
     python main.py
     ```
-    O jogo iniciará no menu principal, onde você poderá configurar os times e iniciar a batalha.
 
-## Próximos Passos (Potenciais Melhorias)
+## Próximos Passos
 
--   **Melhorias na UI/UX:** Exibição da ordem de iniciativa, indicadores de cooldown, feedback visual para ações inválidas e *indicadores visuais para efeitos de status*.
--   **Refinamento da IA:** Lógicas mais avançadas para evitar fogo amigo do Mago, foco estratégico em alvos específicos, etc.
--   **Novas Classes e Habilidades:** Expandir a variedade de personagens e suas capacidades.
--   **Sistema de Itens:** Introduzir consumíveis e equipamentos.
--   **Níveis de Personagem:** Permitir escolhas de habilidades ou atributos ao subir de nível.
--   **Salvar/Carregar Jogo:** Implementar a funcionalidade de persistência do estado do jogo.
--   **Balanceamento:** Ajustar os valores de HP, AC, dano e probabilidades de habilidades para otimizar a experiência de jogo.
+-   **Melhorias na UI/UX:** Mais animações e feedback visual.
+-   **Refinamento da IA:** Comportamentos de grupo mais complexos.
+-   **Expansão de Conteúdo:** Novas classes (Necromante, Bardo) e itens consumíveis.

@@ -81,11 +81,11 @@ class Tab(Botao): # Tab inherits from Botao
         tela.blit(texto_render, texto_rect)
 
 class Checkbox:
-    def __init__(self, x, y, tamanho, texto, fonte):
+    def __init__(self, x, y, tamanho, texto, fonte, checked=False):
         self.rect = pygame.Rect(x, y, tamanho, tamanho)
         self.texto = texto
         self.fonte = fonte
-        self.checked = False
+        self.checked = checked
         self.texto_render = self.fonte.render(self.texto, True, COR_TEXTO)
         self.texto_rect = self.texto_render.get_rect(left=self.rect.right + 10, centery=self.rect.centery)
 
@@ -102,9 +102,12 @@ class Checkbox:
 
     def checar_clique(self, pos):
         if self.rect.collidepoint(pos) or self.texto_rect.collidepoint(pos):
-            self.checked = not self.checked
+            self.toggle()
             return True
         return False
+
+    def toggle(self):
+        self.checked = not self.checked
 
 class FloatingText:
     def __init__(self, x, y, texto, cor, fonte):

@@ -192,7 +192,7 @@ class MotorCombate:
         
         for dx in range(-p.velocidade, p.velocidade + 1):
             for dy in range(-p.velocidade, p.velocidade + 1):
-                if abs(dx) + abs(dy) > p.velocidade: continue
+                # if abs(dx) + abs(dy) > p.velocidade: continue # Removed for Square Distance
                 prox_x, prox_y = p.pos_x + dx, p.pos_y + dy
                 if not (0 <= prox_x < self.tabuleiro.largura and 0 <= prox_y < self.tabuleiro.altura): continue
                 if self.tabuleiro.get_personagem_em(prox_x, prox_y) is not None: continue
@@ -260,7 +260,7 @@ class MotorCombate:
 
         for dx in range(-p.alcance, p.alcance + 1):
             for dy in range(-p.alcance, p.alcance + 1):
-                if abs(dx) + abs(dy) > p.alcance: continue
+                # if abs(dx) + abs(dy) > p.alcance: continue # Removed for Square Distance
                 end_pos = (alvo.pos_x + dx, alvo.pos_y + dy)
                 if not (0 <= end_pos[0] < self.tabuleiro.largura and 0 <= end_pos[1] < self.tabuleiro.altura):
                     continue
