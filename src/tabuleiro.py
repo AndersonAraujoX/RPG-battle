@@ -69,7 +69,7 @@ class Tabuleiro:
 
     def adicionar_personagem_na_borda(self, personagem, borda):
         """Adiciona um personagem em uma borda vazia (norte ou sul), espalhando-os."""
-        rows = range(0, 4) if borda == 'norte' else range(self.altura - 4, self.altura)
+        rows = range(1, 4) if borda == 'norte' else range(self.altura - 4, self.altura - 1)
         
         # Tenta espalhar mais, usando colunas alternadas ou aleatórias
         # Começa do centro, mas com espaçamento

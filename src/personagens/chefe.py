@@ -3,7 +3,7 @@ from .personagem_base import Personagem, calcular_distancia
 
 class Chefe(Personagem):
     def __init__(self, nome, time, nivel=10, sound_player=None, stats=None):
-        super().__init__(nome, time, nivel, sound_player)
+        super().__init__(nome, time, nivel, sound_player, stats=stats)
         self.threat_level = 5.0
         
         self.hp_atual = self.hp_max

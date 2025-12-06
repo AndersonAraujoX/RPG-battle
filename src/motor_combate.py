@@ -363,14 +363,119 @@ class MotorCombate:
 
     def jogador_move_personagem(self, personagem, novo_x, novo_y):
         logs_movimento = []
-        if not self._verificar_ataques_de_oportunidade(personagem, novo_x, novo_y, logs_movimento):
-            eventos = list(personagem.eventos_animacao)
-            personagem.eventos_animacao.clear()
-            return eventos, logs_movimento
+        
+        # 1. Validação Básica
+        if not (0 <= novo_x < self.tabuleiro.largura and 0 <= novo_y < self.tabuleiro.altura):
+            logs_movimento.append(("Movimento inválido: Fora do mapa.", COR_DANO))
+            return [], logs_movimento
+            
+        if self.tabuleiro.get_terrain_em(novo_x, novo_y) == TERRENO_PAREDE:
+            logs_movimento.append(("Movimento inválido: Parede.", COR_DANO))
+            return [], logs_movimento
 
+        if self.tabuleiro.get_personagem_em(novo_x, novo_y) is not None:
+             logs_movimento.append(("Movimento inválido: Espaço ocupado.", COR_DANO))
+             return [], logs_movimento
+
+        # 2. Pathfinding
         start_pos = (personagem.pos_x, personagem.pos_y)
-        self.tabuleiro.mover_personagem(personagem, novo_x, novo_y)
-        personagem.eventos_animacao.append({'tipo': 'movimento', 'personagem': personagem, 'start_pos': start_pos, 'end_pos': (novo_x, novo_y)})
+        end_pos = (novo_x, novo_y)
+        
+        # Usa o pathfinding existente para encontrar o melhor caminho
+        caminho = self._astar_pathfinding(start_pos, end_pos, personagem.velocidade)
+        
+        if not caminho:
+             logs_movimento.append(("Movimento inválido: Caminho bloqueado ou muito distante.", COR_DANO))
+             return [], logs_movimento
+
+        # 3. Execução do Movimento Passo a Passo
+        eventos = []
+        movimento_realizado = False
+        
+        # O caminho retornado pelo A* inclui o destino, mas não a origem.
+        # Precisamos verificar o custo total.
+        custo_total = 0
+        caminho_validado = []
+        
+        for passo in caminho:
+            custo_passo = 2 if self.tabuleiro.terrain_grid[passo[1]][passo[0]] == TERRENO_DIFICIL else 1
+            if custo_total + custo_passo > personagem.velocidade:
+                break # Não consegue ir mais longe
+            custo_total += custo_passo
+            caminho_validado.append(passo)
+
+        if not caminho_validado:
+             logs_movimento.append(("Movimento inválido: Sem movimento possível.", COR_DANO))
+             return [], logs_movimento
+             
+        # Verifica se o destino final do caminho validado é o solicitado (ou se parou antes)
+        # Se o jogador clicou longe, ele vai até onde der? O comportamento padrão de jogos táticos
+        # geralmente é: se clicou fora do alcance, não vai. Se clicou dentro, vai.
+        # O A* já limita pelo custo maximo (personagem.velocidade).
+        # Então se 'caminho' existe, ele é válido dentro da velocidade.
+        
+        # Porém, precisamos garantir que o destino final é EXATAMENTE onde o jogador clicou.
+        if caminho[-1] != end_pos:
+             logs_movimento.append(("Movimento inválido: Destino inalcançável neste turno.", COR_DANO))
+             return [], logs_movimento
+
+        for passo in caminho:
+            # Verifica Ataque de Oportunidade ANTES de entrar no tile (saindo do anterior)
+            # A lógica original verifica ao SAIR de um tile ameaçado.
+            if not self._verificar_ataques_de_oportunidade(personagem, passo[0], passo[1], logs_movimento):
+                # Se morreu ou foi parado, interrompe
+                break
+            
+            # Move
+            self.tabuleiro.mover_personagem(personagem, passo[0], passo[1])
+            personagem.elevacao = self.tabuleiro.get_elevation_em(personagem.pos_x, personagem.pos_y)
+            movimento_realizado = True
+            
+            # Efeitos de Terreno (Gelo)
+            if self.tabuleiro.get_terrain_em(personagem.pos_x, personagem.pos_y) == TERRENO_GELO and random.random() < 0.5:
+                logs_movimento.append((f"  {personagem.nome} escorrega no gelo!", COR_STATUS))
+                # Escorrega na mesma direção do movimento
+                dx = passo[0] - start_pos[0] # Isso está errado se o caminho for complexo, mas serve para 1 passo
+                # Melhor: dx = passo[0] - (pos anterior)
+                # Como não guardamos a pos anterior no loop facilmente sem var, vamos simplificar:
+                # O pathfinding garante passos adjacentes.
+                # Vamos pegar a direção do passo atual.
+                # Mas espere, 'passo' é o destino deste micro-movimento. O personagem JÁ ESTÁ lá.
+                # A logica original de escorregar usava start_pos fixo, o que era bugado para caminhos longos.
+                # Vamos ignorar a direção exata do escorregão complexo e fazer aleatório ou manter simples?
+                # Vamos tentar manter a inércia.
+                # Se moveu de (x-1, y) para (x, y), dx=1.
+                # Precisamos saber de onde veio.
+                # Como movemos o personagem, a posição ANTERIOR dele no grid já foi liberada, mas podemos inferir.
+                # Mas para simplificar e evitar bugs: escorrega para um vizinho aleatório válido que não seja parede.
+                pass # Simplificação: Gelo só avisa, ou implementamos escorregão extra depois se sobrar tempo.
+                # Reimplementando escorregão simples:
+                vizinhos_livres = []
+                for dx_s, dy_s in [(0,1), (0,-1), (1,0), (-1,0)]:
+                    nx, ny = personagem.pos_x + dx_s, personagem.pos_y + dy_s
+                    if 0 <= nx < self.tabuleiro.largura and 0 <= ny < self.tabuleiro.altura and \
+                       self.tabuleiro.get_personagem_em(nx, ny) is None and \
+                       self.tabuleiro.get_terrain_em(nx, ny) != TERRENO_PAREDE:
+                        vizinhos_livres.append((nx, ny))
+                
+                if vizinhos_livres:
+                    slip_dest = random.choice(vizinhos_livres)
+                    self.tabuleiro.mover_personagem(personagem, slip_dest[0], slip_dest[1])
+                    logs_movimento.append((f"  ...e desliza para ({slip_dest[0]}, {slip_dest[1]})!", COR_STATUS))
+                    # Atualiza passo atual para continuar o loop? Não, escorregão pode tirar da rota.
+                    # Interrompe movimento se escorregar? Geralmente sim.
+                    break 
+
+        if movimento_realizado:
+            logs_movimento.append((f"  {personagem.nome} se moveu para ({personagem.pos_x},{personagem.pos_y}).", COR_TEXTO))
+            # Adiciona animação completa do início ao fim (simplificado visualmente)
+            # Ou passo a passo? O sistema de animação atual parece suportar start->end direto.
+            # Se quisermos que ele ande pelo caminho, precisaríamos de múltiplos eventos.
+            # Vamos fazer um evento único para simplificar a visualização por enquanto, 
+            # ou o visualizador vai "teleportar" se tiver parede no meio?
+            # O ideal seria uma lista de waypoints. Mas o sistema de animação atual é simples (start, end).
+            # Vamos manter start->end final.
+            personagem.eventos_animacao.append({'tipo': 'movimento', 'personagem': personagem, 'start_pos': start_pos, 'end_pos': (personagem.pos_x, personagem.pos_y)})
         
         eventos = list(personagem.eventos_animacao)
         personagem.eventos_animacao.clear()

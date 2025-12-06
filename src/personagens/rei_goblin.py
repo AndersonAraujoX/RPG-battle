@@ -7,7 +7,7 @@ from .minions import Goblin
 
 class ReiGoblin(Personagem):
     def __init__(self, nome, time, nivel=10, sound_player=None, stats=None):
-        super().__init__(nome, time, nivel, sound_player)
+        super().__init__(nome, time, nivel, sound_player, stats=stats)
         self.threat_level = 3.0
         
         # Fury system

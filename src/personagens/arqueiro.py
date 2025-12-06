@@ -18,13 +18,14 @@ class Arqueiro(Personagem):
     def bonus_dano(self): return self.mod_des
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
+        from src.config import COR_STATUS, COR_TEXTO
         super().atacar(alvo, time_inimigo, time_aliado, tabuleiro, logger)
         if self.esta_vivo and self.cooldowns['tiro_duplo'] == 0:
-            logger(f"  {self.nome} usa Tiro Duplo para um ataque extra!")
+            logger((f"  {self.nome} usa Tiro Duplo para um ataque extra!", COR_STATUS))
             self.cooldowns['tiro_duplo'] = self.cooldown_max['tiro_duplo']
             alvos_vivos = [p for p in time_inimigo if p.esta_vivo and calcular_distancia(self, p) <= self.alcance]
             if alvos_vivos:
                 alvo_extra = min(alvos_vivos, key=lambda p: p.hp_atual)
                 super().atacar(alvo_extra, time_inimigo, time_aliado, tabuleiro, logger)
             else:
-                logger("  Mas não há ninguém ao alcance para o segundo tiro.")
+                logger(("  Mas não há ninguém ao alcance para o segundo tiro.", COR_TEXTO))

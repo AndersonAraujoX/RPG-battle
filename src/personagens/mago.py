@@ -17,6 +17,7 @@ class Mago(Personagem):
     def bonus_ataque(self): return self.mod_int + self.bonus_proficiencia
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
+        from src.config import COR_TEXTO
         # 1. Tentar usar Bola de Fogo
         if 'bola_de_fogo' in self.custo_habilidades and self.mana_atual >= self.custo_habilidades['bola_de_fogo'] and inimigos:
             melhor_oportunidade = {'alvos_atingidos': 0, 'aliados_atingidos': 999, 'pos_final': None, 'alvo_central': None}
@@ -53,7 +54,7 @@ class Mago(Personagem):
             
             # Só conjura se atingir pelo menos 2 inimigos e 0 aliados
             if melhor_oportunidade['alvos_atingidos'] >= 2 and melhor_oportunidade['aliados_atingidos'] == 0:
-                logs_turno.append(f"  {self.nome} vê uma oportunidade para a Bola de Fogo sem atingir aliados!")
+                logs_turno.append((f"  {self.nome} vê uma oportunidade para a Bola de Fogo sem atingir aliados!", COR_TEXTO))
                 pos_final = melhor_oportunidade['pos_final']
                 alvo_central = melhor_oportunidade['alvo_central']
                 return {'acao': 'usar_habilidade', 'habilidade': 'bola_de_fogo', 
@@ -64,7 +65,7 @@ class Mago(Personagem):
             inimigos_em_range = [p for p in inimigos if calcular_distancia(self, p) <= self.alcance]
             if inimigos_em_range:
                 alvo = min(inimigos_em_range, key=lambda p: p.hp_atual)
-                logs_turno.append(f"  {self.nome} decide usar Raio de Gelo em {alvo.nome}.")
+                logs_turno.append((f"  {self.nome} decide usar Raio de Gelo em {alvo.nome}.", COR_TEXTO))
                 return {'acao': 'usar_habilidade', 'habilidade': 'raio_de_gelo', 'alvo': alvo}
 
         # 3. Lógica padrão da classe base (fugir ou atacar)

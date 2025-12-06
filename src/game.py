@@ -14,7 +14,7 @@ from .ui.desenho import (
     desenhar_tela_carregando, desenhar_editor
 )
 from .salvar_carregar import salvar_jogo, carregar_jogo
-from .utils import calcular_distancia
+from .utils import calcular_distancia, resource_path
 from .ui.componentes import Botao, FloatingText, Checkbox, Tab
 from .campanha import CampaignManager
 from .personagens.rei_goblin import ReiGoblin
@@ -82,11 +82,11 @@ class Game:
     def tocar_musica(self, tipo):
         try:
             if tipo == 'menu':
-                pygame.mixer.music.load('assets/sounds/menu.wav')
+                pygame.mixer.music.load(resource_path('assets/sounds/menu.wav'))
                 pygame.mixer.music.set_volume(0.5)
                 pygame.mixer.music.play(-1) # Loop infinito
             elif tipo == 'batalha':
-                pygame.mixer.music.load('assets/sounds/battle1.wav')
+                pygame.mixer.music.load(resource_path('assets/sounds/battle1.wav'))
                 pygame.mixer.music.set_volume(0.5)
                 pygame.mixer.music.play(-1)
         except pygame.error as e:
@@ -113,7 +113,7 @@ class Game:
 
         for name, path in sound_paths.items():
             try:
-                sounds[name] = pygame.mixer.Sound(path)
+                sounds[name] = pygame.mixer.Sound(resource_path(path))
             except pygame.error as e:
                 print(f"Não foi possível carregar o som {path}: {e}")
                 sounds[name] = None 
@@ -133,7 +133,7 @@ class Game:
         # Carregar imagens de personagens
         for nome_personagem, caminho in IMAGE_PERSONAGENS.items():
             try:
-                imagens[f"personagem_{nome_personagem.lower()}"] = pygame.image.load(caminho).convert_alpha()
+                imagens[f"personagem_{nome_personagem.lower()}"] = pygame.image.load(resource_path(caminho)).convert_alpha()
             except pygame.error as e:
                 print(f"Não foi possível carregar a imagem do personagem {nome_personagem} em {caminho}: {e}")
                 imagens[f"personagem_{nome_personagem.lower()}"] = None
@@ -141,7 +141,7 @@ class Game:
         # Carregar imagens de terreno
         for tipo_terreno, caminho in IMAGE_TERRENOS.items():
             try:
-                imagens[f"terreno_{tipo_terreno.lower()}"] = pygame.image.load(caminho).convert()
+                imagens[f"terreno_{tipo_terreno.lower()}"] = pygame.image.load(resource_path(caminho)).convert()
             except pygame.error as e:
                 print(f"Não foi possível carregar a imagem do terreno {tipo_terreno} em {caminho}: {e}")
                 imagens[f"terreno_{tipo_terreno.lower()}"] = None
@@ -172,6 +172,7 @@ class Game:
         self.botoes_combate['aba_inventario'] = Botao(LARGURA_TABULEIRO + 160, 60, 100, 30, "Inventário", self.fonte_menu)
         self.botoes_combate['reiniciar'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 50, 200, 50, "Reiniciar Batalha", self.fonte_menu)
         self.botoes_combate['voltar_menu'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 120, 200, 50, "Voltar ao Menu", self.fonte_menu)
+        self.botoes_combate['cancelar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 190, 100, 30, "Cancelar", self.fonte_menu)
 
         # Botões da tela de Level Up
         self.botoes_level_up = {
@@ -362,7 +363,40 @@ class Game:
                                     self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
                                 elif nome == 'editor_mapas':
                                     self.estado_jogo = ESTADO_JOGO_EDITOR
-                                # ... (Implement other button logic)
+                                elif nome.startswith('A_add_'):
+                                    idx = int(nome.split('_')[-1])
+                                    classe = self.config_times['classes'][idx][0]
+                                    self.config_times[TIME_A][classe] += 1
+                                elif nome.startswith('A_sub_'):
+                                    idx = int(nome.split('_')[-1])
+                                    classe = self.config_times['classes'][idx][0]
+                                    if self.config_times[TIME_A][classe] > 0:
+                                        self.config_times[TIME_A][classe] -= 1
+                                elif nome.startswith('B_add_'):
+                                    idx = int(nome.split('_')[-1])
+                                    classe = self.config_times['classes'][idx][0]
+                                    self.config_times[TIME_B][classe] += 1
+                                elif nome.startswith('B_sub_'):
+                                    idx = int(nome.split('_')[-1])
+                                    classe = self.config_times['classes'][idx][0]
+                                    if self.config_times[TIME_B][classe] > 0:
+                                        self.config_times[TIME_B][classe] -= 1
+                                elif nome == 'chefe_add_hp':
+                                    self.config_chefe['hp'] += 10
+                                elif nome == 'chefe_sub_hp':
+                                    if self.config_chefe['hp'] > 10: self.config_chefe['hp'] -= 10
+                                elif nome == 'chefe_add_ataque':
+                                    self.config_chefe['ataque'] += 1
+                                elif nome == 'chefe_sub_ataque':
+                                    if self.config_chefe['ataque'] > 0: self.config_chefe['ataque'] -= 1
+                                elif nome == 'chefe_add_ac':
+                                    self.config_chefe['ac'] += 1
+                                elif nome == 'chefe_sub_ac':
+                                    if self.config_chefe['ac'] > 0: self.config_chefe['ac'] -= 1
+                                elif nome == 'next_boss':
+                                    self.selected_boss_index = (self.selected_boss_index + 1) % len(self.bosses)
+                                elif nome == 'prev_boss':
+                                    self.selected_boss_index = (self.selected_boss_index - 1) % len(self.bosses)
 
                         # Handle checkboxes
                         if self.active_tab_id == "configuracoes":
@@ -395,6 +429,9 @@ class Game:
                                 elif nome == 'reiniciar':
                                     # Logic to restart would go here, maybe just go back to setup
                                     self.estado_jogo = ESTADO_JOGO_SETUP
+                                elif nome == 'cancelar':
+                                    self.estado_jogo = ESTADO_JOGO_SETUP
+                                    self.tocar_musica('menu')
 
                         # Handle Grid Interaction (Movement/Attack)
                         if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO:

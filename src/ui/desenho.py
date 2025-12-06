@@ -335,29 +335,29 @@ def desenhar_info_personagem(tela, fonte, personagem, max_altura, y_offset):
     area_info = pygame.Rect(LARGURA_TABULEIRO, y_offset, LARGURA_LOG, max_altura - y_offset)
     pygame.draw.rect(tela, (15, 15, 15), area_info)
     y = y_offset + 20
-    tela.blit(fonte.render(f"{personagem.nome} (Lvl {personagem.nivel})", True, CORES_TIME.get(personagem.time)), (LARGURA_TABULEIRO + 20, y)); y += 30
-    tela.blit(fonte.render(f"Classe: {personagem.__class__.__name__}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 40
-    tela.blit(fonte.render(f"HP: {personagem.hp_atual} / {personagem.hp_max}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 25
-    tela.blit(fonte.render(f"XP: {personagem.xp} / {personagem.xp_para_upar}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 40
-    tela.blit(fonte.render(f"AC: {personagem.ac}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 25
-    tela.blit(fonte.render(f"Bônus Atk: +{personagem.bonus_ataque}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 25
-    tela.blit(fonte.render(f"Bônus Dmg: +{personagem.bonus_dano}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 40
-    tela.blit(fonte.render("Habilidades:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 25
+    tela.blit(fonte.render(f"{personagem.nome} (Lvl {personagem.nivel})", True, CORES_TIME.get(personagem.time)), (LARGURA_TABULEIRO + 20, y)); y += 35
+    tela.blit(fonte.render(f"Classe: {personagem.__class__.__name__}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 45
+    tela.blit(fonte.render(f"HP: {personagem.hp_atual} / {personagem.hp_max}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
+    tela.blit(fonte.render(f"XP: {personagem.xp} / {personagem.xp_para_upar}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 45
+    tela.blit(fonte.render(f"AC: {personagem.ac}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
+    tela.blit(fonte.render(f"Bônus Atk: +{personagem.bonus_ataque}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
+    tela.blit(fonte.render(f"Bônus Dmg: +{personagem.bonus_dano}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 45
+    tela.blit(fonte.render("Habilidades:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
     if not personagem.cooldowns: tela.blit(fonte.render("  Nenhuma", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
     for nome, cd in personagem.cooldowns.items():
-        if y + 20 > max_altura:
+        if y + 25 > max_altura:
             break
         status, cor = ("Pronta!", (60,220,60)) if cd == 0 else (f"{cd} turnos", (220,180,60))
         tela.blit(fonte.render(f"  - {nome.replace('_', ' ').title()}:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y))
-        tela.blit(fonte.render(status, True, cor), (LARGURA_TABULEIRO + 200, y)); y += 25
-    y += 10 # Espaçamento
-    tela.blit(fonte.render("Efeitos de Status:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 25
+        tela.blit(fonte.render(status, True, cor), (LARGURA_TABULEIRO + 200, y)); y += 30
+    y += 15 # Espaçamento
+    tela.blit(fonte.render("Efeitos de Status:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
     if not personagem.status_efeitos: tela.blit(fonte.render("  Nenhum", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
     for efeito in personagem.status_efeitos:
-        if y + 20 > max_altura:
+        if y + 25 > max_altura:
             break
         cor_status = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome, {}).get("cor", COR_TEXTO) # Pega a cor do config
-        tela.blit(fonte.render(f"  - {efeito.nome} ({efeito.duracao_restante} turnos)", True, cor_status), (LARGURA_TABULEIRO + 20, y)); y += 25
+        tela.blit(fonte.render(f"  - {efeito.nome} ({efeito.duracao_restante} turnos)", True, cor_status), (LARGURA_TABULEIRO + 20, y)); y += 30
 
 def desenhar_inventario(tela, fonte, personagem, max_altura, y_offset, mouse_pos):
     area_inventario = pygame.Rect(LARGURA_TABULEIRO, y_offset, LARGURA_LOG, max_altura - y_offset)

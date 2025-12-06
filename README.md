@@ -29,8 +29,23 @@ Este projeto é um simulador de batalha por turnos com elementos de RPG de mesa,
 
 ## Como Executar
 
+### Versão Compilada (Recomendado)
+Para jogar sem precisar instalar nada, basta executar o arquivo binário gerado:
+
+1.  Navegue até a pasta `dist`:
+    ```bash
+    cd dist
+    ```
+2.  Execute o jogo:
+    ```bash
+    ./OsEsquecidos
+    ```
+
+### Rodando do Código Fonte
+Se preferir rodar via Python:
+
 1.  **Pré-requisitos:** Python 3 instalado.
-2.  **Instalar Pygame:**
+2.  **Instalar Dependências:**
     ```bash
     pip install pygame
     ```
@@ -38,6 +53,13 @@ Este projeto é um simulador de batalha por turnos com elementos de RPG de mesa,
     ```bash
     python main.py
     ```
+
+## Compilando o Projeto
+Para gerar o executável você mesmo:
+```bash
+./build.sh
+```
+Isso criará o arquivo `OsEsquecidos` na pasta `dist/`.
 
 ## Próximos Passos
 

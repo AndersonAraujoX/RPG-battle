@@ -1,5 +1,6 @@
 import pygame
 from ..config import *
+from ..utils import resource_path
 from .componentes import Botao, Checkbox, Tab # Import Tab
 from ..personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Paladino, Chefe, Druida, Bruxo
 from ..personagens.rei_goblin import ReiGoblin
@@ -10,25 +11,32 @@ from ..personagens.minions import Goblin, Esqueleto, Kobold
 def desenhar_menu_principal(tela, fonte, botoes_menu):
     tela.fill(COR_FUNDO_MENU)
     
-    # Logo / Título (Centralizado e maior)
-    fonte_titulo_grande = pygame.font.Font(None, 110) # Slightly larger
-    
-    # Shadow
-    shadow_surface = fonte_titulo_grande.render("OS ESQUECIDOS", True, (0, 0, 0))
-    tela.blit(shadow_surface, (LARGURA_TELA // 2 - shadow_surface.get_width() // 2 + 5, 85))
-    
-    # Main Title
-    titulo_render = fonte_titulo_grande.render("OS ESQUECIDOS", True, (220, 220, 220)) # Prateado/Branco
-    tela.blit(titulo_render, (LARGURA_TELA // 2 - titulo_render.get_width() // 2, 80))
-    
+    # Logo
+    try:
+        logo_img = pygame.image.load(resource_path("assets/images/logo.png")).convert_alpha()
+        # Scale logo if necessary (e.g., to width 600)
+        target_width = 600
+        scale_factor = target_width / logo_img.get_width()
+        new_height = int(logo_img.get_height() * scale_factor)
+        logo_img = pygame.transform.scale(logo_img, (target_width, new_height))
+        
+        logo_rect = logo_img.get_rect(center=(LARGURA_TELA // 2, 120))
+        tela.blit(logo_img, logo_rect)
+    except Exception as e:
+        print(f"Erro ao carregar logo: {e}")
+        # Fallback to text if logo fails
+        fonte_titulo_grande = pygame.font.Font(None, 110)
+        titulo_render = fonte_titulo_grande.render("OS ESQUECIDOS", True, (220, 220, 220))
+        tela.blit(titulo_render, (LARGURA_TELA // 2 - titulo_render.get_width() // 2, 80))
+
     # Subtítulo
     fonte_sub = pygame.font.Font(None, 32)
     subtitulo = fonte_sub.render("KUAR-TOR: ECOS DO VAZIO", True, COR_ACCENT)
-    tela.blit(subtitulo, (LARGURA_TELA // 2 - subtitulo.get_width() // 2, 160))
+    tela.blit(subtitulo, (LARGURA_TELA // 2 - subtitulo.get_width() // 2, 220)) # Adjusted Y for logo
     
     # Linhas decorativas com brilho
-    pygame.draw.line(tela, COR_ACCENT, (LARGURA_TELA // 2 - 320, 172), (LARGURA_TELA // 2 - 200, 172), 2)
-    pygame.draw.line(tela, COR_ACCENT, (LARGURA_TELA // 2 + 200, 172), (LARGURA_TELA // 2 + 320, 172), 2)
+    pygame.draw.line(tela, COR_ACCENT, (LARGURA_TELA // 2 - 320, 232), (LARGURA_TELA // 2 - 200, 232), 2)
+    pygame.draw.line(tela, COR_ACCENT, (LARGURA_TELA // 2 + 200, 232), (LARGURA_TELA // 2 + 320, 232), 2)
 
     # Desenhar botões do menu principal
     for botao in botoes_menu.values():
@@ -231,17 +239,23 @@ def setup_menu_ui():
         botoes_ui[f'B_sub_{i}'] = Botao(x_time_b + 100, y_pos, 30, 30, "-", fonte_menu)
 
     # Botões Chefe
-    y_chefe = y_start + 50
-    botoes_ui['chefe_add_hp'] = Botao(x_time_b + 60, y_chefe, 30, 30, "+", fonte_menu)
-    botoes_ui['chefe_sub_hp'] = Botao(x_time_b + 100, y_chefe, 30, 30, "-", fonte_menu)
-    botoes_ui['chefe_add_ataque'] = Botao(x_time_b + 60, y_chefe + 40, 30, 30, "+", fonte_menu)
-    botoes_ui['chefe_sub_ataque'] = Botao(x_time_b + 100, y_chefe + 40, 30, 30, "-", fonte_menu)
-    botoes_ui['chefe_add_ac'] = Botao(x_time_b + 60, y_chefe + 80, 30, 30, "+", fonte_menu)
-    botoes_ui['chefe_sub_ac'] = Botao(x_time_b + 100, y_chefe + 80, 30, 30, "-", fonte_menu)
+    y_chefe = y_start + 160
+    # HP
+    botoes_ui['chefe_add_hp'] = Botao(x_time_b + 50, y_chefe, 30, 25, "+", fonte_menu)
+    botoes_ui['chefe_sub_hp'] = Botao(x_time_b + 90, y_chefe, 30, 25, "-", fonte_menu)
+    
+    # AC (Next line, +30)
+    botoes_ui['chefe_add_ac'] = Botao(x_time_b + 50, y_chefe + 30, 30, 25, "+", fonte_menu)
+    botoes_ui['chefe_sub_ac'] = Botao(x_time_b + 90, y_chefe + 30, 30, 25, "-", fonte_menu)
+
+    # Ataque (Next line, +60)
+    botoes_ui['chefe_add_ataque'] = Botao(x_time_b + 50, y_chefe + 60, 30, 25, "+", fonte_menu)
+    botoes_ui['chefe_sub_ataque'] = Botao(x_time_b + 90, y_chefe + 60, 30, 25, "-", fonte_menu)
 
     # Botões de Navegação de Boss
+    # Image is at x_time_b - 50 to x_time_b + 50. Center Y approx y_start + 90 (150+40+50)
     botoes_ui['prev_boss'] = Botao(x_time_b - 120, y_start + 40, 40, 100, "<", fonte_menu)
-    botoes_ui['next_boss'] = Botao(x_time_b + 60, y_start + 40, 40, 100, ">", fonte_menu)
+    botoes_ui['next_boss'] = Botao(x_time_b + 70, y_start + 40, 40, 100, ">", fonte_menu)
 
     # Botões Gerais
     botoes_ui['iniciar'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA - 60, 200, 50, "INICIAR BATALHA", fonte_menu)

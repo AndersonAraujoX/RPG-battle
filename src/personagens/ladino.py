@@ -24,8 +24,9 @@ class Ladino(Personagem):
     def bonus_dano(self): return self.mod_des
 
     def causar_dano(self, alvo, tabuleiro, logger=print, is_critico=False, **kwargs):
+        from src.config import COR_STATUS
         if 'ataque_furtivo' in self.custo_habilidades and self.energia_atual >= self.custo_habilidades['ataque_furtivo']:
-            logger(f"  {self.nome} consegue um Ataque Furtivo!")
+            logger((f"  {self.nome} consegue um Ataque Furtivo!", COR_STATUS))
             self.energia_atual -= self.custo_habilidades['ataque_furtivo']
             dado_original = self.dado_dano
             # Temporarily increase damage dice for sneak attack

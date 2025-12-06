@@ -10,7 +10,7 @@ from ..utils import carregar_dados_personagens
 DADOS_PERSONAGENS = carregar_dados_personagens()
 
 class Personagem:
-    def __init__(self, nome, time, nivel=1, sound_player=None):
+    def __init__(self, nome, time, nivel=1, sound_player=None, stats=None):
         self.nome = nome
         self.time = time
         self.nivel = nivel
@@ -26,13 +26,13 @@ class Personagem:
         class_name = self.__class__.__name__
         if class_name in DADOS_PERSONAGENS:
             data = DADOS_PERSONAGENS[class_name]
-            stats = data.get("stats", {})
-            self._forca = stats.get("forca", 10)
-            self._destreza = stats.get("destreza", 10)
-            self._constituicao = stats.get("constituicao", 10)
-            self._inteligencia = stats.get("inteligencia", 10)
-            self._sabedoria = stats.get("sabedoria", 10)
-            self._carisma = stats.get("carisma", 10)
+            stats_data = data.get("stats", {})
+            self._forca = stats_data.get("forca", 10)
+            self._destreza = stats_data.get("destreza", 10)
+            self._constituicao = stats_data.get("constituicao", 10)
+            self._inteligencia = stats_data.get("inteligencia", 10)
+            self._sabedoria = stats_data.get("sabedoria", 10)
+            self._carisma = stats_data.get("carisma", 10)
             
             self.ac_base = data.get("ac", 10)
             self.dado_dano = tuple(data.get("dado_dano", [1, 4]))
@@ -54,6 +54,18 @@ class Personagem:
             self.alcance = 1
             self.tipo_dano_base = "Físico"
             self.hp_max = 10 + self.mod_con
+
+        # Override with custom stats if provided
+        if stats:
+            if 'hp' in stats: self.hp_max = stats['hp']
+            if 'ac' in stats: self.ac_base = stats['ac']
+            if 'ataque' in stats: 
+                # Bonus de ataque é calculado, não setado diretamente. 
+                # Podemos ajustar a força/destreza para corresponder ou criar um override.
+                # Como bonus_ataque é uma property, vamos criar um atributo _bonus_ataque_override
+                self._bonus_ataque_override = stats['ataque']
+            if 'forca' in stats: self._forca = stats['forca']
+            # ... outros stats se necessário
 
         self.hp_atual = self.hp_max
         self.mana_atual, self.mana_max = 0, 0
@@ -221,6 +233,8 @@ class Personagem:
 
     @property
     def bonus_ataque(self):
+        if hasattr(self, '_bonus_ataque_override'):
+            return self._bonus_ataque_override
         bonus = self.bonus_proficiencia
         for efeito in self.status_efeitos:
             if efeito.propriedades.get("bonus_ataque_fixo"):
