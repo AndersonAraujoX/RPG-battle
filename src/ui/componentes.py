@@ -27,24 +27,51 @@ class Botao:
         cor = self.cor_desabilitado if self.desabilitado else self.cor_atual
         
         if self.is_menu_button:
-            # Renderização estilo "Os Esquecidos"
-            pygame.draw.rect(tela, cor, self.rect, border_radius=10)
-            pygame.draw.rect(tela, (106, 13, 173), self.rect, 1, border_radius=10) # Borda roxa
+            # Renderização estilo "Dark Fantasy" (Final de Kindread Soul)
             
+            # Fundo com gradiente simulado (apenas um fill por enquanto)
+            # Cor base escura, hover um pouco mais claro
+            cor_fundo = (40, 40, 40) if not self.rect.collidepoint(pygame.mouse.get_pos()) else (60, 60, 60)
+            pygame.draw.rect(tela, cor_fundo, self.rect, border_radius=2)
+            
+            # Borda Metálica/Dourada
+            cor_borda = (100, 100, 100) # Aço escuro
+            if self.rect.collidepoint(pygame.mouse.get_pos()):
+                cor_borda = (218, 165, 32) # Dourado no hover
+            
+            pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=2)
+            
+            # Detalhe decorativo nos cantos (opcional, mas adiciona "flavor")
+            tamanho_canto = 10
+            pygame.draw.lines(tela, cor_borda, False, [(self.rect.x, self.rect.y + tamanho_canto), (self.rect.x, self.rect.y), (self.rect.x + tamanho_canto, self.rect.y)], 2)
+            pygame.draw.lines(tela, cor_borda, False, [(self.rect.right - tamanho_canto, self.rect.y), (self.rect.right, self.rect.y), (self.rect.right, self.rect.y + tamanho_canto)], 2)
+            pygame.draw.lines(tela, cor_borda, False, [(self.rect.x, self.rect.bottom - tamanho_canto), (self.rect.x, self.rect.bottom), (self.rect.x + tamanho_canto, self.rect.bottom)], 2)
+            pygame.draw.lines(tela, cor_borda, False, [(self.rect.right - tamanho_canto, self.rect.bottom), (self.rect.right, self.rect.bottom), (self.rect.right, self.rect.bottom - tamanho_canto)], 2)
+
             # Ícone (Placeholder ou Imagem)
             if self.icone:
-                # Placeholder: Retângulo roxo mais claro
-                icone_rect = pygame.Rect(self.rect.x + 20, self.rect.centery - 20, 40, 40)
-                pygame.draw.rect(tela, (150, 50, 200), icone_rect, border_radius=5)
+                # Placeholder: Losango ou círculo
+                icone_rect = pygame.Rect(self.rect.x + 25, self.rect.centery - 20, 40, 40)
+                # pygame.draw.rect(tela, (30, 30, 30), icone_rect, border_radius=5)
+                # Desenhar um losango dourado
+                center_icon = icone_rect.center
+                points = [
+                    (center_icon[0], center_icon[1] - 15),
+                    (center_icon[0] + 15, center_icon[1]),
+                    (center_icon[0], center_icon[1] + 15),
+                    (center_icon[0] - 15, center_icon[1])
+                ]
+                pygame.draw.polygon(tela, cor_borda, points, 2)
             
             # Texto Principal
-            texto_surface = self.fonte.render(self.texto, True, (255, 255, 255))
-            tela.blit(texto_surface, (self.rect.x + 80, self.rect.y + 15))
+            cor_texto = (220, 220, 220) if not self.rect.collidepoint(pygame.mouse.get_pos()) else (255, 215, 0)
+            texto_surface = self.fonte.render(self.texto, True, cor_texto)
+            tela.blit(texto_surface, (self.rect.x + 90, self.rect.y + 15))
             
             # Subtítulo
             if self.subtitulo:
                 sub_surface = self.fonte_sub.render(self.subtitulo, True, (150, 150, 150))
-                tela.blit(sub_surface, (self.rect.x + 80, self.rect.y + 45))
+                tela.blit(sub_surface, (self.rect.x + 90, self.rect.y + 45))
                 
         else:
             # Renderização Padrão (Antiga)

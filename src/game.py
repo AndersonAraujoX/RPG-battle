@@ -4,14 +4,15 @@ from collections import deque
 from .config import *
 from .motor_combate import MotorCombate
 from .personagens import *
-from .ui.menu import setup_menu_ui, desenhar_setup_batalha, desenhar_menu_principal, setup_menu_principal_ui
+from .ui.menu import setup_menu_ui, setup_menu_principal_ui
 from .ui.desenho import (
     desenhar_barra_iniciativa, desenhar_cenario, desenhar_itens_no_chao,
     desenhar_personagens, desenhar_pre_visualizacao_ataque,
     desenhar_projeteis_e_efeitos, desenhar_floating_texts, desenhar_log,
     desenhar_info_personagem, desenhar_inventario, desenhar_comandos,
     desenhar_tela_fim, desenhar_tela_level_up, desenhar_tela_salvando,
-    desenhar_tela_carregando, desenhar_editor, desenhar_dialogo
+    desenhar_tela_carregando, desenhar_editor, desenhar_dialogo,
+    desenhar_menu_principal, desenhar_setup_batalha
 )
 from .sistema_dialogo import Dialogo
 from .salvar_carregar import salvar_jogo, carregar_jogo
@@ -545,6 +546,8 @@ class Game:
         self.tela.fill(COR_FUNDO)
         
         if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
+            import inspect
+            print(f"DEBUG: desenhar_menu_principal signature: {inspect.signature(desenhar_menu_principal)}")
             desenhar_menu_principal(self.tela, self.fonte_menu, self.botoes_menu_principal, mouse_pos)
         
         elif self.estado_jogo == ESTADO_JOGO_SETUP:

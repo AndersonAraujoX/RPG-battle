@@ -609,14 +609,27 @@ def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
     # Fundo
     tela.fill((20, 20, 30))
     
-    # Título
-    fonte_titulo = pygame.font.Font(None, 72)
-    titulo = fonte_titulo.render("Simulador de Batalha", True, (255, 255, 255))
-    titulo_rect = titulo.get_rect(center=(LARGURA_TELA // 2, 100))
-    tela.blit(titulo, titulo_rect)
+    # Logo
+    try:
+        logo_img = pygame.image.load(resource_path("assets/images/logo.png")).convert_alpha()
+        # Scale logo if necessary (e.g., to width 600)
+        target_width = 600
+        scale_factor = target_width / logo_img.get_width()
+        new_height = int(logo_img.get_height() * scale_factor)
+        logo_img = pygame.transform.scale(logo_img, (target_width, new_height))
+        
+        logo_rect = logo_img.get_rect(center=(LARGURA_TELA // 2, 120))
+        tela.blit(logo_img, logo_rect)
+    except Exception as e:
+        print(f"Erro ao carregar logo: {e}")
+        # Fallback to text if logo fails
+        fonte_titulo = pygame.font.Font(None, 72)
+        titulo = fonte_titulo.render("Simulador de Batalha", True, (255, 255, 255))
+        titulo_rect = titulo.get_rect(center=(LARGURA_TELA // 2, 100))
+        tela.blit(titulo, titulo_rect)
     
     subtitulo = fonte.render("Edição Tática", True, (150, 150, 150))
-    sub_rect = subtitulo.get_rect(center=(LARGURA_TELA // 2, 150))
+    sub_rect = subtitulo.get_rect(center=(LARGURA_TELA // 2, 220)) # Adjusted Y for logo
     tela.blit(subtitulo, sub_rect)
 
     for botao in botoes.values():
@@ -648,47 +661,169 @@ def desenhar_dialogo(tela, fonte, dialogo_sistema, game_images):
         # Tenta carregar imagem do personagem se for uma chave de imagem válida
         img_key = f"personagem_{retrato_key.lower()}"
         if img_key in game_images and game_images[img_key]:
-             retrato = pygame.transform.scale(game_images[img_key], (100, 100))
-             tela.blit(retrato, (rect_caixa.x + 20, rect_caixa.y + 25))
-             pygame.draw.rect(tela, (255, 255, 255), (rect_caixa.x + 20, rect_caixa.y + 25, 100, 100), 2)
-             x_texto += 120
-        else:
-             # Placeholder se não tiver imagem
-             pygame.draw.rect(tela, (50, 50, 50), (rect_caixa.x + 20, rect_caixa.y + 25, 100, 100))
-             x_texto += 120
-
-    # Desenha Nome
-    fonte_nome = pygame.font.Font(None, 32)
-    nome_render = fonte_nome.render(nome_personagem, True, (255, 215, 0)) # Dourado
-    tela.blit(nome_render, (x_texto, rect_caixa.y + 20))
+            img = game_images[img_key]
+            scaled_img = pygame.transform.scale(img, (100, 100))
+            tela.blit(scaled_img, (rect_caixa.x + 10, rect_caixa.y + 25))
+            x_texto += 110 # Desloca texto para direita
     
-    # Desenha Texto (com quebra de linha simples)
-    palavras = dialogo_sistema.texto_exibido.split(' ')
+    # Nome do Personagem
+    nome_render = fonte.render(nome_personagem, True, (255, 215, 0)) # Dourado
+    tela.blit(nome_render, (x_texto, rect_caixa.y + 15))
+    
+    # Texto (com efeito de máquina de escrever)
+    # Quebra de linha simples
+    palavras = texto.split(' ')
     linhas = []
     linha_atual = ""
-    
-    largura_maxima = rect_caixa.width - (x_texto - rect_caixa.x) - 20
-    
     for palavra in palavras:
         teste_linha = linha_atual + palavra + " "
-        if fonte.size(teste_linha)[0] < largura_maxima:
+        if fonte.size(teste_linha)[0] < rect_caixa.width - (x_texto - rect_caixa.x) - 20:
             linha_atual = teste_linha
         else:
             linhas.append(linha_atual)
             linha_atual = palavra + " "
     linhas.append(linha_atual)
     
-    y_texto = rect_caixa.y + 60
+    y_texto = rect_caixa.y + 50
     for linha in linhas:
         texto_render = fonte.render(linha, True, (255, 255, 255))
         tela.blit(texto_render, (x_texto, y_texto))
         y_texto += 25
         
     # Indicador de "Próximo" (piscando)
-    if dialogo_sistema.esperando_input:
-        if (pygame.time.get_ticks() // 500) % 2 == 0:
-            pygame.draw.polygon(tela, (255, 255, 255), [
-                (rect_caixa.right - 30, rect_caixa.bottom - 30),
-                (rect_caixa.right - 20, rect_caixa.bottom - 30),
-                (rect_caixa.right - 25, rect_caixa.bottom - 20)
-            ])
+    if pygame.time.get_ticks() % 1000 < 500:
+        pygame.draw.polygon(tela, (255, 255, 255), [
+            (rect_caixa.right - 30, rect_caixa.bottom - 30),
+            (rect_caixa.right - 20, rect_caixa.bottom - 30),
+            (rect_caixa.right - 25, rect_caixa.bottom - 20)
+        ])
+
+def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id, mouse_pos=None):
+    tela.fill(COR_FUNDO)
+    
+    # Título da Tela de Setup
+    titulo_render = fonte.render("CONFIGURAÇÃO DE BATALHA", True, COR_TEXTO)
+    tela.blit(titulo_render, (LARGURA_TELA // 2 - titulo_render.get_width() // 2, 30))
+
+    # Draw Tabs
+    tab_y_start = 80
+    for tab in menu_tabs.values():
+        tab.desenhar(tela, fonte, mouse_pos)
+
+    # Base Y position for content, adjusted for tab height
+    content_y_start = 150 # Adjusted y_start for tab height
+    
+    if active_tab_id == "times":
+        x_time_a = LARGURA_TELA // 4
+        x_time_b = LARGURA_TELA * 3 // 4
+        # --- Time A ---
+        tela.blit(fonte.render("Time A", True, CORES_TIME["A"]), (x_time_a - 80, content_y_start - 40))
+        for i, (classe, nome_classe) in enumerate(config_times['classes']):
+            y_pos = content_y_start + i * 50
+            tela.blit(fonte.render(f"{nome_classe}: {config_times['A'][classe]}", True, COR_TEXTO), (x_time_a - 80, y_pos + 5))
+
+        # --- Time B ou Chefe ---
+        tela.blit(fonte.render("Time B", True, CORES_TIME["B"]), (x_time_b - 80, content_y_start - 40))
+        if checkbox_chefe.checked:
+            # --- Boss Selection UI ---
+            selected_boss = bosses[selected_boss_index]
+            boss_class = selected_boss["classe"]
+            boss_name = selected_boss["nome"]
+
+            # Display boss name
+            tela.blit(fonte.render(boss_name, True, COR_TEXTO), (x_time_b - 80, content_y_start))
+
+            # Display boss "print" (image)
+            boss_img_key = f"personagem_{boss_class.__name__.lower()}"
+            if boss_img_key in game_images and game_images[boss_img_key]:
+                img = game_images[boss_img_key]
+                # Scale image to a reasonable size for the menu
+                scaled_img = pygame.transform.scale(img, (100, 100))
+                tela.blit(scaled_img, (x_time_b - 50, content_y_start + 40))
+
+            # Display boss stats and abilities
+            # Create a temporary instance to get stats
+            temp_boss = boss_class("temp", "B")
+            y_offset = content_y_start + 160
+            stats_to_show = [
+                f"HP: {temp_boss.hp_max}",
+                f"AC: {temp_boss.ac}",
+                f"Ataque: +{temp_boss.bonus_ataque}",
+                f"Dano: {temp_boss.dado_dano[0]}d{temp_boss.dado_dano[1]} +{temp_boss.bonus_dano}",
+            ]
+            for stat in stats_to_show:
+                tela.blit(fonte.render(stat, True, COR_TEXTO), (x_time_b - 80, y_offset))
+                y_offset += 30
+
+            y_offset += 10
+            tela.blit(fonte.render("Habilidades:", True, COR_TEXTO), (x_time_b - 80, y_offset))
+            y_offset += 25
+            for ability in temp_boss.cooldowns:
+                tela.blit(fonte.render(f"- {ability.replace('_', ' ').title()}", True, COR_TEXTO), (x_time_b - 60, y_offset))
+                y_offset += 25
+            
+            y_offset += 10
+            tela.blit(fonte.render("Imunidades:", True, COR_TEXTO), (x_time_b - 80, y_offset))
+            y_offset += 25
+            for immunity in temp_boss.imunidades:
+                tela.blit(fonte.render(f"- {immunity}", True, COR_TEXTO), (x_time_b - 60, y_offset))
+                y_offset += 25
+
+        else:
+            # Interface Normal do Time B
+            for i, (classe, nome_classe) in enumerate(config_times['classes']):
+                y_pos = content_y_start + i * 50
+                tela.blit(fonte.render(f"{nome_classe}: {config_times['B'][classe]}", True, COR_TEXTO), (x_time_b - 80, y_pos + 5))
+
+        # Draw buttons related to times
+        for nome, botao in botoes_ui.items():
+            is_botao_chefe_attr = nome.startswith('chefe_')
+            is_botao_time_b = nome.startswith('B_')
+            is_boss_nav = nome in ['next_boss', 'prev_boss']
+
+            if is_botao_chefe_attr or is_boss_nav or is_botao_time_b or nome.startswith('A_'): # Only draw A_ and B_ and boss_nav buttons for "times" tab
+                if checkbox_chefe.checked:
+                    if is_botao_time_b: continue
+                else:
+                    if is_boss_nav or is_botao_chefe_attr: continue
+                botao.desenhar(tela, fonte, mouse_pos)
+
+    elif active_tab_id == "configuracoes":
+        config_x = LARGURA_TELA // 2 - 150 # Centered for checkboxes
+        config_y = content_y_start # Start below the tabs
+
+        # Draw checkboxes
+        checkbox_terreno.rect.topleft = (config_x, config_y)
+        checkbox_terreno.desenhar(tela)
+        checkbox_auto.rect.topleft = (config_x, config_y + 40)
+        checkbox_auto.desenhar(tela)
+        checkbox_chefe.rect.topleft = (config_x, config_y + 80)
+        checkbox_chefe.desenhar(tela)
+        checkbox_autoplay.rect.topleft = (config_x, config_y + 120)
+        checkbox_autoplay.desenhar(tela)
+        checkbox_mapa_custom.rect.topleft = (config_x, config_y + 160)
+        checkbox_mapa_custom.desenhar(tela)
+        checkbox_campanha.rect.topleft = (config_x, config_y + 200)
+        checkbox_campanha.desenhar(tela)
+        checkbox_limitadores.rect.topleft = (config_x, config_y + 240)
+        checkbox_limitadores.desenhar(tela)
+        
+        # Draw volume controls separately
+        y_volume = config_y + 280 # Below limiters checkbox
+        tela.blit(fonte.render(f"Volume SFX: {int(volume_sfx * 100)}%", True, COR_TEXTO), (config_x, y_volume))
+        botoes_ui['sfx_vol_down'].rect.topleft = (config_x + 200, y_volume)
+        botoes_ui['sfx_vol_down'].desenhar(tela, fonte, mouse_pos)
+        botoes_ui['sfx_vol_up'].rect.topleft = (config_x + 260, y_volume)
+        botoes_ui['sfx_vol_up'].desenhar(tela, fonte, mouse_pos)
+
+    # Iniciar Batalha button (always visible)
+    botoes_ui['iniciar'].rect.center = (LARGURA_TELA // 2, ALTURA_TELA - 60)
+    botoes_ui['iniciar'].desenhar(tela, fonte, mouse_pos)
+    
+    # Editor de Mapas button (always visible)
+    botoes_ui['editor_mapas'].rect.center = (LARGURA_TELA // 2, ALTURA_TELA - 120)
+    botoes_ui['editor_mapas'].desenhar(tela, fonte, mouse_pos)
+    
+    # Botão Voltar ao Menu Principal
+    botoes_ui['voltar_menu'].rect.topleft = (20, 20)
+    botoes_ui['voltar_menu'].desenhar(tela, fonte, mouse_pos)
