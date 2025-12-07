@@ -27,51 +27,41 @@ class Botao:
         cor = self.cor_desabilitado if self.desabilitado else self.cor_atual
         
         if self.is_menu_button:
-            # Renderização estilo "Dark Fantasy" (Final de Kindread Soul)
+            # Renderização estilo "Mosaico" (Final de Kindread Soul)
             
-            # Fundo com gradiente simulado (apenas um fill por enquanto)
-            # Cor base escura, hover um pouco mais claro
-            cor_fundo = (40, 40, 40) if not self.rect.collidepoint(pygame.mouse.get_pos()) else (60, 60, 60)
-            pygame.draw.rect(tela, cor_fundo, self.rect, border_radius=2)
+            # Cores baseadas na referência (Marrom/Dourado)
+            cor_normal = (101, 67, 33) # Marrom escuro
+            cor_hover = (139, 69, 19) # SaddleBrown
+            cor_borda = (218, 165, 32) # GoldenRod
             
-            # Borda Metálica/Dourada
-            cor_borda = (100, 100, 100) # Aço escuro
-            if self.rect.collidepoint(pygame.mouse.get_pos()):
-                cor_borda = (218, 165, 32) # Dourado no hover
+            cor_fundo = cor_normal if not self.rect.collidepoint(pygame.mouse.get_pos()) else cor_hover
             
-            pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=2)
+            # Fundo semitransparente para destacar sobre o mosaico
+            s = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+            s.fill((*cor_fundo, 200)) # Alpha 200
+            tela.blit(s, self.rect.topleft)
             
-            # Detalhe decorativo nos cantos (opcional, mas adiciona "flavor")
-            tamanho_canto = 10
-            pygame.draw.lines(tela, cor_borda, False, [(self.rect.x, self.rect.y + tamanho_canto), (self.rect.x, self.rect.y), (self.rect.x + tamanho_canto, self.rect.y)], 2)
-            pygame.draw.lines(tela, cor_borda, False, [(self.rect.right - tamanho_canto, self.rect.y), (self.rect.right, self.rect.y), (self.rect.right, self.rect.y + tamanho_canto)], 2)
-            pygame.draw.lines(tela, cor_borda, False, [(self.rect.x, self.rect.bottom - tamanho_canto), (self.rect.x, self.rect.bottom), (self.rect.x + tamanho_canto, self.rect.bottom)], 2)
-            pygame.draw.lines(tela, cor_borda, False, [(self.rect.right - tamanho_canto, self.rect.bottom), (self.rect.right, self.rect.bottom), (self.rect.right, self.rect.bottom - tamanho_canto)], 2)
+            # Borda Dourada
+            pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=5)
+            
+            # Brilho interno (Inner Glow)
+            pygame.draw.rect(tela, (255, 223, 0), self.rect.inflate(-4, -4), 1, border_radius=5)
 
-            # Ícone (Placeholder ou Imagem)
-            if self.icone:
-                # Placeholder: Losango ou círculo
-                icone_rect = pygame.Rect(self.rect.x + 25, self.rect.centery - 20, 40, 40)
-                # pygame.draw.rect(tela, (30, 30, 30), icone_rect, border_radius=5)
-                # Desenhar um losango dourado
-                center_icon = icone_rect.center
-                points = [
-                    (center_icon[0], center_icon[1] - 15),
-                    (center_icon[0] + 15, center_icon[1]),
-                    (center_icon[0], center_icon[1] + 15),
-                    (center_icon[0] - 15, center_icon[1])
-                ]
-                pygame.draw.polygon(tela, cor_borda, points, 2)
-            
-            # Texto Principal
-            cor_texto = (220, 220, 220) if not self.rect.collidepoint(pygame.mouse.get_pos()) else (255, 215, 0)
+            # Texto Principal (Centralizado)
+            cor_texto = (255, 255, 240) # Ivory
             texto_surface = self.fonte.render(self.texto, True, cor_texto)
-            tela.blit(texto_surface, (self.rect.x + 90, self.rect.y + 15))
+            texto_rect = texto_surface.get_rect(center=self.rect.center)
             
-            # Subtítulo
+            # Sombra do texto
+            sombra_surface = self.fonte.render(self.texto, True, (0, 0, 0))
+            sombra_rect = sombra_surface.get_rect(center=(self.rect.centerx + 2, self.rect.centery + 2))
+            tela.blit(sombra_surface, sombra_rect)
+            tela.blit(texto_surface, texto_rect)
+            
+            # Subtítulo (se houver, abaixo do botão ou menor)
+            # Na referência os botões são simples, então vamos ignorar subtítulo ou desenhar pequeno
             if self.subtitulo:
-                sub_surface = self.fonte_sub.render(self.subtitulo, True, (150, 150, 150))
-                tela.blit(sub_surface, (self.rect.x + 90, self.rect.y + 45))
+                pass # Simplificação para o estilo novo
                 
         else:
             # Renderização Padrão (Antiga)
@@ -103,7 +93,10 @@ class Tab(Botao): # Tab inherits from Botao
         self.selected = False
         self.cor_selecionado = (100, 100, 200) # Cor para aba selecionada
 
-    def desenhar(self, tela, fonte):
+    def desenhar(self, tela, fonte, mouse_pos=None):
+        if mouse_pos:
+            self.update_hover(mouse_pos)
+            
         cor = self.cor_selecionado if self.selected else self.cor_atual
         pygame.draw.rect(tela, cor, self.rect, border_radius=5)
         texto_render = fonte.render(self.texto, True, COR_TEXTO)

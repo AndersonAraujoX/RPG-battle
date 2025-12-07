@@ -10,7 +10,7 @@ from src.personagens import (
     Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe, Paladino,
     ReiGoblin, LordeLich, DragaoAnciao, Druida, Bruxo
 )
-from src.utils import calcular_distancia
+from src.utils import calcular_distancia, resource_path
 
 def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
     # Crie superfícies para o nevoeiro uma vez para reutilização
@@ -456,7 +456,7 @@ def desenhar_tela_fim(tela, fonte, vencedor, y_offset, botoes, mouse_pos):
     botoes['voltar_menu'].update_hover(mouse_pos)
     botoes['voltar_menu'].desenhar(tela, fonte)
 
-def desenhar_comandos(tela, fonte, y_offset):
+def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos):
     area_comandos = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 150 + y_offset, LARGURA_LOG, 150)
     pygame.draw.rect(tela, (25, 25, 25), area_comandos) # Fundo para os comandos
     
@@ -472,6 +472,11 @@ def desenhar_comandos(tela, fonte, y_offset):
         cmd_render = fonte.render(cmd, True, COR_TEXTO)
         tela.blit(cmd_render, (LARGURA_TABULEIRO + 10, y_offset_texto))
         y_offset_texto += 20
+        
+    # Desenhar botões de combate (Passar Turno, Salvar, Carregar)
+    for botao in botoes.values():
+        botao.update_hover(mouse_pos)
+        botao.desenhar(tela, fonte, mouse_pos)
 
 def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images): # Added game_images
     area_iniciativa = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 250, LARGURA_LOG, 100)
@@ -607,30 +612,35 @@ def desenhar_tela_level_up(tela, fonte_titulo, fonte_menu, personagem, botoes, m
 
 def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
     # Fundo
-    tela.fill((20, 20, 30))
-    
-    # Logo
     try:
-        logo_img = pygame.image.load(resource_path("assets/images/logo.png")).convert_alpha()
-        # Scale logo if necessary (e.g., to width 600)
-        target_width = 600
-        scale_factor = target_width / logo_img.get_width()
-        new_height = int(logo_img.get_height() * scale_factor)
-        logo_img = pygame.transform.scale(logo_img, (target_width, new_height))
-        
-        logo_rect = logo_img.get_rect(center=(LARGURA_TELA // 2, 120))
-        tela.blit(logo_img, logo_rect)
+        bg_img = pygame.image.load(resource_path("assets/images/menu_background.png")).convert()
+        bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
+        tela.blit(bg_img, (0, 0))
     except Exception as e:
-        print(f"Erro ao carregar logo: {e}")
-        # Fallback to text if logo fails
-        fonte_titulo = pygame.font.Font(None, 72)
-        titulo = fonte_titulo.render("Simulador de Batalha", True, (255, 255, 255))
-        titulo_rect = titulo.get_rect(center=(LARGURA_TELA // 2, 100))
-        tela.blit(titulo, titulo_rect)
+        print(f"Erro ao carregar background: {e}")
+        tela.fill((20, 20, 30))
     
-    subtitulo = fonte.render("Edição Tática", True, (150, 150, 150))
-    sub_rect = subtitulo.get_rect(center=(LARGURA_TELA // 2, 220)) # Adjusted Y for logo
-    tela.blit(subtitulo, sub_rect)
+    # Título "FINAL DE KINDREAD SOUL"
+    # Estilo: Dourado com sombra
+    fonte_titulo = pygame.font.Font(None, 100)
+    texto_titulo = "FINAL DE"
+    texto_subtitulo = "KINDREAD SOUL"
+    
+    # Sombra
+    sombra_offset = 4
+    titulo_sombra = fonte_titulo.render(texto_titulo, True, (0, 0, 0))
+    subtitulo_sombra = fonte_titulo.render(texto_subtitulo, True, (0, 0, 0))
+    
+    tela.blit(titulo_sombra, (100 + sombra_offset, 100 + sombra_offset))
+    tela.blit(subtitulo_sombra, (100 + sombra_offset, 180 + sombra_offset))
+    
+    # Texto Principal
+    titulo_cor = (255, 215, 0) # Gold
+    titulo_render = fonte_titulo.render(texto_titulo, True, titulo_cor)
+    subtitulo_render = fonte_titulo.render(texto_subtitulo, True, (255, 140, 0)) # DarkOrange/Gold gradient feel
+    
+    tela.blit(titulo_render, (100, 100))
+    tela.blit(subtitulo_render, (100, 180))
 
     for botao in botoes.values():
         botao.desenhar(tela, fonte, mouse_pos)

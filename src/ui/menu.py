@@ -46,23 +46,26 @@ def desenhar_menu_principal(tela, fonte, botoes_menu):
 
 
 def setup_menu_principal_ui():
-    fonte_menu = pygame.font.Font(None, 36)
+    fonte_menu = pygame.font.Font(None, 48) # Fonte maior
     botoes = {}
     
-    largura_btn = 600
-    altura_btn = 80
-    x_centro = LARGURA_TELA // 2 - largura_btn // 2
-    y_start = 250
-    espacamento = 100
+    largura_btn = 300
+    altura_btn = 60
     
-    botoes['nova_batalha'] = Botao(x_centro, y_start, largura_btn, altura_btn, "NOVA BATALHA", fonte_menu, "Inicie uma simulação de combate tático.", icone=True, cor_fundo=COR_BOTAO_MENU)
-    botoes['gerenciar'] = Botao(x_centro, y_start + espacamento, largura_btn, altura_btn, "GERENCIAR RECRUTAS", fonte_menu, "Equipe seus criminosos e heróis caídos.", icone=True, cor_fundo=COR_BOTAO_MENU)
-    botoes['bestiario'] = Botao(x_centro, y_start + espacamento * 2, largura_btn, altura_btn, "BESTIÁRIO DO VAZIO", fonte_menu, "Dados sobre criaturas e anomalias.", icone=True, cor_fundo=COR_BOTAO_MENU)
+    # Posicionamento à esquerda (conforme referência)
+    x_pos = 100
+    y_start = 350
+    espacamento = 80
     
-    # Opções e Sair lado a lado
-    largura_pequeno = 290
-    botoes['opcoes'] = Botao(x_centro, y_start + espacamento * 3, largura_pequeno, altura_btn, "OPÇÕES", fonte_menu, icone=True, cor_fundo=COR_BOTAO_MENU)
-    botoes['sair'] = Botao(x_centro + 310, y_start + espacamento * 3, largura_pequeno, altura_btn, "SAIR", fonte_menu, icone=True, cor_fundo=COR_BOTAO_MENU)
+    botoes['nova_batalha'] = Botao(x_pos, y_start, largura_btn, altura_btn, "JOGAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['opcoes'] = Botao(x_pos, y_start + espacamento, largura_btn, altura_btn, "OPÇÕES", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['sair'] = Botao(x_pos, y_start + espacamento * 2, largura_btn, altura_btn, "SAIR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    
+    # Botões extras (Gerenciar/Bestiário) podem ser acessados via "JOGAR" ou "OPÇÕES" futuramente, 
+    # ou podemos mantê-los menores se o usuário quiser. 
+    # Por enquanto, vou seguir estritamente a referência visual que tem 3 botões principais.
+    # Mas para não perder funcionalidade, vou adicionar "Gerenciar" e "Bestiário" como botões menores abaixo ou remover se não forem essenciais agora.
+    # Vou comentar os antigos para focar no visual da referência.
     
     return botoes
 

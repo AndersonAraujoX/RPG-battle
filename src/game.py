@@ -491,9 +491,32 @@ class Game:
                                             self.motor.avancar_turno()
                                             self.atualizar_visibilidade()
                                         else:
-                                            # Invalid move (blocked or too far) - logs usually handled inside but let's check
                                             if not logs: self.play_sound('invalid_action')
                                             self.log_combate.extend(logs)
+
+                    elif self.estado_jogo == ESTADO_JOGO_EDITOR:
+                        # Handle Editor Buttons
+                        for nome, botao in self.botoes_editor.items():
+                            if botao.rect.collidepoint(mouse_pos):
+                                self.play_sound('button_click')
+                                if nome in [TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL]:
+                                    self.editor_terreno_selecionado = nome
+                                elif nome == 'salvar':
+                                    print("Salvar Mapa clicado (Implementar lógica de arquivo)")
+                                    # Implementar lógica real de salvar mapa aqui
+                                elif nome == 'carregar':
+                                    print("Carregar Mapa clicado (Implementar lógica de arquivo)")
+                                    # Implementar lógica real de carregar mapa aqui
+                                elif nome == 'voltar':
+                                    self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+
+                        # Handle Grid Interaction (Paint Terrain)
+                        if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO:
+                            grid_x = mouse_pos[0] // TAMANHO_CELULA
+                            grid_y = (mouse_pos[1] - ALTURA_BARRA_INICIATIVA) // TAMANHO_CELULA
+                            
+                            if 0 <= grid_x < 20 and 0 <= grid_y < 20:
+                                self.editor_mapa[grid_y][grid_x] = self.editor_terreno_selecionado
 
     def update_game_logic(self, agora, personagem_ativo):
         if self.dialogo.ativo:
@@ -546,8 +569,6 @@ class Game:
         self.tela.fill(COR_FUNDO)
         
         if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
-            import inspect
-            print(f"DEBUG: desenhar_menu_principal signature: {inspect.signature(desenhar_menu_principal)}")
             desenhar_menu_principal(self.tela, self.fonte_menu, self.botoes_menu_principal, mouse_pos)
         
         elif self.estado_jogo == ESTADO_JOGO_SETUP:
