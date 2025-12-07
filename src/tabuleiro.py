@@ -1,5 +1,5 @@
 import random
-from src.config import TIME_A, TIME_B, TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO
+from src.config import TIME_A, TIME_B, TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_FOGO, TERRENO_AGUA, TERRENO_ROCHA, TERRENO_BARRIL, COR_STATUS
 
 class Tabuleiro:
     def __init__(self, largura=20, altura=20):
@@ -15,16 +15,23 @@ class Tabuleiro:
             return self.itens_no_chao[y][x]
         return None
 
-    def gerar_terreno_aleatorio(self, chance_parede=0.05, chance_floresta=0.1, chance_dificil=0.1):
+    def gerar_terreno_aleatorio(self, chance_parede=0.05, chance_floresta=0.1, chance_dificil=0.1, chance_agua=0.05, chance_rocha=0.03, chance_barril=0.02):
         """Gera terreno aleatório no tabuleiro, evitando as áreas de spawn."""
         for y in range(4, self.altura - 4):
             for x in range(self.largura):
-                if random.random() < chance_parede:
+                r = random.random()
+                if r < chance_parede:
                     self.terrain_grid[y][x] = TERRENO_PAREDE
-                elif random.random() < chance_floresta:
+                elif r < chance_parede + chance_floresta:
                     self.terrain_grid[y][x] = TERRENO_FLORESTA
-                elif random.random() < chance_dificil:
+                elif r < chance_parede + chance_floresta + chance_dificil:
                     self.terrain_grid[y][x] = TERRENO_DIFICIL
+                elif r < chance_parede + chance_floresta + chance_dificil + chance_agua:
+                    self.terrain_grid[y][x] = TERRENO_AGUA
+                elif r < chance_parede + chance_floresta + chance_dificil + chance_agua + chance_rocha:
+                    self.terrain_grid[y][x] = TERRENO_ROCHA
+                elif r < chance_parede + chance_floresta + chance_dificil + chance_agua + chance_rocha + chance_barril:
+                    self.terrain_grid[y][x] = TERRENO_BARRIL
                 
                 self.elevation_grid[y][x] = random.randint(0, 2)
 
@@ -166,6 +173,34 @@ class Tabuleiro:
                 y1 += sy
         return True
 
+        return True
+
+    def aplicar_dano_terreno(self, x, y, tipo_dano, logger=None):
+        """Aplica alterações no terreno baseado no tipo de dano."""
+        if not (0 <= x < self.largura and 0 <= y < self.altura):
+            return
+
+        terreno_atual = self.terrain_grid[y][x]
+        novo_terreno = terreno_atual
+
+        if tipo_dano == "Fogo":
+            if terreno_atual == TERRENO_FLORESTA:
+                novo_terreno = TERRENO_FOGO
+                if logger: logger((f"  A floresta em ({x},{y}) pega fogo!", COR_STATUS))
+            elif terreno_atual == TERRENO_GELO:
+                novo_terreno = TERRENO_AGUA
+                if logger: logger((f"  O gelo em ({x},{y}) derrete e vira água!", COR_STATUS))
+        
+        elif tipo_dano == "Gelo":
+            if terreno_atual == TERRENO_AGUA:
+                novo_terreno = TERRENO_GELO
+                if logger: logger((f"  A água em ({x},{y}) congela!", COR_STATUS))
+            elif terreno_atual == TERRENO_FOGO:
+                novo_terreno = TERRENO_NORMAL # Apaga o fogo
+                if logger: logger((f"  O fogo em ({x},{y}) é apagado!", COR_STATUS))
+
+        self.terrain_grid[y][x] = novo_terreno
+
     def desenhar_tabuleiro(self, combatentes):
         simbolos = {
             ("Guerreiro", TIME_A): "GA", ("Mago", TIME_A): "MA", ("Ladino", TIME_A): "LA",
@@ -177,7 +212,11 @@ class Tabuleiro:
             TERRENO_NORMAL: " . ",
             TERRENO_FLORESTA: " # ",
             TERRENO_DIFICIL: " ~ ",
+            TERRENO_FLORESTA: " # ",
+            TERRENO_DIFICIL: " ~ ",
             TERRENO_PAREDE: "███",
+            TERRENO_ROCHA: " O ",
+            TERRENO_BARRIL: " o ",
         }
 
         print("\n" + "="* (self.largura * 3 + 3))

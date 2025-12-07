@@ -11,8 +11,9 @@ from .ui.desenho import (
     desenhar_projeteis_e_efeitos, desenhar_floating_texts, desenhar_log,
     desenhar_info_personagem, desenhar_inventario, desenhar_comandos,
     desenhar_tela_fim, desenhar_tela_level_up, desenhar_tela_salvando,
-    desenhar_tela_carregando, desenhar_editor
+    desenhar_tela_carregando, desenhar_editor, desenhar_dialogo
 )
+from .sistema_dialogo import Dialogo
 from .salvar_carregar import salvar_jogo, carregar_jogo
 from .utils import calcular_distancia, resource_path
 from .ui.componentes import Botao, FloatingText, Checkbox, Tab
@@ -75,6 +76,7 @@ class Game:
         self.floating_texts = []
         self.editor_mapa = [[TERRENO_NORMAL for _ in range(20)] for _ in range(20)]
         self.editor_terreno_selecionado = TERRENO_NORMAL
+        self.dialogo = Dialogo()
 
         self.setup_ui()
         self.tocar_musica('menu')
@@ -190,9 +192,9 @@ class Game:
             'carregar': Botao(LARGURA_TABULEIRO + 160, ALTURA_TELA - 70, 140, 50, "Carregar Mapa", self.fonte_menu),
             'voltar': Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 130, LARGURA_LOG - 40, 50, "Voltar ao Menu", self.fonte_menu),
         }
-        terrenos = [TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO]
+        terrenos = [TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL]
         for i, terreno in enumerate(terrenos):
-            self.botoes_editor[terreno] = Botao(LARGURA_TABULEIRO + 20, 100 + i * 60, LARGURA_LOG - 40, 50, terreno.title(), self.fonte_menu)
+            self.botoes_editor[terreno] = Botao(LARGURA_TABULEIRO + 20, 100 + i * 50, LARGURA_LOG - 40, 40, terreno.title(), self.fonte_menu)
 
         # Inicializa abas do menu
         self.menu_tabs = {
@@ -240,6 +242,10 @@ class Game:
             self.log_combate.append((f"--- Campanha: Nível {self.campaign_manager.nivel_atual + 1} ---", COR_CRITICO))
             self.log_combate.append((battle_config["mensagem_inicio"], COR_TEXTO))
 
+            # Iniciar Diálogo da Campanha
+            if "dialogo_inicio" in battle_config:
+                self.dialogo.iniciar_dialogo(battle_config["dialogo_inicio"])
+
         except ValueError as e:
             print(f"Erro ao iniciar batalha da campanha: {e}")
             self.estado_jogo = ESTADO_JOGO_MENU
@@ -270,6 +276,16 @@ class Game:
             if event.type == pygame.QUIT:
                 self.rodando = False
             
+            # Se o diálogo estiver ativo, apenas ele recebe input
+            if self.dialogo.ativo:
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_z):
+                        self.dialogo.processar_input()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        self.dialogo.processar_input()
+                continue # Impede outros eventos
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1: # Left click
                     if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
@@ -349,8 +365,16 @@ class Game:
                                             self.estado_jogo = ESTADO_JOGO_COMBATE
                                             self.tocar_musica('batalha')
                                             self.log_combate.clear()
+                                            self.log_combate.clear()
                                             self.log_combate.append(("A batalha começou!", COR_TEXTO))
                                             
+                                            # Teste de Diálogo
+                                            self.dialogo.iniciar_dialogo([
+                                                ("Narrador", "A batalha está prestes a começar!", None),
+                                                ("Guerreiro", "Preparem-se para lutar!", "guerreiro"),
+                                                ("Inimigo", "Vocês não passarão!", "goblin")
+                                            ])
+
                                             if self.checkbox_limitadores.checked:
                                                 self.motor.tabuleiro.adicionar_limitadores()
                                                 
@@ -471,6 +495,10 @@ class Game:
                                             self.log_combate.extend(logs)
 
     def update_game_logic(self, agora, personagem_ativo):
+        if self.dialogo.ativo:
+            self.dialogo.atualizar()
+            return # Pausa o jogo atrás do diálogo
+
         if self.estado_jogo == ESTADO_JOGO_COMBATE:
             # Animation Handling
             if self.animacao_atual:
@@ -517,19 +545,20 @@ class Game:
         self.tela.fill(COR_FUNDO)
         
         if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
-            desenhar_menu_principal(self.tela, self.fonte_menu, self.botoes_menu_principal)
+            desenhar_menu_principal(self.tela, self.fonte_menu, self.botoes_menu_principal, mouse_pos)
         
         elif self.estado_jogo == ESTADO_JOGO_SETUP:
             desenhar_setup_batalha(self.tela, self.fonte_menu, self.config_times, self.config_chefe, self.botoes_ui, 
                                    self.checkbox_terreno, self.checkbox_auto, self.checkbox_chefe, self.checkbox_autoplay, 
                                    self.checkbox_mapa_custom, self.checkbox_campanha, self.checkbox_limitadores, self.bosses, self.selected_boss_index, 
-                                   self.imagens, self.volume_sfx, self.menu_tabs, self.active_tab_id)
+                                   self.imagens, self.volume_sfx, self.menu_tabs, self.active_tab_id, mouse_pos)
         
         elif self.estado_jogo == ESTADO_JOGO_COMBATE:
             if self.motor:
-                desenhar_cenario(self.tela, self.motor, self.imagens, ALTURA_BARRA_INICIATIVA, self.visibilidade_map)
-                desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, self.visibilidade_map)
-                desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, ALTURA_BARRA_INICIATIVA, self.visibilidade_map)
+                visibilidade = self.motor.visibilidade_map
+                desenhar_cenario(self.tela, self.motor, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
+                desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade)
+                desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual, ALTURA_BARRA_INICIATIVA, self.imagens)
                 desenhar_barra_iniciativa(self.tela, self.motor.ordem_de_combate, personagem_ativo, self.imagens)
                 desenhar_log(self.tela, self.fonte_log, self.log_combate, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
@@ -537,9 +566,36 @@ class Game:
                 if self.unidade_selecionada:
                     desenhar_info_personagem(self.tela, self.fonte_info, self.unidade_selecionada, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
                 
-                desenhar_comandos(self.tela, self.fonte_info, 0)
+                desenhar_comandos(self.tela, self.fonte_info, 0, self.botoes_combate, mouse_pos)
                 desenhar_floating_texts(self.tela, self.floating_texts)
+                
+                desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
 
         elif self.estado_jogo == ESTADO_JOGO_EDITOR:
-             desenhar_editor(self.tela, self.fonte_menu, self.editor_mapa, self.botoes_editor, self.editor_terreno_selecionado, self.imagens, mouse_pos)
+            # Draw Grid Lines
+            for y in range(20):
+                for x in range(20):
+                    rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA + ALTURA_BARRA_INICIATIVA, TAMANHO_CELULA, TAMANHO_CELULA)
+                    
+                    # Draw terrain from editor_mapa
+                    terreno = self.editor_mapa[y][x]
+                    terreno_img_key = f"terreno_{terreno.lower()}"
+                    if terreno_img_key in self.imagens:
+                        img = pygame.transform.scale(self.imagens[terreno_img_key], (TAMANHO_CELULA, TAMANHO_CELULA))
+                        self.tela.blit(img, rect)
+                    else:
+                        pygame.draw.rect(self.tela, CORES_TERRENO.get(terreno, (0,0,0)), rect)
+                        
+                    pygame.draw.rect(self.tela, (50, 50, 50), rect, 1)
+            
+            # Draw Buttons
+            for nome, botao in self.botoes_editor.items():
+                # Highlight selected terrain button
+                if nome == self.editor_terreno_selecionado:
+                    pygame.draw.rect(self.tela, (255, 215, 0), botao.rect.inflate(4, 4), 2, border_radius=5)
+                botao.desenhar(self.tela, self.fonte_menu, mouse_pos)
+            
+            # Draw Title
+            titulo = self.fonte_menu.render("Editor de Mapas", True, (255, 255, 255))
+            self.tela.blit(titulo, (LARGURA_TABULEIRO + 20, 20))
 

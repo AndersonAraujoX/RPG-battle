@@ -20,7 +20,10 @@ class Botao:
         self.desabilitado = False
         self.is_menu_button = bool(subtitulo) # Flag para renderização diferenciada
 
-    def desenhar(self, tela, fonte):
+    def desenhar(self, tela, fonte, mouse_pos=None):
+        if mouse_pos:
+            self.update_hover(mouse_pos)
+            
         cor = self.cor_desabilitado if self.desabilitado else self.cor_atual
         
         if self.is_menu_button:

@@ -1,6 +1,6 @@
 import random
 import heapq
-from .tabuleiro import Tabuleiro, TERRENO_PAREDE, TERRENO_DIFICIL, TERRENO_GELO
+from .tabuleiro import Tabuleiro, TERRENO_PAREDE, TERRENO_DIFICIL, TERRENO_GELO, TERRENO_FOGO
 from .personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Paladino, Druida, Bruxo, Goblin, Esqueleto, Kobold
 from .utils import calcular_distancia
 from .config import COR_TEXTO, COR_DANO, COR_CRITICO, COR_STATUS, COR_CURA
@@ -8,6 +8,7 @@ from .config import COR_TEXTO, COR_DANO, COR_CRITICO, COR_STATUS, COR_CURA
 class MotorCombate:
     def __init__(self, args_times, gerar_terreno=False, mapa_custom=None, sound_player=None, modo_chefe=False, stats_chefe=None, boss_class=None):
         self.tabuleiro = Tabuleiro(20, 20)
+        self.visibilidade_map = [[0 for _ in range(20)] for _ in range(20)] # 0: Hidden, 1: Visited, 2: Visible
         if mapa_custom:
             self.tabuleiro.terrain_grid = mapa_custom
         elif gerar_terreno:
@@ -27,6 +28,25 @@ class MotorCombate:
         self.turno = 1
         self.combatente_atual_idx = 0
         self.vencedor = None
+        self.atualizar_visibilidade()
+
+    def atualizar_visibilidade(self):
+        # Reset current visibility (keep visited)
+        for y in range(self.tabuleiro.altura):
+            for x in range(self.tabuleiro.largura):
+                if self.visibilidade_map[y][x] == 2:
+                    self.visibilidade_map[y][x] = 1
+        
+        # Calculate visibility for all Player characters (Team A)
+        for p in self.time_a:
+            if p.esta_vivo:
+                raio_visao = 8 # Default vision radius
+                for y in range(max(0, p.pos_y - raio_visao), min(self.tabuleiro.altura, p.pos_y + raio_visao + 1)):
+                    for x in range(max(0, p.pos_x - raio_visao), min(self.tabuleiro.largura, p.pos_x + raio_visao + 1)):
+                        if self.tabuleiro.calcular_linha_visao(p.pos_x, p.pos_y, x, y, ignorar_personagens=True):
+                             # Check distance (euclidean-ish)
+                            if (x - p.pos_x)**2 + (y - p.pos_y)**2 <= raio_visao**2:
+                                self.visibilidade_map[y][x] = 2
 
     def _setup_times(self, args, modo_chefe, stats_chefe, boss_class=None):
         classes = [Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Paladino, Druida, Bruxo, Goblin, Esqueleto, Kobold]
@@ -60,6 +80,7 @@ class MotorCombate:
         return time_a, time_b
 
     def proximo_passo(self):
+        self.atualizar_visibilidade()
         logs_turno = []
         eventos_turno = []
         if self.vencedor:
@@ -73,6 +94,17 @@ class MotorCombate:
 
         if atacante.esta_vivo:
             atacante.tick_status_efeitos(self.tabuleiro, logs_turno.append)
+            
+            # Dano de Terreno (Fogo)
+            terreno_atual = self.tabuleiro.get_terrain_em(atacante.pos_x, atacante.pos_y)
+            if terreno_atual == TERRENO_FOGO:
+                dano_fogo = random.randint(1, 6)
+                logs_turno.append((f"  {atacante.nome} queima no fogo e recebe {dano_fogo} de dano!", COR_DANO))
+                atacante.receber_dano(dano_fogo, None, self.tabuleiro, logs_turno.append, tipo_dano="Fogo")
+                if not atacante.esta_vivo:
+                    self.finalizar_turno(logs_turno, eventos_turno)
+                    return {'logs': logs_turno, 'eventos': eventos_turno}
+
             logs_turno.append((f"Vez de {atacante.nome}", COR_TEXTO))
             
             time_inimigo = [p for p in (self.time_b if atacante.time == "A" else self.time_a) if p.esta_vivo]
@@ -130,7 +162,11 @@ class MotorCombate:
                     # Adiciona a informação da habilidade no evento de animação
                     atacante.eventos_animacao.append({'tipo': 'ataque', 'atacante': atacante, 'alvo': alvo, 'habilidade': 'raio_de_gelo'})
                     atacante.atacar(alvo, time_inimigo, time_aliado, self.tabuleiro, logger=logs_turno.append, tipo_dano_override="Gelo")
-                    if random.random() < 0.3:
+                    
+                    # Interação Elemental
+                    self.tabuleiro.aplicar_dano_terreno(alvo.pos_x, alvo.pos_y, "Gelo", logs_turno.append)
+                    
+                    if random.random() < 0.3 and self.tabuleiro.get_terrain_em(alvo.pos_x, alvo.pos_y) != TERRENO_GELO:
                         self.tabuleiro.terrain_grid[alvo.pos_y][alvo.pos_x] = TERRENO_GELO
                         logs_turno.append((f"  O chão sob {alvo.nome} congela!", COR_STATUS))
                 elif habilidade == 'bola_de_fogo':
@@ -149,6 +185,11 @@ class MotorCombate:
                     if atacante.sound_player: atacante.sound_player('attack')
                     for vitima in alvos_afetados:
                         vitima.receber_dano(dano, atacante, self.tabuleiro, logs_turno.append, tipo_dano="Fogo")
+                    
+                    # Interação Elemental em Área
+                    for y in range(alvo_central.pos_y - 1, alvo_central.pos_y + 2):
+                        for x in range(alvo_central.pos_x - 1, alvo_central.pos_x + 2):
+                            self.tabuleiro.aplicar_dano_terreno(x, y, "Fogo", logs_turno.append)
             elif acao['acao'] == 'passar':
                 logs_turno.append((f"  {atacante.nome} passa o turno.", COR_TEXTO))
         

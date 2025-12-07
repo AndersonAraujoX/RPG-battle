@@ -36,6 +36,10 @@ TERRENO_FLORESTA = "FLORESTA"
 TERRENO_DIFICIL = "DIFICIL"
 TERRENO_PAREDE = "PAREDE"
 TERRENO_GELO = "GELO"
+TERRENO_FOGO = "FOGO"
+TERRENO_AGUA = "AGUA"
+TERRENO_ROCHA = "ROCHA"
+TERRENO_BARRIL = "BARRIL"
 
 CORES_TERRENO = {
     TERRENO_NORMAL: (30, 30, 30),
@@ -43,6 +47,10 @@ CORES_TERRENO = {
     TERRENO_FLORESTA: (20, 80, 20),
     TERRENO_DIFICIL: (110, 90, 70),
     TERRENO_GELO: (180, 200, 255),
+    TERRENO_FOGO: (255, 100, 0),
+    TERRENO_AGUA: (0, 100, 255),
+    TERRENO_ROCHA: (100, 100, 100),
+    TERRENO_BARRIL: (139, 69, 19),
 }
 
 # --- Constantes de Estado de Jogo ---
@@ -148,5 +156,9 @@ IMAGE_TERRENOS = {
     TERRENO_DIFICIL: "assets/images/terreno_dificil.png",
     TERRENO_PAREDE: "assets/images/terreno_parede.png",
     TERRENO_GELO: "assets/images/terreno_gelo.png",
+    TERRENO_FOGO: "assets/images/terreno_fogo.png",
+    TERRENO_AGUA: "assets/images/terreno_agua.png",
+    TERRENO_ROCHA: "assets/images/terreno_rocha.png",
+    TERRENO_BARRIL: "assets/images/terreno_barril.png",
     # Adicione outros terrenos conforme necessário
 }

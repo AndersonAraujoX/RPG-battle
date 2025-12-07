@@ -1,9 +1,9 @@
 import random
 import math
-from src.config import TIME_A, TIME_B, TERRENO_FLORESTA, PROPRIEDADES_STATUS_EFEITO
+from src.config import TIME_A, TIME_B, TERRENO_FLORESTA, TERRENO_ROCHA, TERRENO_BARRIL, PROPRIEDADES_STATUS_EFEITO
 from ..utils import calcular_distancia
 from .status_efeito import StatusEfeito
-from src.itens.item import HealthPotion
+from src.itens.item import HealthPotion, ManaPotion, Antidote, SmokeBomb
 
 from ..utils import carregar_dados_personagens
 
@@ -84,6 +84,7 @@ class Personagem:
         self.inventario = [HealthPotion()]
         self.elevacao = 0
         self.threat_level = 1
+        self.loot_table = [] # Lista de tuplas (ItemClass, chance 0.0-1.0)
 
     def equipar_arma(self, arma):
         self.arma_equipada = arma
@@ -153,6 +154,7 @@ class Personagem:
     @property
     def pode_fugir(self):
         for efeito in self.status_efeitos:
+            if efeito.nome == "Fuga Garantida": return True
             if not efeito.propriedades.get("pode_fugir", True):
                 return False
         return True
@@ -267,13 +269,40 @@ class Personagem:
             return {'acao': 'pegar_item', 'item': item_no_chao}
 
         # 1. Usar Poção de Cura se com pouca vida
-        if self.hp_atual / self.hp_max < 0.35:
             for item in self.inventario:
                 if isinstance(item, HealthPotion):
                     logs_turno.append((f"  {self.nome} está com pouca vida e usa uma Poção de Cura!", COR_TEXTO))
                     item.usar(self, logs_turno.append)
                     self.inventario.remove(item)
                     return {'acao': 'usar_item', 'item': item}
+        
+        # 1.1 Usar Poção de Mana se com pouco mana
+        if self.mana_max > 0 and self.mana_atual / self.mana_max < 0.3:
+             for item in self.inventario:
+                if isinstance(item, ManaPotion):
+                    logs_turno.append((f"  {self.nome} está com pouco mana e usa uma Poção de Mana!", COR_TEXTO))
+                    item.usar(self, logs_turno.append)
+                    self.inventario.remove(item)
+                    return {'acao': 'usar_item', 'item': item}
+
+        # 1.2 Usar Antídoto se envenenado
+        from src.config import STATUS_ENVENENADO
+        if any(e.nome == STATUS_ENVENENADO for e in self.status_efeitos):
+             for item in self.inventario:
+                if isinstance(item, Antidote):
+                    logs_turno.append((f"  {self.nome} usa um Antídoto para curar o veneno!", COR_TEXTO))
+                    item.usar(self, logs_turno.append)
+                    self.inventario.remove(item)
+                    return {'acao': 'usar_item', 'item': item}
+
+        # 1.3 Usar Bomba de Fumaça se precisar fugir e não puder (ou para garantir)
+        if self.hp_atual / self.hp_max < 0.2 and inimigos:
+             for item in self.inventario:
+                if isinstance(item, SmokeBomb):
+                    logs_turno.append((f"  {self.nome} usa uma Bomba de Fumaça para escapar!", COR_TEXTO))
+                    item.usar(self, logs_turno.append)
+                    self.inventario.remove(item)
+                    return {'acao': 'fugir'} # Tenta fugir imediatamente após usar
         
         # 2. Tentar fugir se com pouca vida
         if self.hp_atual / self.hp_max < 0.25 and inimigos and self.pode_fugir:
@@ -327,9 +356,10 @@ class Personagem:
                     dy_aliado = aliado.pos_y - alvo.pos_y
 
                     # Verifica se estão em lados opostos (vetores opostos)
+                    # Ex: Atacante (0, 1) [Sul] e Aliado (0, -1) [Norte] -> Soma = (0, 0)
                     if dx_atacante == -dx_aliado and dy_atacante == -dy_aliado:
                         flanking_bonus = 2
-                        logger((f"  {self.nome} está flanqueando GEOMETRICAMENTE {alvo.nome} com {aliado.nome}! (+2 para atacar)", COR_TEXTO))
+                        logger((f"  {self.nome} está flanqueando {alvo.nome} com {aliado.nome}! (+2 Ataque)", COR_TEXTO))
                         break
 
         logger((f"{self.nome} (Lvl {self.nivel}) ataca {alvo.nome} (Lvl {alvo.nivel}).", COR_TEXTO))
@@ -348,6 +378,10 @@ class Personagem:
             else: # Melee attack
                 ac_alvo += 2
                 logger((f"  {alvo.nome} recebe cobertura da floresta (+2 AC)!", COR_TEXTO))
+        
+        elif terreno_alvo in [TERRENO_ROCHA, TERRENO_BARRIL]:
+            ac_alvo += 2
+            logger((f"  {alvo.nome} recebe cobertura de {terreno_alvo} (+2 AC)!", COR_TEXTO))
 
         # Elevation advantage
         bonus_elevacao = 0
@@ -435,10 +469,28 @@ class Personagem:
                 atacante.ganhar_xp(1, logger)
             
             # Chance de dropar um item
+            # Chance de dropar um item do inventário
             if self.inventario and random.random() < 0.5: # 50% de chance de dropar
                 item_dropado = random.choice(self.inventario)
                 tabuleiro.itens_no_chao[self.pos_y][self.pos_x] = item_dropado
                 logger((f"  {self.nome} dropou {item_dropado.nome}!", (255, 215, 0)))
+            
+            # Chance de dropar loot específico
+            for item_class, chance in self.loot_table:
+                if random.random() < chance:
+                    item_dropado = item_class()
+                    # Se já tiver item no chão, substitui (simplificação) ou ignora
+                    if tabuleiro.itens_no_chao[self.pos_y][self.pos_x] is None:
+                        tabuleiro.itens_no_chao[self.pos_y][self.pos_x] = item_dropado
+                        logger((f"  {self.nome} dropou {item_dropado.nome}!", (255, 215, 0)))
+                    else:
+                         # Tenta colocar em volta
+                        for dx, dy in [(0,1), (0,-1), (1,0), (-1,0)]:
+                            nx, ny = self.pos_x + dx, self.pos_y + dy
+                            if 0 <= nx < tabuleiro.largura and 0 <= ny < tabuleiro.altura and tabuleiro.itens_no_chao[ny][nx] is None:
+                                tabuleiro.itens_no_chao[ny][nx] = item_dropado
+                                logger((f"  {self.nome} dropou {item_dropado.nome}!", (255, 215, 0)))
+                                break
 
             self.eventos_animacao.append({'tipo': 'morte', 'personagem': self})
         else:

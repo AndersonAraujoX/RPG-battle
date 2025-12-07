@@ -10,6 +10,11 @@ CAMPAIGN_DATA = [
         ],
         "mapa": "mapa_floresta.json", # Futuramente, usar mapas específicos
         "mensagem_inicio": "Uma pequena horda de goblins bloqueia o caminho!",
+        "dialogo_inicio": [
+            ("Guerreiro", "O que é aquilo na estrada?", "guerreiro"),
+            ("Goblin", "Kekeke! Comida fresca!", "goblin"),
+            ("Mago", "Preparem-se! Eles parecem hostis.", "mago"),
+        ]
     },
     {
         "inimigos": [
@@ -18,6 +23,11 @@ CAMPAIGN_DATA = [
         ],
         "mapa": "mapa_cemiterio.json",
         "mensagem_inicio": "Um cemitério amaldiçoado! Um Lorde Lich e seus lacaios se erguem!",
+        "dialogo_inicio": [
+            ("Clérigo", "Sinto uma presença profana aqui...", "clerigo"),
+            ("Lorde Lich", "Mortais tolos... Vocês se juntarão ao meu exército!", "lordelich"),
+            ("Paladino", "Pela luz, nós vamos purificar este lugar!", "paladino"),
+        ]
     },
     {
         "inimigos": [
@@ -25,6 +35,11 @@ CAMPAIGN_DATA = [
         ],
         "mapa": "mapa_montanha.json",
         "mensagem_inicio": "A Batalha Final! Um Dragão Ancião protege o pico da montanha.",
+        "dialogo_inicio": [
+            ("Dragão Ancião", "QUEM OUSA PERTURBAR MEU SONO?", "dragaoanciao"),
+            ("Guerreiro", "Viemos pôr um fim ao seu reinado de terror!", "guerreiro"),
+            ("Dragão Ancião", "Então queimem!", "dragaoanciao"),
+        ]
     },
 ]
 

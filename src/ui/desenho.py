@@ -90,16 +90,43 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images): # Added game_imag
             pygame.draw.polygon(tela, cor, points)
         else: pygame.draw.rect(tela, cor, rect)
 
-def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, game_images, y_offset, visibilidade_map):
+def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, imagens, offset_y, visibilidade_map=None):
+    tabuleiro = motor.tabuleiro
+    
+    # Desenha personagens mortos (corpos) primeiro
+    for p in motor.combatentes:
+        if not p.esta_vivo:
+            if visibilidade_map and visibilidade_map[p.pos_y][p.pos_x] != 2: continue # Only visible if in sight
+
+            x, y = p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + offset_y
+            # Desenha um "X" ou um corpo genérico para personagens mortos
+            pygame.draw.line(tela, (100, 0, 0), (x, y), (x + TAMANHO_CELULA, y + TAMANHO_CELULA), 3)
+            pygame.draw.line(tela, (100, 0, 0), (x + TAMANHO_CELULA, y), (x, y + TAMANHO_CELULA), 3)
+            # Desenha um círculo cinza escuro para o corpo
+            pygame.draw.circle(tela, (50, 50, 50), (x + TAMANHO_CELULA // 2, y + TAMANHO_CELULA // 2), TAMANHO_CELULA // 2 - 2)
+
     personagens_desenhados = set()
     atacante_animacao = animacao_atual['atacante'] if animacao_atual and 'atacante' in animacao_atual else None
     
+    # Desenha personagens vivos
     for p in motor.combatentes:
-        # Só desenha o personagem se ele estiver visível ou se for do time do jogador
-        if p.esta_vivo and (visibilidade_map[p.pos_y][p.pos_x] == 2 or p.time == TIME_A):
+        if p.esta_vivo:
+            if visibilidade_map and visibilidade_map[p.pos_y][p.pos_x] != 2: continue # Only visible if in sight
+
+            x, y = p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + offset_y
+            
+            # Animação de movimento suave
+            if animacao_atual and animacao_atual['tipo'] == 'movimento' and animacao_atual['personagem'] == p:
+                progresso = animacao_atual['progresso']
+                start_pos = pygame.Vector2(animacao_atual['pos_inicial'][0] * TAMANHO_CELULA, animacao_atual['pos_inicial'][1] * TAMANHO_CELULA + offset_y)
+                end_pos = pygame.Vector2(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + offset_y)
+                current_pos = start_pos.lerp(end_pos, progresso)
+                rect = pygame.Rect(current_pos.x, current_pos.y, TAMANHO_CELULA, TAMANHO_CELULA)
+            else:
+                rect = pygame.Rect(x, y, TAMANHO_CELULA, TAMANHO_CELULA)
+
             if p != atacante_animacao:
                 cor = CORES_TIME.get(p.time, (200, 200, 200))
-                rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
                 if hasattr(p, 'dano_timer') and p.dano_timer > 0:
                     fator = p.dano_timer / 15.0
                     cor = (int(cor[0]*(1-fator) + 255*fator), int(cor[1]*(1-fator) + 50*fator), int(cor[2]*(1-fator) + 50*fator))
@@ -108,9 +135,9 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
                     escala = 1.0 + 0.15 * abs(math.sin(tick * 0.1))
                     largura, altura = int(TAMANHO_CELULA * escala), int(TAMANHO_CELULA * escala)
                     sprite_rect = pygame.Rect(rect.centerx - largura // 2, rect.centery - altura // 2, largura, altura)
-                    desenhar_sprite(tela, p, sprite_rect, cor, game_images)
+                    desenhar_sprite(tela, p, sprite_rect, cor, imagens)
                 else:
-                    desenhar_sprite(tela, p, rect, cor, game_images)
+                    desenhar_sprite(tela, p, rect, cor, imagens)
                 personagens_desenhados.add(p)
 
                 # Desenhar indicadores de status
@@ -132,20 +159,20 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
         
     if atacante_animacao and atacante_animacao.esta_vivo:
         p = atacante_animacao
-        rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
+        rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + offset_y, TAMANHO_CELULA, TAMANHO_CELULA)
         progresso = animacao_atual['progresso']
         if animacao_atual['tipo'] == 'ataque' and p.alcance == 1:
             p_inicial = pygame.Vector2(rect.center)
-            p_final = pygame.Vector2(animacao_atual['alvo'].pos_x * TAMANHO_CELULA + TAMANHO_CELULA//2, animacao_atual['alvo'].pos_y * TAMANHO_CELULA + TAMANHO_CELULA//2 + y_offset)
+            p_final = pygame.Vector2(animacao_atual['alvo'].pos_x * TAMANHO_CELULA + TAMANHO_CELULA//2, animacao_atual['alvo'].pos_y * TAMANHO_CELULA + TAMANHO_CELULA//2 + offset_y)
             pos_interp = p_inicial.lerp(p_final, progresso * 2) if progresso <= 0.5 else p_final.lerp(p_inicial, (progresso - 0.5) * 2)
             rect.center = pos_interp
         cor = CORES_TIME.get(p.time, (200, 200, 200))
-        desenhar_sprite(tela, p, rect, cor, game_images)
+        desenhar_sprite(tela, p, rect, cor, imagens)
         personagens_desenhados.add(p)
     
     for p in motor.combatentes:
         if p.esta_vivo and (visibilidade_map[p.pos_y][p.pos_x] == 2 or p.time == TIME_A):
-            rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
+            rect = pygame.Rect(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + offset_y, TAMANHO_CELULA, TAMANHO_CELULA)
             hp_percent = p.hp_atual / p.hp_max
             
             # HP Bar Background (Darker)
@@ -578,7 +605,90 @@ def desenhar_tela_level_up(tela, fonte_titulo, fonte_menu, personagem, botoes, m
         botao.update_hover(mouse_pos)
         botao.desenhar(tela, fonte_menu)
 
+def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
+    # Fundo
+    tela.fill((20, 20, 30))
+    
+    # Título
+    fonte_titulo = pygame.font.Font(None, 72)
+    titulo = fonte_titulo.render("Simulador de Batalha", True, (255, 255, 255))
+    titulo_rect = titulo.get_rect(center=(LARGURA_TELA // 2, 100))
+    tela.blit(titulo, titulo_rect)
+    
+    subtitulo = fonte.render("Edição Tática", True, (150, 150, 150))
+    sub_rect = subtitulo.get_rect(center=(LARGURA_TELA // 2, 150))
+    tela.blit(subtitulo, sub_rect)
+
+    for botao in botoes.values():
+        botao.desenhar(tela, fonte, mouse_pos)
+
 def desenhar_feedback_invalido(tela, alpha, y_offset):
     overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA - y_offset), pygame.SRCALPHA)
     overlay.fill((255, 0, 0, alpha))
     tela.blit(overlay, (0, y_offset))
+
+def desenhar_dialogo(tela, fonte, dialogo_sistema, game_images):
+    if not dialogo_sistema.ativo or not dialogo_sistema.fala_atual:
+        return
+
+    # Configurações da caixa de diálogo
+    altura_caixa = 150
+    margem = 20
+    rect_caixa = pygame.Rect(margem, ALTURA_TELA - altura_caixa - margem, LARGURA_TELA - 2 * margem, altura_caixa)
+    
+    # Desenha fundo (Azul estilo FF)
+    pygame.draw.rect(tela, (0, 0, 139), rect_caixa, border_radius=10) # DarkBlue
+    pygame.draw.rect(tela, (255, 255, 255), rect_caixa, 4, border_radius=10) # Borda Branca
+    
+    nome_personagem, texto, retrato_key = dialogo_sistema.fala_atual
+    
+    # Desenha Retrato (se houver)
+    x_texto = rect_caixa.x + 20
+    if retrato_key:
+        # Tenta carregar imagem do personagem se for uma chave de imagem válida
+        img_key = f"personagem_{retrato_key.lower()}"
+        if img_key in game_images and game_images[img_key]:
+             retrato = pygame.transform.scale(game_images[img_key], (100, 100))
+             tela.blit(retrato, (rect_caixa.x + 20, rect_caixa.y + 25))
+             pygame.draw.rect(tela, (255, 255, 255), (rect_caixa.x + 20, rect_caixa.y + 25, 100, 100), 2)
+             x_texto += 120
+        else:
+             # Placeholder se não tiver imagem
+             pygame.draw.rect(tela, (50, 50, 50), (rect_caixa.x + 20, rect_caixa.y + 25, 100, 100))
+             x_texto += 120
+
+    # Desenha Nome
+    fonte_nome = pygame.font.Font(None, 32)
+    nome_render = fonte_nome.render(nome_personagem, True, (255, 215, 0)) # Dourado
+    tela.blit(nome_render, (x_texto, rect_caixa.y + 20))
+    
+    # Desenha Texto (com quebra de linha simples)
+    palavras = dialogo_sistema.texto_exibido.split(' ')
+    linhas = []
+    linha_atual = ""
+    
+    largura_maxima = rect_caixa.width - (x_texto - rect_caixa.x) - 20
+    
+    for palavra in palavras:
+        teste_linha = linha_atual + palavra + " "
+        if fonte.size(teste_linha)[0] < largura_maxima:
+            linha_atual = teste_linha
+        else:
+            linhas.append(linha_atual)
+            linha_atual = palavra + " "
+    linhas.append(linha_atual)
+    
+    y_texto = rect_caixa.y + 60
+    for linha in linhas:
+        texto_render = fonte.render(linha, True, (255, 255, 255))
+        tela.blit(texto_render, (x_texto, y_texto))
+        y_texto += 25
+        
+    # Indicador de "Próximo" (piscando)
+    if dialogo_sistema.esperando_input:
+        if (pygame.time.get_ticks() // 500) % 2 == 0:
+            pygame.draw.polygon(tela, (255, 255, 255), [
+                (rect_caixa.right - 30, rect_caixa.bottom - 30),
+                (rect_caixa.right - 20, rect_caixa.bottom - 30),
+                (rect_caixa.right - 25, rect_caixa.bottom - 20)
+            ])
