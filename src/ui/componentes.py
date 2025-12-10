@@ -26,52 +26,53 @@ class Botao:
             
         cor = self.cor_desabilitado if self.desabilitado else self.cor_atual
         
-        if self.is_menu_button:
-            # Renderização estilo "Mosaico" (Final de Kindread Soul)
-            
-            # Cores baseadas na referência (Marrom/Dourado)
-            cor_normal = (101, 67, 33) # Marrom escuro
-            cor_hover = (139, 69, 19) # SaddleBrown
-            cor_borda = (218, 165, 32) # GoldenRod
-            
-            cor_fundo = cor_normal if not self.rect.collidepoint(pygame.mouse.get_pos()) else cor_hover
-            
-            # Fundo semitransparente para destacar sobre o mosaico
-            s = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
-            s.fill((*cor_fundo, 200)) # Alpha 200
-            tela.blit(s, self.rect.topleft)
-            
-            # Borda Dourada
-            pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=5)
-            
-            # Brilho interno (Inner Glow)
-            pygame.draw.rect(tela, (255, 223, 0), self.rect.inflate(-4, -4), 1, border_radius=5)
-
-            # Texto Principal (Centralizado)
-            cor_texto = (255, 255, 240) # Ivory
-            texto_surface = self.fonte.render(self.texto, True, cor_texto)
-            texto_rect = texto_surface.get_rect(center=self.rect.center)
-            
-            # Sombra do texto
-            sombra_surface = self.fonte.render(self.texto, True, (0, 0, 0))
-            sombra_rect = sombra_surface.get_rect(center=(self.rect.centerx + 2, self.rect.centery + 2))
-            tela.blit(sombra_surface, sombra_rect)
-            tela.blit(texto_surface, texto_rect)
-            
-            # Subtítulo (se houver, abaixo do botão ou menor)
-            # Na referência os botões são simples, então vamos ignorar subtítulo ou desenhar pequeno
-            if self.subtitulo:
-                pass # Simplificação para o estilo novo
-                
+        # Renderização estilo "Mosaico" (Final de Kindread Soul) para TODOS os botões
+        
+        # Cores baseadas na referência (Marrom/Dourado)
+        # Se cor_fundo for passada, usa ela como base, senão usa o padrão Marrom
+        cor_base = self.cor_atual if self.cor_atual != (80, 80, 80) else (101, 67, 33) # Usa cor customizada ou Marrom Padrão
+        
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
+            # Clarear um pouco no hover
+            r = min(255, cor_base[0] + 30)
+            g = min(255, cor_base[1] + 30)
+            b = min(255, cor_base[2] + 30)
+            cor_fundo = (r, g, b)
+            cor_borda = (255, 215, 0) # Gold brilhante
         else:
-            # Renderização Padrão (Antiga)
-            pygame.draw.rect(tela, cor, self.rect, border_radius=5)
-            # Adicionar borda sutil
-            pygame.draw.rect(tela, (min(cor[0]+20, 255), min(cor[1]+20, 255), min(cor[2]+20, 255)), self.rect, 1, border_radius=5)
-            
-            texto_render = fonte.render(self.texto, True, COR_TEXTO)
-            texto_rect = texto_render.get_rect(center=self.rect.center)
-            tela.blit(texto_render, texto_rect)
+            cor_fundo = cor_base
+            cor_borda = (218, 165, 32) # GoldenRod
+        
+        # Fundo semitransparente
+        s = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        s.fill((*cor_fundo, 230)) # Alpha 230 (quase opaco)
+        tela.blit(s, self.rect.topleft)
+        
+        # Borda Dourada
+        pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=5)
+        
+        # Brilho interno (Inner Glow) - sutil
+        pygame.draw.rect(tela, (255, 223, 0), self.rect.inflate(-4, -4), 1, border_radius=5)
+
+        # Texto Principal (Centralizado)
+        cor_texto = (255, 255, 240) # Ivory
+        texto_surface = self.fonte.render(self.texto, True, cor_texto)
+        texto_rect = texto_surface.get_rect(center=self.rect.center)
+        
+        # Sombra do texto
+        sombra_surface = self.fonte.render(self.texto, True, (0, 0, 0))
+        sombra_rect = sombra_surface.get_rect(center=(self.rect.centerx + 1, self.rect.centery + 1))
+        tela.blit(sombra_surface, sombra_rect)
+        tela.blit(texto_surface, texto_rect)
+        
+        # Ícone (se houver) - Simplificado para não quebrar layout
+        if self.icone:
+             # Desenhar um pequeno losango dourado à esquerda do texto se houver espaço
+             pass 
+
+        # Subtítulo (ignorado para manter consistência com botões simples)
+        if self.subtitulo:
+            pass
 
     def checar_clique(self, pos):
         if not self.desabilitado and self.rect.collidepoint(pos):

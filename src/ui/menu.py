@@ -58,8 +58,9 @@ def setup_menu_principal_ui():
     espacamento = 80
     
     botoes['nova_batalha'] = Botao(x_pos, y_start, largura_btn, altura_btn, "JOGAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    botoes['opcoes'] = Botao(x_pos, y_start + espacamento, largura_btn, altura_btn, "OPÇÕES", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    botoes['sair'] = Botao(x_pos, y_start + espacamento * 2, largura_btn, altura_btn, "SAIR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['campanha'] = Botao(x_pos, y_start + espacamento, largura_btn, altura_btn, "CAMPANHA", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['opcoes'] = Botao(x_pos, y_start + espacamento * 2, largura_btn, altura_btn, "OPÇÕES", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['sair'] = Botao(x_pos, y_start + espacamento * 3, largura_btn, altura_btn, "SAIR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
     
     # Botões extras (Gerenciar/Bestiário) podem ser acessados via "JOGAR" ou "OPÇÕES" futuramente, 
     # ou podemos mantê-los menores se o usuário quiser. 
@@ -91,58 +92,68 @@ def setup_menu_ui():
     config_chefe = {'hp': 250, 'ataque': 5, 'ac': 16}
     
     botoes_ui = {}
-    y_start = 150
+    
+    # Layout Constants
+    painel_x = 100
+    painel_y = 50
+    painel_largura = LARGURA_TELA - 200
+    painel_altura = ALTURA_TELA - 100
+    
+    coluna_a_x = painel_x + 50
+    coluna_b_x = painel_x + painel_largura - 350 # Alinhado à direita do painel
+    y_start_units = painel_y + 120
+    espacamento_y = 45
     
     # Botões Time A
-    x_time_a = LARGURA_TELA // 4
-    for i, (classe, _) in enumerate(config_times['classes']):
-        y_pos = y_start + i * 50
-        botoes_ui[f'A_add_{i}'] = Botao(x_time_a + 60, y_pos, 30, 30, "+", fonte_menu)
-        botoes_ui[f'A_sub_{i}'] = Botao(x_time_a + 100, y_pos, 30, 30, "-", fonte_menu)
+    for i, (classe, nome_classe) in enumerate(config_times['classes']):
+        y_pos = y_start_units + i * espacamento_y
+        # Botões menores e quadrados com estilo mosaico
+        botoes_ui[f'A_add_{i}'] = Botao(coluna_a_x + 200, y_pos, 30, 30, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+        botoes_ui[f'A_sub_{i}'] = Botao(coluna_a_x + 240, y_pos, 30, 30, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
 
     # Botões Time B
-    x_time_b = LARGURA_TELA * 3 // 4
-    for i, (classe, _) in enumerate(config_times['classes']):
-        y_pos = y_start + i * 50
-        botoes_ui[f'B_add_{i}'] = Botao(x_time_b + 60, y_pos, 30, 30, "+", fonte_menu)
-        botoes_ui[f'B_sub_{i}'] = Botao(x_time_b + 100, y_pos, 30, 30, "-", fonte_menu)
+    for i, (classe, nome_classe) in enumerate(config_times['classes']):
+        y_pos = y_start_units + i * espacamento_y
+        botoes_ui[f'B_add_{i}'] = Botao(coluna_b_x + 200, y_pos, 30, 30, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+        botoes_ui[f'B_sub_{i}'] = Botao(coluna_b_x + 240, y_pos, 30, 30, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
 
-    # Botões Chefe
-    y_chefe = y_start + 160
-    # HP
-    botoes_ui['chefe_add_hp'] = Botao(x_time_b + 50, y_chefe, 30, 25, "+", fonte_menu)
-    botoes_ui['chefe_sub_hp'] = Botao(x_time_b + 90, y_chefe, 30, 25, "-", fonte_menu)
+    # Botões Chefe (Ajustados para ficar na coluna B quando ativo, ou ocultos)
+    # Vamos manter a lógica de visibilidade no Game.handle_events/draw, mas posicionar aqui
+    y_chefe = y_start_units # Começa no topo da lista
     
-    # AC (Next line, +30)
-    botoes_ui['chefe_add_ac'] = Botao(x_time_b + 50, y_chefe + 30, 30, 25, "+", fonte_menu)
-    botoes_ui['chefe_sub_ac'] = Botao(x_time_b + 90, y_chefe + 30, 30, 25, "-", fonte_menu)
-
-    # Ataque (Next line, +60)
-    botoes_ui['chefe_add_ataque'] = Botao(x_time_b + 50, y_chefe + 60, 30, 25, "+", fonte_menu)
-    botoes_ui['chefe_sub_ataque'] = Botao(x_time_b + 90, y_chefe + 60, 30, 25, "-", fonte_menu)
-
-    # Botões de Navegação de Boss
-    # Image is at x_time_b - 50 to x_time_b + 50. Center Y approx y_start + 90 (150+40+50)
-    botoes_ui['prev_boss'] = Botao(x_time_b - 120, y_start + 40, 40, 100, "<", fonte_menu)
-    botoes_ui['next_boss'] = Botao(x_time_b + 70, y_start + 40, 40, 100, ">", fonte_menu)
-
-    # Botões Gerais
-    botoes_ui['iniciar'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA - 60, 200, 50, "INICIAR BATALHA", fonte_menu)
-    botoes_ui['carregar_menu'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA - 180, 200, 40, "Carregar Jogo", fonte_menu)
-    botoes_ui['editor_mapas'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA - 120, 200, 40, "Editor de Mapas", fonte_menu)
-    botoes_ui['voltar_menu'] = Botao(20, 20, 100, 30, "Voltar", fonte_menu) # Botão para voltar ao menu principal
+    # Botões de Navegação de Boss (Centralizados na coluna B)
+    botoes_ui['prev_boss'] = Botao(coluna_b_x, y_chefe + 50, 40, 40, "<", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['next_boss'] = Botao(coluna_b_x + 200, y_chefe + 50, 40, 40, ">", fonte_menu, cor_fundo=COR_BOTAO_MENU)
     
-    # Botões de Volume
-    botoes_ui['sfx_vol_down'] = Botao(0, 0, 40, 30, "-", fonte_menu)
-    botoes_ui['sfx_vol_up'] = Botao(0, 0, 40, 30, "+", fonte_menu)
+    # Stats do Chefe
+    y_stats = y_chefe + 150
+    botoes_ui['chefe_add_hp'] = Botao(coluna_b_x + 150, y_stats, 30, 25, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['chefe_sub_hp'] = Botao(coluna_b_x + 190, y_stats, 30, 25, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    
+    botoes_ui['chefe_add_ac'] = Botao(coluna_b_x + 150, y_stats + 30, 30, 25, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['chefe_sub_ac'] = Botao(coluna_b_x + 190, y_stats + 30, 30, 25, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
 
-    checkbox_terreno = Checkbox(LARGURA_TELA // 2 - 100, y_start + 250, 20, "Gerar Terreno Aleatório", fonte_menu, checked=True)
-    checkbox_auto = Checkbox(LARGURA_TELA // 2 - 100, y_start + 290, 20, "Auto-Batalha (IA vs IA)", fonte_menu)
-    checkbox_chefe = Checkbox(LARGURA_TELA // 2 - 100, y_start + 330, 20, "Modo Chefe (Time B)", fonte_menu)
-    checkbox_autoplay = Checkbox(LARGURA_TELA // 2 - 100, y_start + 370, 20, "Auto-Play (IA joga por você)", fonte_menu)
-    checkbox_mapa_custom = Checkbox(LARGURA_TELA // 2 - 100, y_start + 410, 20, "Usar Mapa Customizado", fonte_menu)
-    checkbox_campanha = Checkbox(LARGURA_TELA // 2 - 100, y_start + 450, 20, "Modo Campanha", fonte_menu)
-    checkbox_limitadores = Checkbox(LARGURA_TELA // 2 - 100, y_start + 490, 20, "Adicionar Limitadores (Paredes)", fonte_menu)
+    botoes_ui['chefe_add_ataque'] = Botao(coluna_b_x + 150, y_stats + 60, 30, 25, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['chefe_sub_ataque'] = Botao(coluna_b_x + 190, y_stats + 60, 30, 25, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+
+    # Botões Gerais (Rodapé)
+    centro_x = LARGURA_TELA // 2
+    botoes_ui['editor_mapas'] = Botao(centro_x - 120, painel_y + painel_altura - 130, 240, 50, "Editor de Mapas", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['iniciar'] = Botao(centro_x - 120, painel_y + painel_altura - 70, 240, 60, "INICIAR BATALHA", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    
+    # Botão Voltar (Topo Esquerdo)
+    botoes_ui['voltar_menu'] = Botao(20, 20, 100, 40, "Voltar", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    
+    # Checkboxes (Aba Configurações - Centralizados)
+    check_x = centro_x - 150
+    y_check = y_start_units
+    checkbox_terreno = Checkbox(check_x, y_check, 20, "Gerar Terreno Aleatório", fonte_menu, checked=True)
+    checkbox_auto = Checkbox(check_x, y_check + 40, 20, "Auto-Batalha (IA vs IA)", fonte_menu)
+    checkbox_chefe = Checkbox(check_x, y_check + 80, 20, "Modo Chefe (Time B)", fonte_menu)
+    checkbox_autoplay = Checkbox(check_x, y_check + 120, 20, "Auto-Play (IA joga por você)", fonte_menu)
+    checkbox_mapa_custom = Checkbox(check_x, y_check + 160, 20, "Usar Mapa Customizado", fonte_menu)
+    checkbox_campanha = Checkbox(check_x, y_check + 200, 20, "Modo Campanha", fonte_menu)
+    checkbox_limitadores = Checkbox(check_x, y_check + 240, 20, "Adicionar Limitadores", fonte_menu)
     
     bosses = [
         {"classe": ReiGoblin, "nome": "Rei Goblin"},

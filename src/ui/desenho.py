@@ -118,7 +118,7 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
             # Animação de movimento suave
             if animacao_atual and animacao_atual['tipo'] == 'movimento' and animacao_atual['personagem'] == p:
                 progresso = animacao_atual['progresso']
-                start_pos = pygame.Vector2(animacao_atual['pos_inicial'][0] * TAMANHO_CELULA, animacao_atual['pos_inicial'][1] * TAMANHO_CELULA + offset_y)
+                start_pos = pygame.Vector2(animacao_atual['start_pos'][0] * TAMANHO_CELULA, animacao_atual['start_pos'][1] * TAMANHO_CELULA + offset_y)
                 end_pos = pygame.Vector2(p.pos_x * TAMANHO_CELULA, p.pos_y * TAMANHO_CELULA + offset_y)
                 current_pos = start_pos.lerp(end_pos, progresso)
                 rect = pygame.Rect(current_pos.x, current_pos.y, TAMANHO_CELULA, TAMANHO_CELULA)
@@ -358,21 +358,57 @@ def desenhar_log(tela, fonte, logs, max_altura, y_offset):
         tela.blit(log_render, (LARGURA_TABULEIRO + 20, y_offset_texto))
         y_offset_texto += 20
 
-def desenhar_info_personagem(tela, fonte, personagem, max_altura, y_offset):
-    area_info = pygame.Rect(LARGURA_TABULEIRO, y_offset, LARGURA_LOG, max_altura - y_offset)
-    pygame.draw.rect(tela, (15, 15, 15), area_info)
-    y = y_offset + 20
-    tela.blit(fonte.render(f"{personagem.nome} (Lvl {personagem.nivel})", True, CORES_TIME.get(personagem.time)), (LARGURA_TABULEIRO + 20, y)); y += 35
-    tela.blit(fonte.render(f"Classe: {personagem.__class__.__name__}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 45
-    tela.blit(fonte.render(f"HP: {personagem.hp_atual} / {personagem.hp_max}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
-    tela.blit(fonte.render(f"XP: {personagem.xp} / {personagem.xp_para_upar}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 45
-    tela.blit(fonte.render(f"AC: {personagem.ac}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
-    tela.blit(fonte.render(f"Bônus Atk: +{personagem.bonus_ataque}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
-    tela.blit(fonte.render(f"Bônus Dmg: +{personagem.bonus_dano}", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 45
+def desenhar_info_personagem(tela, fonte, unidade, y_offset):
+    area_info = pygame.Rect(LARGURA_TABULEIRO, 0, LARGURA_LOG, ALTURA_TELA - 250)
+    
+    # Fundo do Painel de Info (Marrom translúcido)
+    s = pygame.Surface((area_info.width, area_info.height), pygame.SRCALPHA)
+    s.fill((40, 30, 20, 230))
+    tela.blit(s, area_info.topleft)
+    
+    # Borda Dourada
+    pygame.draw.rect(tela, (218, 165, 32), area_info, 3, border_radius=5)
+    
+    if not unidade:
+        texto = fonte.render("Selecione uma unidade", True, (150, 150, 150))
+        tela.blit(texto, (LARGURA_TABULEIRO + 20, 100))
+        return
+
+    y = 100
+    # Nome (Dourado)
+    nome_render = fonte.render(f"{unidade.nome} ({unidade.classe_nome})", True, (255, 215, 0))
+    tela.blit(nome_render, (LARGURA_TABULEIRO + 20, y))
+    y += 30
+    
+    # Stats
+    stats = [
+        f"HP: {unidade.hp_atual}/{unidade.hp_max}",
+        f"AC: {unidade.ac}",
+        f"Ataque: +{unidade.bonus_ataque}",
+        f"Dano: {unidade.dado_dano[0]}d{unidade.dado_dano[1]} +{unidade.bonus_dano}",
+        f"Movimento: {unidade.velocidade}",
+        f"Alcance: {unidade.alcance}"
+    ]
+    
+    for stat in stats:
+        tela.blit(fonte.render(stat, True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y))
+        y += 25
+        
+    y += 10
+    # Status Effects
+    if unidade.status_efeitos:
+        tela.blit(fonte.render("Status:", True, (150, 150, 255)), (LARGURA_TABULEIRO + 20, y))
+        y += 25
+        for efeito in unidade.status_efeitos:
+            cor_status = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome, {}).get("cor", COR_TEXTO)
+            tela.blit(fonte.render(f"- {efeito.nome} ({efeito.duracao_restante} turnos)", True, cor_status), (LARGURA_TABULEIRO + 30, y))
+            y += 25
+    
+    y += 15 # Espaçamento
     tela.blit(fonte.render("Habilidades:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
-    if not personagem.cooldowns: tela.blit(fonte.render("  Nenhuma", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
-    for nome, cd in personagem.cooldowns.items():
-        if y + 25 > max_altura:
+    if not unidade.cooldowns: tela.blit(fonte.render("  Nenhuma", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
+    for nome, cd in unidade.cooldowns.items():
+        if y + 25 > area_info.bottom: # Use area_info.bottom for boundary check
             break
         status, cor = ("Pronta!", (60,220,60)) if cd == 0 else (f"{cd} turnos", (220,180,60))
         tela.blit(fonte.render(f"  - {nome.replace('_', ' ').title()}:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y))
@@ -458,7 +494,14 @@ def desenhar_tela_fim(tela, fonte, vencedor, y_offset, botoes, mouse_pos):
 
 def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos):
     area_comandos = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 150 + y_offset, LARGURA_LOG, 150)
-    pygame.draw.rect(tela, (25, 25, 25), area_comandos) # Fundo para os comandos
+    
+    # Fundo do Painel de Comandos (Marrom translúcido)
+    s = pygame.Surface((area_comandos.width, area_comandos.height), pygame.SRCALPHA)
+    s.fill((40, 30, 20, 230))
+    tela.blit(s, area_comandos.topleft)
+    
+    # Borda Dourada
+    pygame.draw.rect(tela, (218, 165, 32), area_comandos, 3, border_radius=5)
     
     y_offset_texto = ALTURA_TELA - 140 + y_offset
     comandos = [
@@ -480,9 +523,16 @@ def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos):
 
 def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images): # Added game_images
     area_iniciativa = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 250, LARGURA_LOG, 100)
-    pygame.draw.rect(tela, (15, 15, 15), area_iniciativa)
     
-    titulo_render = fonte.render("Ordem de Iniciativa:", True, COR_TEXTO)
+    # Fundo do Painel de Iniciativa
+    s = pygame.Surface((area_iniciativa.width, area_iniciativa.height), pygame.SRCALPHA)
+    s.fill((30, 20, 10, 230))
+    tela.blit(s, area_iniciativa.topleft)
+    
+    # Borda Dourada
+    pygame.draw.rect(tela, (218, 165, 32), area_iniciativa, 3, border_radius=5)
+    
+    titulo_render = fonte.render("Ordem de Iniciativa:", True, (255, 215, 0)) # Título Dourado
     tela.blit(titulo_render, (area_iniciativa.x + 10, area_iniciativa.y + 5))
     
     x_offset = area_iniciativa.x + 10
@@ -741,68 +791,24 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
             boss_name = selected_boss["nome"]
 
             # Display boss name
-            tela.blit(fonte.render(boss_name, True, COR_TEXTO), (x_time_b - 80, content_y_start))
-
-            # Display boss "print" (image)
-            boss_img_key = f"personagem_{boss_class.__name__.lower()}"
-            if boss_img_key in game_images and game_images[boss_img_key]:
-                img = game_images[boss_img_key]
-                # Scale image to a reasonable size for the menu
-                scaled_img = pygame.transform.scale(img, (100, 100))
-                tela.blit(scaled_img, (x_time_b - 50, content_y_start + 40))
-
-            # Display boss stats and abilities
-            # Create a temporary instance to get stats
-            temp_boss = boss_class("temp", "B")
-            y_offset = content_y_start + 160
-            stats_to_show = [
-                f"HP: {temp_boss.hp_max}",
-                f"AC: {temp_boss.ac}",
-                f"Ataque: +{temp_boss.bonus_ataque}",
-                f"Dano: {temp_boss.dado_dano[0]}d{temp_boss.dado_dano[1]} +{temp_boss.bonus_dano}",
-            ]
-            for stat in stats_to_show:
-                tela.blit(fonte.render(stat, True, COR_TEXTO), (x_time_b - 80, y_offset))
-                y_offset += 30
-
-            y_offset += 10
-            tela.blit(fonte.render("Habilidades:", True, COR_TEXTO), (x_time_b - 80, y_offset))
-            y_offset += 25
-            for ability in temp_boss.cooldowns:
-                tela.blit(fonte.render(f"- {ability.replace('_', ' ').title()}", True, COR_TEXTO), (x_time_b - 60, y_offset))
-                y_offset += 25
+            # Desenhar info do chefe na coluna B
+            y_chefe = y_start_units
             
-            y_offset += 10
-            tela.blit(fonte.render("Imunidades:", True, COR_TEXTO), (x_time_b - 80, y_offset))
-            y_offset += 25
-            for immunity in temp_boss.imunidades:
-                tela.blit(fonte.render(f"- {immunity}", True, COR_TEXTO), (x_time_b - 60, y_offset))
-                y_offset += 25
-
-        else:
-            # Interface Normal do Time B
-            for i, (classe, nome_classe) in enumerate(config_times['classes']):
-                y_pos = content_y_start + i * 50
-                tela.blit(fonte.render(f"{nome_classe}: {config_times['B'][classe]}", True, COR_TEXTO), (x_time_b - 80, y_pos + 5))
-
-        # Draw buttons related to times
-        for nome, botao in botoes_ui.items():
-            is_botao_chefe_attr = nome.startswith('chefe_')
-            is_botao_time_b = nome.startswith('B_')
-            is_boss_nav = nome in ['next_boss', 'prev_boss']
-
-            if is_botao_chefe_attr or is_boss_nav or is_botao_time_b or nome.startswith('A_'): # Only draw A_ and B_ and boss_nav buttons for "times" tab
-                if checkbox_chefe.checked:
-                    if is_botao_time_b: continue
-                else:
-                    if is_boss_nav or is_botao_chefe_attr: continue
-                botao.desenhar(tela, fonte, mouse_pos)
+            # Nome do Chefe
+            nome_chefe = bosses[selected_boss_index]["nome"]
+            texto_chefe = fonte_header.render(nome_chefe, True, (255, 50, 50))
+            tela.blit(texto_chefe, (coluna_b_x + 50, y_chefe + 10))
+            
+            # Stats
+            y_stats = y_chefe + 150
+            tela.blit(fonte.render(f"HP: {config_chefe['hp']}", True, COR_TEXTO), (coluna_b_x + 50, y_stats + 5))
+            tela.blit(fonte.render(f"AC: {config_chefe['ac']}", True, COR_TEXTO), (coluna_b_x + 50, y_stats + 35))
+            tela.blit(fonte.render(f"Atq: +{config_chefe['ataque']}", True, COR_TEXTO), (coluna_b_x + 50, y_stats + 65))
 
     elif active_tab_id == "configuracoes":
         config_x = LARGURA_TELA // 2 - 150 # Centered for checkboxes
         config_y = content_y_start # Start below the tabs
 
-        # Draw checkboxes
         checkbox_terreno.rect.topleft = (config_x, config_y)
         checkbox_terreno.desenhar(tela)
         checkbox_auto.rect.topleft = (config_x, config_y + 40)
@@ -837,3 +843,78 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
     # Botão Voltar ao Menu Principal
     botoes_ui['voltar_menu'].rect.topleft = (20, 20)
     botoes_ui['voltar_menu'].desenhar(tela, fonte, mouse_pos)
+
+def desenhar_mapa_mundo(tela, fonte, botoes, campaign_data, nivel_atual, game_images, mouse_pos):
+    # Fundo (Reutilizar o do menu principal)
+    try:
+        bg_img = pygame.image.load(resource_path("assets/images/menu_background.png")).convert()
+        bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
+        tela.blit(bg_img, (0, 0))
+    except:
+        tela.fill((20, 20, 30))
+
+    # Overlay escuro
+    overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 100))
+    tela.blit(overlay, (0, 0))
+
+    # Título
+    fonte_titulo = pygame.font.Font(None, 60)
+    titulo = fonte_titulo.render("MAPA DA CAMPANHA", True, (255, 215, 0))
+    titulo_rect = titulo.get_rect(center=(LARGURA_TELA // 2, 50))
+    
+    # Sombra Título
+    titulo_sombra = fonte_titulo.render("MAPA DA CAMPANHA", True, (0, 0, 0))
+    tela.blit(titulo_sombra, (titulo_rect.x + 2, titulo_rect.y + 2))
+    tela.blit(titulo, titulo_rect)
+
+    # Coordenadas dos nós (Mesmas do Game.handle_events)
+    nodes = [
+        (200, 400), (400, 300), (600, 400), (800, 250)
+    ]
+
+    # Desenhar Linhas de Conexão
+    if len(nodes) > 1:
+        points = nodes[:len(campaign_data)]
+        if points:
+             pygame.draw.lines(tela, (150, 150, 150), False, points, 5)
+
+    # Desenhar Nós
+    for i, (cx, cy) in enumerate(nodes):
+        if i >= len(campaign_data): break
+        
+        # Determinar estado do nó
+        if i < nivel_atual:
+            cor_no = (50, 200, 50) # Verde (Completado)
+            status = "Completado"
+        elif i == nivel_atual:
+            cor_no = (255, 215, 0) # Dourado (Atual)
+            status = "Atual"
+        else:
+            cor_no = (100, 50, 50) # Vermelho Escuro (Bloqueado)
+            status = "Bloqueado"
+
+        # Desenhar Círculo do Nó
+        pygame.draw.circle(tela, cor_no, (cx, cy), 30)
+        pygame.draw.circle(tela, (255, 255, 255), (cx, cy), 30, 3) # Borda Branca
+        
+        # Número do Nível
+        texto_num = fonte.render(str(i+1), True, (255, 255, 255))
+        tela.blit(texto_num, texto_num.get_rect(center=(cx, cy)))
+
+        # Hover Effect
+        rect = pygame.Rect(cx - 30, cy - 30, 60, 60)
+        if rect.collidepoint(mouse_pos):
+            pygame.draw.circle(tela, (255, 255, 255), (cx, cy), 35, 2) # Highlight
+            
+            # Tooltip
+            info_text = f"Nível {i+1}: {campaign_data[i]['mensagem_inicio'][:30]}..."
+            tooltip = fonte.render(info_text, True, (255, 255, 255))
+            bg_tooltip = pygame.Surface((tooltip.get_width() + 10, tooltip.get_height() + 10))
+            bg_tooltip.fill((0, 0, 0))
+            tela.blit(bg_tooltip, (cx - tooltip.get_width() // 2 - 5, cy - 60 - 5))
+            tela.blit(tooltip, (cx - tooltip.get_width() // 2, cy - 60))
+
+    # Botão Voltar
+    botoes['voltar_menu'].rect.topleft = (20, 20)
+    botoes['voltar_menu'].desenhar(tela, fonte, mouse_pos)

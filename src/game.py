@@ -12,7 +12,7 @@ from .ui.desenho import (
     desenhar_info_personagem, desenhar_inventario, desenhar_comandos,
     desenhar_tela_fim, desenhar_tela_level_up, desenhar_tela_salvando,
     desenhar_tela_carregando, desenhar_editor, desenhar_dialogo,
-    desenhar_menu_principal, desenhar_setup_batalha
+    desenhar_menu_principal, desenhar_setup_batalha, desenhar_mapa_mundo
 )
 from .sistema_dialogo import Dialogo
 from .salvar_carregar import salvar_jogo, carregar_jogo
@@ -173,10 +173,15 @@ class Game:
         self.botoes_combate['aba_log'] = Botao(LARGURA_TABULEIRO, 60, 80, 30, "Log", self.fonte_menu)
         self.botoes_combate['aba_info'] = Botao(LARGURA_TABULEIRO + 80, 60, 80, 30, "Info", self.fonte_menu)
         self.botoes_combate['aba_inventario'] = Botao(LARGURA_TABULEIRO + 160, 60, 100, 30, "Inventário", self.fonte_menu)
-        self.botoes_combate['reiniciar'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 50, 200, 50, "Reiniciar Batalha", self.fonte_menu)
-        self.botoes_combate['voltar_menu'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 120, 200, 50, "Voltar ao Menu", self.fonte_menu)
         self.botoes_combate['cancelar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 190, 100, 30, "Cancelar", self.fonte_menu)
 
+        # Botões da tela de Fim de Jogo (Posicionados no painel lateral)
+        x_painel = LARGURA_TABULEIRO + (LARGURA_LOG // 2) - 100
+        y_painel = ALTURA_TELA // 2
+        self.botoes_fim = {
+            'reiniciar': Botao(x_painel, y_painel, 200, 50, "Reiniciar Batalha", self.fonte_menu),
+            'voltar_menu': Botao(x_painel, y_painel + 60, 200, 50, "Voltar ao Menu", self.fonte_menu)
+        }
         # Botões da tela de Level Up
         self.botoes_level_up = {
             'forca': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 60, 200, 40, "+1 Força", self.fonte_menu),
@@ -295,8 +300,36 @@ class Game:
                                 self.play_sound('button_click')
                                 if nome == 'nova_batalha':
                                     self.estado_jogo = ESTADO_JOGO_SETUP
+                                elif nome == 'campanha':
+                                    self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
+                                elif nome == 'opcoes':
+                                    # self.estado_jogo = ESTADO_JOGO_OPCOES # Futuro
+                                    pass
                                 elif nome == 'sair':
                                     self.rodando = False
+
+                    elif self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
+                        # Botão Voltar
+                        if self.botoes_ui['voltar_menu'].rect.collidepoint(mouse_pos):
+                             self.play_sound('button_click')
+                             self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+                        
+                        # Níveis da Campanha
+                        from .campanha import CAMPAIGN_DATA
+                        # Coordenadas dos nós (Hardcoded por enquanto para visualização)
+                        nodes = [
+                            (200, 400), (400, 300), (600, 400), (800, 250)
+                        ]
+                        
+                        for i, (cx, cy) in enumerate(nodes):
+                            if i < len(CAMPAIGN_DATA):
+                                rect = pygame.Rect(cx - 30, cy - 30, 60, 60)
+                                if rect.collidepoint(mouse_pos):
+                                    self.play_sound('button_click')
+                                    # Iniciar Batalha da Campanha
+                                    self.checkbox_campanha.checked = True
+                                    self.campaign_manager.nivel_atual = i
+                                    self.iniciar_proxima_batalha_campanha()
 
                     elif self.estado_jogo == ESTADO_JOGO_SETUP:
                         # Handle tabs
@@ -571,6 +604,10 @@ class Game:
         if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
             desenhar_menu_principal(self.tela, self.fonte_menu, self.botoes_menu_principal, mouse_pos)
         
+        elif self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
+            from .campanha import CAMPAIGN_DATA
+            desenhar_mapa_mundo(self.tela, self.fonte_menu, self.botoes_ui, CAMPAIGN_DATA, self.campaign_manager.nivel_atual, self.imagens, mouse_pos)
+
         elif self.estado_jogo == ESTADO_JOGO_SETUP:
             desenhar_setup_batalha(self.tela, self.fonte_menu, self.config_times, self.config_chefe, self.botoes_ui, 
                                    self.checkbox_terreno, self.checkbox_auto, self.checkbox_chefe, self.checkbox_autoplay, 
@@ -612,6 +649,13 @@ class Game:
                         
                     pygame.draw.rect(self.tela, (50, 50, 50), rect, 1)
             
+            # Draw Editor Panel Background
+            area_editor = pygame.Rect(LARGURA_TABULEIRO, 0, LARGURA_LOG, ALTURA_TELA)
+            s = pygame.Surface((area_editor.width, area_editor.height), pygame.SRCALPHA)
+            s.fill((40, 30, 20, 230))
+            self.tela.blit(s, area_editor.topleft)
+            pygame.draw.rect(self.tela, (218, 165, 32), area_editor, 3, border_radius=5)
+
             # Draw Buttons
             for nome, botao in self.botoes_editor.items():
                 # Highlight selected terrain button
@@ -620,6 +664,6 @@ class Game:
                 botao.desenhar(self.tela, self.fonte_menu, mouse_pos)
             
             # Draw Title
-            titulo = self.fonte_menu.render("Editor de Mapas", True, (255, 255, 255))
+            titulo = self.fonte_menu.render("Editor de Mapas", True, (255, 215, 0))
             self.tela.blit(titulo, (LARGURA_TABULEIRO + 20, 20))
 
