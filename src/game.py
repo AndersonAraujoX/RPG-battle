@@ -165,15 +165,16 @@ class Game:
         self.checkbox_campanha = checkbox_campanha_init
         self.checkbox_limitadores = checkbox_limitadores_init
         self.bosses = bosses_init
-        self.botoes_combate['proxima_acao'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 70, LARGURA_LOG - 40, 50, "Próxima Ação", self.fonte_menu)
-        self.botoes_combate['salvar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 130, 100, 30, "Salvar", self.fonte_menu)
-        self.botoes_combate['carregar'] = Botao(LARGURA_TABULEIRO + 140, ALTURA_TELA - 130, 100, 30, "Carregar", self.fonte_menu)
+        print("DEBUG: BUTTONS UPDATED V2")
+        self.botoes_combate['proxima_acao'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 50, LARGURA_LOG - 40, 40, "Próxima Ação", self.fonte_menu)
+        self.botoes_combate['salvar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 90, 100, 30, "Salvar", self.fonte_menu)
+        self.botoes_combate['carregar'] = Botao(LARGURA_TABULEIRO + 140, ALTURA_TELA - 90, 100, 30, "Carregar", self.fonte_menu)
         
         # Botões de aba do painel
         self.botoes_combate['aba_log'] = Botao(LARGURA_TABULEIRO, 60, 80, 30, "Log", self.fonte_menu)
         self.botoes_combate['aba_info'] = Botao(LARGURA_TABULEIRO + 80, 60, 80, 30, "Info", self.fonte_menu)
         self.botoes_combate['aba_inventario'] = Botao(LARGURA_TABULEIRO + 160, 60, 100, 30, "Inventário", self.fonte_menu)
-        self.botoes_combate['cancelar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 190, 100, 30, "Cancelar", self.fonte_menu)
+        self.botoes_combate['cancelar'] = Botao(LARGURA_TABULEIRO + 260, ALTURA_TELA - 90, 100, 30, "Cancelar", self.fonte_menu)
 
         # Botões da tela de Fim de Jogo (Posicionados no painel lateral)
         x_painel = LARGURA_TABULEIRO + (LARGURA_LOG // 2) - 100
@@ -293,168 +294,226 @@ class Game:
                 continue # Impede outros eventos
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1: # Left click
+                if event.button in (1, 3): # Left or Right click
                     if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
-                        for nome, botao in self.botoes_menu_principal.items():
-                            if botao.rect.collidepoint(mouse_pos):
-                                self.play_sound('button_click')
-                                if nome == 'nova_batalha':
-                                    self.estado_jogo = ESTADO_JOGO_SETUP
-                                elif nome == 'campanha':
-                                    self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
-                                elif nome == 'opcoes':
-                                    # self.estado_jogo = ESTADO_JOGO_OPCOES # Futuro
-                                    pass
-                                elif nome == 'sair':
-                                    self.rodando = False
+                        if event.button == 1: # Menu is Left Click only
+                            for nome, botao in self.botoes_menu_principal.items():
+                                if botao.rect.collidepoint(mouse_pos):
+                                    self.play_sound('button_click')
+                                    if nome == 'nova_batalha':
+                                        self.estado_jogo = ESTADO_JOGO_SETUP
+                                    elif nome == 'campanha':
+                                        self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
+                                    elif nome == 'opcoes':
+                                        # self.estado_jogo = ESTADO_JOGO_OPCOES # Futuro
+                                        pass
+                                    elif nome == 'sair':
+                                        self.rodando = False
 
                     elif self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
-                        # Botão Voltar
-                        if self.botoes_ui['voltar_menu'].rect.collidepoint(mouse_pos):
+                        if event.button == 1:
+                            # Botão Voltar
+                            if self.botoes_ui['voltar_menu'].rect.collidepoint(mouse_pos):
                              self.play_sound('button_click')
                              self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
                         
-                        # Níveis da Campanha
-                        from .campanha import CAMPAIGN_DATA
-                        # Coordenadas dos nós (Hardcoded por enquanto para visualização)
-                        nodes = [
-                            (200, 400), (400, 300), (600, 400), (800, 250)
-                        ]
-                        
-                        for i, (cx, cy) in enumerate(nodes):
-                            if i < len(CAMPAIGN_DATA):
-                                rect = pygame.Rect(cx - 30, cy - 30, 60, 60)
-                                if rect.collidepoint(mouse_pos):
-                                    self.play_sound('button_click')
-                                    # Iniciar Batalha da Campanha
-                                    self.checkbox_campanha.checked = True
-                                    self.campaign_manager.nivel_atual = i
-                                    self.iniciar_proxima_batalha_campanha()
+                        # Movimentação no Mapa Mundi
+                        # Se clicar no mapa (e não no botão voltar), define destino
+                        if mouse_pos[1] > 50: # Ignora clique na barra superior (título/voltar)
+                            self.campaign_manager.destino_movimento = mouse_pos
+                            
+                        # Verificar interação com locais (Ao clicar ou chegar perto?)
+                        # Vamos fazer ao clicar para simplificar, ou verificar colisão a cada frame
+                        for local in self.campaign_manager.locais:
+                            dist = ((local['pos'][0] - mouse_pos[0])**2 + (local['pos'][1] - mouse_pos[1])**2)**0.5
+                            if dist < local['raio']:
+                                # Clicou no local
+                                self.play_sound('button_click')
+                                self.checkbox_campanha.checked = True
+                                self.campaign_manager.nivel_atual = local['evento_id']
+                                self.iniciar_proxima_batalha_campanha()
 
                     elif self.estado_jogo == ESTADO_JOGO_SETUP:
                         # Handle tabs
-                        for tab_id, tab in self.menu_tabs.items():
-                            if tab.rect.collidepoint(mouse_pos):
-                                self.active_tab_id = tab_id
-                                for t in self.menu_tabs.values(): t.selected = False
-                                tab.selected = True
-                                self.play_sound('button_click')
-                                return
-
+                        if event.button == 1:
+                            for tab_id, tab in self.menu_tabs.items():
+                                if tab.rect.collidepoint(mouse_pos):
+                                    self.active_tab_id = tab_id
+                                    for t in self.menu_tabs.values(): t.selected = False
+                                    tab.selected = True
+                                    self.play_sound('button_click')
+                                    return
+    
                         # Handle buttons
-                        for nome, botao in self.botoes_ui.items():
-                            # Check visibility logic (same as drawing)
-                            is_botao_chefe_attr = nome.startswith('chefe_')
-                            is_botao_time_b = nome.startswith('B_')
-                            is_boss_nav = nome in ['next_boss', 'prev_boss']
-                            
-                            visible = True
-                            if self.active_tab_id == "times":
-                                if is_botao_chefe_attr or is_boss_nav or is_botao_time_b or nome.startswith('A_'):
-                                    if self.checkbox_chefe.checked:
-                                        if is_botao_time_b: visible = False
-                                    else:
-                                        if is_boss_nav or is_botao_chefe_attr: visible = False
-                                else:
-                                    visible = False # Hide other buttons in times tab? No, wait.
-                            elif self.active_tab_id == "configuracoes":
-                                if nome in ['sfx_vol_down', 'sfx_vol_up']:
-                                    visible = True
-                                else:
-                                    visible = False # Hide setup buttons in config tab
-
-                            # Always visible buttons
-                            if nome in ['iniciar', 'editor_mapas', 'voltar_menu']:
-                                visible = True
-
-                            if visible and botao.rect.collidepoint(mouse_pos):
-                                self.play_sound('button_click')
+                        if event.button == 1:
+                            for nome, botao in self.botoes_ui.items():
+                                # Check visibility logic (same as drawing)
+                                is_botao_chefe_attr = nome.startswith('chefe_')
+                                is_botao_time_b = nome.startswith('B_')
+                                is_boss_nav = nome in ['next_boss', 'prev_boss']
                                 
-                                if nome == 'iniciar':
-                                    # Lógica para iniciar a batalha
-                                    if self.checkbox_campanha.checked:
-                                        self.iniciar_proxima_batalha_campanha()
+                                visible = True
+                                if self.active_tab_id == "times":
+                                    if is_botao_chefe_attr or is_boss_nav or is_botao_time_b or nome.startswith('A_'):
+                                        if self.checkbox_chefe.checked:
+                                            if is_botao_time_b: visible = False
+                                        else:
+                                            if is_boss_nav or is_botao_chefe_attr: visible = False
                                     else:
-                                        try:
-                                            args = []
-                                            # Time A
-                                            for cls, _ in self.config_times['classes']:
-                                                args.append(self.config_times[TIME_A].get(cls, 0))
-
-                                            # Time B
-                                            if not self.checkbox_chefe.checked:
+                                        visible = False # Hide other buttons in times tab? No, wait.
+                                elif self.active_tab_id == "configuracoes":
+                                    if nome in ['sfx_vol_down', 'sfx_vol_up']:
+                                        visible = True
+                                    else:
+                                        visible = False # Hide setup buttons in config tab
+    
+                                # Always visible buttons
+                                if nome in ['iniciar', 'editor_mapas', 'voltar_menu']:
+                                    visible = True
+    
+                                if visible and botao.rect.collidepoint(mouse_pos):
+                                    self.play_sound('button_click')
+                                    
+                                    if nome == 'iniciar':
+                                        # Lógica para iniciar a batalha
+                                        if self.checkbox_campanha.checked:
+                                            self.iniciar_proxima_batalha_campanha()
+                                        else:
+                                            try:
+                                                args = []
+                                                # Time A
                                                 for cls, _ in self.config_times['classes']:
-                                                    args.append(self.config_times[TIME_B].get(cls, 0))
-                                            
-                                            self.motor = MotorCombate(
-                                                args,
-                                                gerar_terreno=self.checkbox_terreno.checked,
-                                                mapa_custom=self.editor_mapa if self.checkbox_mapa_custom.checked else None,
-                                                sound_player=self.play_sound,
-                                                modo_chefe=self.checkbox_chefe.checked,
-                                                stats_chefe=self.config_chefe if self.checkbox_chefe.checked else None,
-                                                boss_class=self.bosses[self.selected_boss_index]["classe"] if self.checkbox_chefe.checked else None
-                                            )
-                                            
-                                            self.estado_jogo = ESTADO_JOGO_COMBATE
-                                            self.tocar_musica('batalha')
-                                            self.log_combate.clear()
-                                            self.log_combate.clear()
-                                            self.log_combate.append(("A batalha começou!", COR_TEXTO))
-                                            
-                                            # Teste de Diálogo
-                                            self.dialogo.iniciar_dialogo([
-                                                ("Narrador", "A batalha está prestes a começar!", None),
-                                                ("Guerreiro", "Preparem-se para lutar!", "guerreiro"),
-                                                ("Inimigo", "Vocês não passarão!", "goblin")
-                                            ])
+                                                    args.append(self.config_times[TIME_A].get(cls, 0))
 
-                                            if self.checkbox_limitadores.checked:
-                                                self.motor.tabuleiro.adicionar_limitadores()
+                                                # Time B
+                                                if not self.checkbox_chefe.checked:
+                                                    for cls, _ in self.config_times['classes']:
+                                                        args.append(self.config_times[TIME_B].get(cls, 0))
                                                 
-                                            self.atualizar_visibilidade() 
+                                                self.motor = MotorCombate(
+                                                    args,
+                                                    gerar_terreno=self.checkbox_terreno.checked,
+                                                    mapa_custom=self.editor_mapa if self.checkbox_mapa_custom.checked else None,
+                                                    sound_player=self.play_sound,
+                                                    modo_chefe=self.checkbox_chefe.checked,
+                                                    stats_chefe=self.config_chefe if self.checkbox_chefe.checked else None,
+                                                    boss_class=self.bosses[self.selected_boss_index]["classe"] if self.checkbox_chefe.checked else None
+                                                )
+                                                
+                                                self.estado_jogo = ESTADO_JOGO_COMBATE
+                                                self.tocar_musica('batalha')
+                                                self.log_combate.clear()
+                                                self.log_combate.clear()
+                                                self.log_combate.append(("A batalha começou!", COR_TEXTO))
+                                                
+                                                # Teste de Diálogo
+                                                self.dialogo.iniciar_dialogo([
+                                                    ("Narrador", "A batalha está prestes a começar!", None),
+                                                    ("Guerreiro", "Preparem-se para lutar!", "guerreiro"),
+                                                    ("Inimigo", "Vocês não passarão!", "goblin")
+                                                ])
 
-                                        except ValueError as e:
-                                            print(f"Erro ao iniciar batalha: {e}")
-                                            self.log_combate.append((f"Erro: {e}", COR_DANO))
-                                elif nome == 'voltar_menu':
-                                    self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
-                                elif nome == 'editor_mapas':
-                                    self.estado_jogo = ESTADO_JOGO_EDITOR
-                                elif nome.startswith('A_add_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    self.config_times[TIME_A][classe] += 1
-                                elif nome.startswith('A_sub_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    if self.config_times[TIME_A][classe] > 0:
-                                        self.config_times[TIME_A][classe] -= 1
-                                elif nome.startswith('B_add_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    self.config_times[TIME_B][classe] += 1
-                                elif nome.startswith('B_sub_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    if self.config_times[TIME_B][classe] > 0:
-                                        self.config_times[TIME_B][classe] -= 1
-                                elif nome == 'chefe_add_hp':
-                                    self.config_chefe['hp'] += 10
-                                elif nome == 'chefe_sub_hp':
-                                    if self.config_chefe['hp'] > 10: self.config_chefe['hp'] -= 10
-                                elif nome == 'chefe_add_ataque':
-                                    self.config_chefe['ataque'] += 1
-                                elif nome == 'chefe_sub_ataque':
-                                    if self.config_chefe['ataque'] > 0: self.config_chefe['ataque'] -= 1
-                                elif nome == 'chefe_add_ac':
-                                    self.config_chefe['ac'] += 1
-                                elif nome == 'chefe_sub_ac':
-                                    if self.config_chefe['ac'] > 0: self.config_chefe['ac'] -= 1
-                                elif nome == 'next_boss':
-                                    self.selected_boss_index = (self.selected_boss_index + 1) % len(self.bosses)
-                                elif nome == 'prev_boss':
-                                    self.selected_boss_index = (self.selected_boss_index - 1) % len(self.bosses)
+                                                if self.checkbox_limitadores.checked:
+                                                    self.motor.tabuleiro.adicionar_limitadores()
+                                                    
+                                                self.atualizar_visibilidade() 
+
+                                            except ValueError as e:
+                                                print(f"Erro ao iniciar batalha: {e}")
+                                                self.log_combate.append((f"Erro: {e}", COR_DANO))
+                                    elif nome == 'voltar_menu':
+                                        self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+                                    elif nome == 'editor_mapas':
+                                        self.estado_jogo = ESTADO_JOGO_EDITOR
+                                    elif nome.startswith('A_add_'):
+                                        idx = int(nome.split('_')[-1])
+                                        classe = self.config_times['classes'][idx][0]
+                                        self.config_times[TIME_A][classe] += 1
+                                    elif nome.startswith('A_sub_'):
+                                        idx = int(nome.split('_')[-1])
+                                        classe = self.config_times['classes'][idx][0]
+                                        if self.config_times[TIME_A][classe] > 0:
+                                            self.config_times[TIME_A][classe] -= 1
+                                    elif nome.startswith('B_add_'):
+                                        idx = int(nome.split('_')[-1])
+                                        classe = self.config_times['classes'][idx][0]
+                                        self.config_times[TIME_B][classe] += 1
+                                    elif nome.startswith('B_sub_'):
+                                        idx = int(nome.split('_')[-1])
+                                        classe = self.config_times['classes'][idx][0]
+                                        if self.config_times[TIME_B][classe] > 0:
+                                            self.config_times[TIME_B][classe] -= 1
+                                    elif nome == 'chefe_add_hp':
+                                        self.config_chefe['hp'] += 10
+                                    elif nome == 'chefe_sub_hp':
+                                        if self.config_chefe['hp'] > 10: self.config_chefe['hp'] -= 10
+                                    elif nome == 'chefe_add_ataque':
+                                        self.config_chefe['ataque'] += 1
+                                    elif nome == 'chefe_sub_ataque':
+                                        if self.config_chefe['ataque'] > 0: self.config_chefe['ataque'] -= 1
+                                    elif nome == 'chefe_add_ac':
+                                        self.config_chefe['ac'] += 1
+                                    elif nome == 'chefe_sub_ac':
+                                        if self.config_chefe['ac'] > 0: self.config_chefe['ac'] -= 1
+                                    elif nome == 'next_boss':
+                                        self.selected_boss_index = (self.selected_boss_index + 1) % len(self.bosses)
+                                    elif nome == 'prev_boss':
+                                        self.selected_boss_index = (self.selected_boss_index - 1) % len(self.bosses)
+                                    elif nome == 'sfx_vol_down':
+                                        self.volume_sfx = max(0.0, self.volume_sfx - 0.1)
+                                        pygame.mixer.music.set_volume(self.volume_sfx)
+                                    elif nome == 'sfx_vol_up':
+                                        self.volume_sfx = min(1.0, self.volume_sfx + 0.1)
+                                        pygame.mixer.music.set_volume(self.volume_sfx)
+
+                        # Handle clicks on unit lists for adding/removing units (Left click to add, Right click to remove)
+                        if self.active_tab_id == "times" and event.type == pygame.MOUSEBUTTONDOWN:
+                            # Layout Constants (Must match drawing)
+                            coluna_a_x = LARGURA_TELA // 4 - 150
+                            coluna_b_x = LARGURA_TELA * 3 // 4 - 150
+                            y_start = 200 # content_y_start
+                            espacamento_y = 45
+                            largura_linha = 350
+                            altura_linha = 40
+                            
+                            # Check Clicks on Team A List
+                            for i, (classe, nome_classe) in enumerate(self.config_times['classes']):
+                                y_pos = y_start + i * espacamento_y
+                                rect = pygame.Rect(coluna_a_x, y_pos, largura_linha, altura_linha)
+                                
+                                if rect.collidepoint(mouse_pos):
+                                    if event.button == 1: # Left Click: Add
+                                        self.config_times['A'][classe] += 1
+                                        self.play_sound('button_click')
+                                    elif event.button == 3: # Right Click: Remove
+                                        if self.config_times['A'][classe] > 0:
+                                            self.config_times['A'][classe] -= 1
+                                            self.play_sound('button_click')
+                            
+                            # Check Clicks on Team B List (if not Boss)
+                            if not self.checkbox_chefe.checked:
+                                for i, (classe, nome_classe) in enumerate(self.config_times['classes']):
+                                    y_pos = y_start + i * espacamento_y
+                                    rect = pygame.Rect(coluna_b_x, y_pos, largura_linha, altura_linha)
+                                    
+                                    if rect.collidepoint(mouse_pos):
+                                        if event.button == 1: # Left Click: Add
+                                            self.config_times['B'][classe] += 1
+                                            self.play_sound('button_click')
+                                        elif event.button == 3: # Right Click: Remove
+                                            if self.config_times['B'][classe] > 0:
+                                                self.config_times['B'][classe] -= 1
+                                                self.play_sound('button_click')
+                            
+                            # Boss Buttons (Keep existing logic if buttons exist)
+                            if self.checkbox_chefe.checked:
+                                # These are handled by the general button loop above, but if they were not,
+                                # this is where specific click handling for them would go.
+                                # The provided snippet has a redundant check for prev_boss/next_boss and stat buttons here.
+                                # The existing `for nome, botao in self.botoes_ui.items():` loop already handles these.
+                                # To avoid duplicate logic, we'll assume the existing button handling is sufficient
+                                # for these specific boss buttons and stats.
+                                pass # Existing button loop handles these.
 
                         # Handle checkboxes
                         if self.active_tab_id == "configuracoes":
@@ -556,6 +615,9 @@ class Game:
             self.dialogo.atualizar()
             return # Pausa o jogo atrás do diálogo
 
+        if self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
+            self.campaign_manager.atualizar_movimento()
+
         if self.estado_jogo == ESTADO_JOGO_COMBATE:
             # Animation Handling
             if self.animacao_atual:
@@ -606,7 +668,7 @@ class Game:
         
         elif self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
             from .campanha import CAMPAIGN_DATA
-            desenhar_mapa_mundo(self.tela, self.fonte_menu, self.botoes_ui, CAMPAIGN_DATA, self.campaign_manager.nivel_atual, self.imagens, mouse_pos)
+            desenhar_mapa_mundo(self.tela, self.fonte_menu, self.botoes_ui, self.campaign_manager, self.campaign_manager.nivel_atual, self.imagens, mouse_pos)
 
         elif self.estado_jogo == ESTADO_JOGO_SETUP:
             desenhar_setup_batalha(self.tela, self.fonte_menu, self.config_times, self.config_chefe, self.botoes_ui, 

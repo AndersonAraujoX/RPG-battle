@@ -26,51 +26,65 @@ class Botao:
             
         cor = self.cor_desabilitado if self.desabilitado else self.cor_atual
         
-        # Renderização estilo "Mosaico" (Final de Kindread Soul) para TODOS os botões
+        # Renderização estilo "Premium/3D" para TODOS os botões
         
-        # Cores baseadas na referência (Marrom/Dourado)
-        # Se cor_fundo for passada, usa ela como base, senão usa o padrão Marrom
-        cor_base = self.cor_atual if self.cor_atual != (80, 80, 80) else (101, 67, 33) # Usa cor customizada ou Marrom Padrão
+        # Cores base
+        cor_base = self.cor_atual if self.cor_atual != (80, 80, 80) else (101, 67, 33) # Marrom Padrão
         
         if self.rect.collidepoint(pygame.mouse.get_pos()):
-            # Clarear um pouco no hover
-            r = min(255, cor_base[0] + 30)
-            g = min(255, cor_base[1] + 30)
-            b = min(255, cor_base[2] + 30)
-            cor_fundo = (r, g, b)
-            cor_borda = (255, 215, 0) # Gold brilhante
+            # Hover: Mais claro e vibrante
+            r = min(255, cor_base[0] + 40)
+            g = min(255, cor_base[1] + 40)
+            b = min(255, cor_base[2] + 40)
+            cor_topo = (r, g, b)
+            cor_base_grad = (max(0, r-50), max(0, g-50), max(0, b-50))
+            cor_borda = (255, 255, 100) # Gold Brilhante
         else:
-            cor_fundo = cor_base
+            cor_topo = cor_base
+            cor_base_grad = (max(0, cor_base[0]-40), max(0, cor_base[1]-40), max(0, cor_base[2]-40))
             cor_borda = (218, 165, 32) # GoldenRod
         
-        # Fundo semitransparente
-        s = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
-        s.fill((*cor_fundo, 230)) # Alpha 230 (quase opaco)
-        tela.blit(s, self.rect.topleft)
+        # 1. Gradiente Vertical (Simulado com linhas)
+        # Criar surface para o botão
+        btn_surf = pygame.Surface((self.rect.width, self.rect.height))
         
-        # Borda Dourada
-        pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=5)
+        for y in range(self.rect.height):
+            # Interpolação linear entre cor_topo e cor_base_grad
+            ratio = y / self.rect.height
+            r = int(cor_topo[0] * (1 - ratio) + cor_base_grad[0] * ratio)
+            g = int(cor_topo[1] * (1 - ratio) + cor_base_grad[1] * ratio)
+            b = int(cor_topo[2] * (1 - ratio) + cor_base_grad[2] * ratio)
+            pygame.draw.line(btn_surf, (r, g, b), (0, y), (self.rect.width, y))
+            
+        tela.blit(btn_surf, self.rect.topleft)
         
-        # Brilho interno (Inner Glow) - sutil
-        pygame.draw.rect(tela, (255, 223, 0), self.rect.inflate(-4, -4), 1, border_radius=5)
+        # 2. Borda Chanfrada (Bevel)
+        # Luz (Topo e Esquerda)
+        pygame.draw.line(tela, (255, 255, 255), self.rect.topleft, self.rect.topright, 2)
+        pygame.draw.line(tela, (255, 255, 255), self.rect.topleft, self.rect.bottomleft, 2)
+        # Sombra (Base e Direita)
+        pygame.draw.line(tela, (0, 0, 0), self.rect.bottomleft, self.rect.bottomright, 2)
+        pygame.draw.line(tela, (0, 0, 0), self.rect.topright, self.rect.bottomright, 2)
+        
+        # 3. Borda Externa Dourada
+        pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=2)
 
-        # Texto Principal (Centralizado)
+        # Texto Principal (Centralizado com Sombra)
         cor_texto = (255, 255, 240) # Ivory
         texto_surface = self.fonte.render(self.texto, True, cor_texto)
         texto_rect = texto_surface.get_rect(center=self.rect.center)
         
         # Sombra do texto
         sombra_surface = self.fonte.render(self.texto, True, (0, 0, 0))
-        sombra_rect = sombra_surface.get_rect(center=(self.rect.centerx + 1, self.rect.centery + 1))
+        sombra_rect = sombra_surface.get_rect(center=(self.rect.centerx + 2, self.rect.centery + 2))
         tela.blit(sombra_surface, sombra_rect)
         tela.blit(texto_surface, texto_rect)
         
-        # Ícone (se houver) - Simplificado para não quebrar layout
+        # Ícone (se houver)
         if self.icone:
-             # Desenhar um pequeno losango dourado à esquerda do texto se houver espaço
              pass 
 
-        # Subtítulo (ignorado para manter consistência com botões simples)
+        # Subtítulo
         if self.subtitulo:
             pass
 

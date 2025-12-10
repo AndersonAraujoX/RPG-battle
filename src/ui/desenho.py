@@ -493,7 +493,7 @@ def desenhar_tela_fim(tela, fonte, vencedor, y_offset, botoes, mouse_pos):
     botoes['voltar_menu'].desenhar(tela, fonte)
 
 def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos):
-    area_comandos = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 150 + y_offset, LARGURA_LOG, 150)
+    area_comandos = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 240 + y_offset, LARGURA_LOG, 240)
     
     # Fundo do Painel de Comandos (Marrom translúcido)
     s = pygame.Surface((area_comandos.width, area_comandos.height), pygame.SRCALPHA)
@@ -503,7 +503,7 @@ def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos):
     # Borda Dourada
     pygame.draw.rect(tela, (218, 165, 32), area_comandos, 3, border_radius=5)
     
-    y_offset_texto = ALTURA_TELA - 140 + y_offset
+    y_offset_texto = ALTURA_TELA - 240 + y_offset
     comandos = [
         "Comandos:",
         "  - Clique em sua unidade para selecionar.",
@@ -660,6 +660,19 @@ def desenhar_tela_level_up(tela, fonte_titulo, fonte_menu, personagem, botoes, m
         botao.update_hover(mouse_pos)
         botao.desenhar(tela, fonte_menu)
 
+def draw_text_with_outline(surface, text, font, color, pos, outline_color=(0,0,0), outline_width=3):
+    text_surface = font.render(text, True, color)
+    
+    # Outline (Draw multiple times around)
+    for dx in range(-outline_width, outline_width + 1):
+        for dy in range(-outline_width, outline_width + 1):
+            if dx != 0 or dy != 0:
+                outline_surface = font.render(text, True, outline_color)
+                surface.blit(outline_surface, (pos[0] + dx, pos[1] + dy))
+    
+    # Main text
+    surface.blit(text_surface, pos)
+
 def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
     # Fundo
     try:
@@ -671,26 +684,31 @@ def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
         tela.fill((20, 20, 30))
     
     # Título "FINAL DE KINDREAD SOUL"
-    # Estilo: Dourado com sombra
-    fonte_titulo = pygame.font.Font(None, 100)
+    # Estilo: Épico com Borda Grossa
+    fonte_titulo = pygame.font.Font(None, 110)
+    fonte_subtitulo = pygame.font.Font(None, 130)
+    
     texto_titulo = "FINAL DE"
     texto_subtitulo = "KINDREAD SOUL"
     
-    # Sombra
-    sombra_offset = 4
-    titulo_sombra = fonte_titulo.render(texto_titulo, True, (0, 0, 0))
-    subtitulo_sombra = fonte_titulo.render(texto_subtitulo, True, (0, 0, 0))
+    # Posições
+    x_titulo = 80
+    y_titulo = 80
+    x_sub = 80
+    y_sub = 160
     
-    tela.blit(titulo_sombra, (100 + sombra_offset, 100 + sombra_offset))
-    tela.blit(subtitulo_sombra, (100 + sombra_offset, 180 + sombra_offset))
+    # Renderizar com Outline
+    # "FINAL DE" - Dourado Pálido com borda preta
+    draw_text_with_outline(tela, texto_titulo, fonte_titulo, (240, 230, 140), (x_titulo, y_titulo), outline_width=4)
     
-    # Texto Principal
-    titulo_cor = (255, 215, 0) # Gold
-    titulo_render = fonte_titulo.render(texto_titulo, True, titulo_cor)
-    subtitulo_render = fonte_titulo.render(texto_subtitulo, True, (255, 140, 0)) # DarkOrange/Gold gradient feel
+    # "KINDREAD SOUL" - Laranja/Dourado Intenso com borda preta grossa
+    draw_text_with_outline(tela, texto_subtitulo, fonte_subtitulo, (255, 140, 0), (x_sub, y_sub), outline_width=5)
     
-    tela.blit(titulo_render, (100, 100))
-    tela.blit(subtitulo_render, (100, 180))
+    # Efeito de Brilho (Overlay simples)
+    # Uma cópia branca levemente deslocada e transparente para dar volume?
+    # Ou apenas um gradiente simulado (faixa mais clara no meio)
+    # Vamos tentar desenhar o texto de novo com uma cor mais clara e clipar? 
+    # Pygame puro é chato para isso. Vamos manter o outline que já melhora muito.
 
     for botao in botoes.values():
         botao.desenhar(tela, fonte, mouse_pos)
@@ -759,7 +777,17 @@ def desenhar_dialogo(tela, fonte, dialogo_sistema, game_images):
         ])
 
 def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id, mouse_pos=None):
-    tela.fill(COR_FUNDO)
+    # Fundo (Wallpaper)
+    try:
+        bg_img = pygame.image.load(resource_path("assets/images/menu_background.png")).convert()
+        bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
+        # Escurecer um pouco para legibilidade
+        overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        bg_img.blit(overlay, (0,0))
+        tela.blit(bg_img, (0, 0))
+    except:
+        tela.fill(COR_FUNDO)
     
     # Título da Tela de Setup
     titulo_render = fonte.render("CONFIGURAÇÃO DE BATALHA", True, COR_TEXTO)
@@ -771,39 +799,108 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
         tab.desenhar(tela, fonte, mouse_pos)
 
     # Base Y position for content, adjusted for tab height
-    content_y_start = 150 # Adjusted y_start for tab height
+    content_y_start = 200 # Aumentado para evitar sobreposição com as abas
     
     if active_tab_id == "times":
-        x_time_a = LARGURA_TELA // 4
-        x_time_b = LARGURA_TELA * 3 // 4
+        # Layout Constants
+        coluna_a_x = LARGURA_TELA // 4 - 150
+        coluna_b_x = LARGURA_TELA * 3 // 4 - 150
+        y_start = content_y_start
+        espacamento_y = 45
+        largura_linha = 350
+        altura_linha = 40
+        
         # --- Time A ---
-        tela.blit(fonte.render("Time A", True, CORES_TIME["A"]), (x_time_a - 80, content_y_start - 40))
+        # Header
+        header_rect_a = pygame.Rect(coluna_a_x, y_start - 40, largura_linha, 35)
+        pygame.draw.rect(tela, (50, 30, 10), header_rect_a, border_radius=5)
+        pygame.draw.rect(tela, (218, 165, 32), header_rect_a, 2, border_radius=5)
+        tela.blit(fonte.render("Time A (Jogadores)", True, (255, 215, 0)), (coluna_a_x + 10, y_start - 35))
+
         for i, (classe, nome_classe) in enumerate(config_times['classes']):
-            y_pos = content_y_start + i * 50
-            tela.blit(fonte.render(f"{nome_classe}: {config_times['A'][classe]}", True, COR_TEXTO), (x_time_a - 80, y_pos + 5))
-
-        # --- Time B ou Chefe ---
-        tela.blit(fonte.render("Time B", True, CORES_TIME["B"]), (x_time_b - 80, content_y_start - 40))
-        if checkbox_chefe.checked:
-            # --- Boss Selection UI ---
-            selected_boss = bosses[selected_boss_index]
-            boss_class = selected_boss["classe"]
-            boss_name = selected_boss["nome"]
-
-            # Display boss name
-            # Desenhar info do chefe na coluna B
-            y_chefe = y_start_units
+            y_pos = y_start + i * espacamento_y
+            row_rect = pygame.Rect(coluna_a_x, y_pos, largura_linha, altura_linha)
             
-            # Nome do Chefe
+            # Row Interaction (Highlight)
+            if row_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(tela, (60, 60, 60, 200), row_rect, border_radius=5)
+                pygame.draw.rect(tela, (255, 215, 0), row_rect, 1, border_radius=5)
+            else:
+                cor_fundo_row = (30, 30, 30, 150) if i % 2 == 0 else (40, 40, 40, 150)
+                s = pygame.Surface((largura_linha, altura_linha), pygame.SRCALPHA)
+                s.fill(cor_fundo_row)
+                tela.blit(s, (coluna_a_x, y_pos))
+            
+            # Name
+            tela.blit(fonte.render(f"{nome_classe}", True, COR_TEXTO), (coluna_a_x + 10, y_pos + 10))
+            
+            # Count
+            count = config_times['A'][classe]
+            count_text = fonte.render(str(count), True, (255, 255, 255))
+            tela.blit(count_text, (coluna_a_x + 280, y_pos + 10)) # Movido para direita
+
+        # --- Time B ---
+        # Header
+        header_rect_b = pygame.Rect(coluna_b_x, y_start - 40, largura_linha, 35)
+        pygame.draw.rect(tela, (50, 30, 10), header_rect_b, border_radius=5)
+        pygame.draw.rect(tela, (218, 165, 32), header_rect_b, 2, border_radius=5)
+        tela.blit(fonte.render("Time B (Inimigos)", True, (255, 50, 50)), (coluna_b_x + 10, y_start - 35))
+
+        if not checkbox_chefe.checked:
+            for i, (classe, nome_classe) in enumerate(config_times['classes']):
+                y_pos = y_start + i * espacamento_y
+                row_rect = pygame.Rect(coluna_b_x, y_pos, largura_linha, altura_linha)
+                
+                # Row Interaction (Highlight)
+                if row_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(tela, (60, 60, 60, 200), row_rect, border_radius=5)
+                    pygame.draw.rect(tela, (255, 215, 0), row_rect, 1, border_radius=5)
+                else:
+                    cor_fundo_row = (30, 30, 30, 150) if i % 2 == 0 else (40, 40, 40, 150)
+                    s = pygame.Surface((largura_linha, altura_linha), pygame.SRCALPHA)
+                    s.fill(cor_fundo_row)
+                    tela.blit(s, (coluna_b_x, y_pos))
+                
+                # Name
+                tela.blit(fonte.render(f"{nome_classe}", True, COR_TEXTO), (coluna_b_x + 10, y_pos + 10))
+                
+                # Count
+                count = config_times['B'][classe]
+                count_text = fonte.render(str(count), True, (255, 255, 255))
+                tela.blit(count_text, (coluna_b_x + 280, y_pos + 10))
+        else:
+            # Boss Mode UI
+            y_chefe = y_start
+            
+            # Boss Name Panel
+            boss_panel = pygame.Rect(coluna_b_x, y_chefe, largura_linha, 200)
+            pygame.draw.rect(tela, (20, 0, 0), boss_panel, border_radius=10)
+            pygame.draw.rect(tela, (255, 0, 0), boss_panel, 2, border_radius=10)
+            
             nome_chefe = bosses[selected_boss_index]["nome"]
-            texto_chefe = fonte_header.render(nome_chefe, True, (255, 50, 50))
-            tela.blit(texto_chefe, (coluna_b_x + 50, y_chefe + 10))
+            texto_chefe = fonte.render(nome_chefe, True, (255, 50, 50))
+            tela.blit(texto_chefe, (coluna_b_x + 20, y_chefe + 20))
+            
+            # Update Boss Nav Buttons
+            botoes_ui['prev_boss'].rect.topleft = (coluna_b_x + 20, y_chefe + 60)
+            botoes_ui['prev_boss'].desenhar(tela, fonte, mouse_pos)
+            
+            botoes_ui['next_boss'].rect.topleft = (coluna_b_x + 200, y_chefe + 60)
+            botoes_ui['next_boss'].desenhar(tela, fonte, mouse_pos)
             
             # Stats
-            y_stats = y_chefe + 150
-            tela.blit(fonte.render(f"HP: {config_chefe['hp']}", True, COR_TEXTO), (coluna_b_x + 50, y_stats + 5))
-            tela.blit(fonte.render(f"AC: {config_chefe['ac']}", True, COR_TEXTO), (coluna_b_x + 50, y_stats + 35))
-            tela.blit(fonte.render(f"Atq: +{config_chefe['ataque']}", True, COR_TEXTO), (coluna_b_x + 50, y_stats + 65))
+            y_stats = y_chefe + 120
+            tela.blit(fonte.render(f"HP: {config_chefe['hp']}", True, COR_TEXTO), (coluna_b_x + 20, y_stats))
+            tela.blit(fonte.render(f"AC: {config_chefe['ac']}", True, COR_TEXTO), (coluna_b_x + 20, y_stats + 30))
+            tela.blit(fonte.render(f"Atq: +{config_chefe['ataque']}", True, COR_TEXTO), (coluna_b_x + 20, y_stats + 60))
+            
+            # Update Boss Stat Buttons (Simplified positioning)
+            botoes_ui['chefe_add_hp'].rect.topleft = (coluna_b_x + 150, y_stats - 5)
+            botoes_ui['chefe_sub_hp'].rect.topleft = (coluna_b_x + 190, y_stats - 5)
+            botoes_ui['chefe_add_hp'].desenhar(tela, fonte, mouse_pos)
+            botoes_ui['chefe_sub_hp'].desenhar(tela, fonte, mouse_pos)
+            
+            # ... (Other stat buttons would need similar updates if visible)
 
     elif active_tab_id == "configuracoes":
         config_x = LARGURA_TELA // 2 - 150 # Centered for checkboxes
@@ -844,76 +941,72 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
     botoes_ui['voltar_menu'].rect.topleft = (20, 20)
     botoes_ui['voltar_menu'].desenhar(tela, fonte, mouse_pos)
 
-def desenhar_mapa_mundo(tela, fonte, botoes, campaign_data, nivel_atual, game_images, mouse_pos):
-    # Fundo (Reutilizar o do menu principal)
+def desenhar_mapa_mundo(tela, fonte, botoes, campaign_manager, nivel_atual, game_images, mouse_pos):
+    # Fundo (Mapa Mundi)
     try:
-        bg_img = pygame.image.load(resource_path("assets/images/menu_background.png")).convert()
+        bg_img = pygame.image.load(resource_path("assets/images/mapa_mundo.png")).convert()
         bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
         tela.blit(bg_img, (0, 0))
     except:
         tela.fill((20, 20, 30))
-
-    # Overlay escuro
-    overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 100))
-    tela.blit(overlay, (0, 0))
+        texto = fonte.render("Mapa Mundi (Imagem não encontrada)", True, (255, 255, 255))
+        tela.blit(texto, (LARGURA_TELA//2 - 100, ALTURA_TELA//2))
 
     # Título
     fonte_titulo = pygame.font.Font(None, 60)
     titulo = fonte_titulo.render("MAPA DA CAMPANHA", True, (255, 215, 0))
     titulo_rect = titulo.get_rect(center=(LARGURA_TELA // 2, 50))
-    
-    # Sombra Título
     titulo_sombra = fonte_titulo.render("MAPA DA CAMPANHA", True, (0, 0, 0))
     tela.blit(titulo_sombra, (titulo_rect.x + 2, titulo_rect.y + 2))
     tela.blit(titulo, titulo_rect)
 
-    # Coordenadas dos nós (Mesmas do Game.handle_events)
-    nodes = [
-        (200, 400), (400, 300), (600, 400), (800, 250)
-    ]
-
-    # Desenhar Linhas de Conexão
-    if len(nodes) > 1:
-        points = nodes[:len(campaign_data)]
-        if points:
-             pygame.draw.lines(tela, (150, 150, 150), False, points, 5)
-
-    # Desenhar Nós
-    for i, (cx, cy) in enumerate(nodes):
-        if i >= len(campaign_data): break
+    # Desenhar Locais
+    for local in campaign_manager.locais:
+        cx, cy = local['pos']
+        cor = local['cor']
         
-        # Determinar estado do nó
-        if i < nivel_atual:
-            cor_no = (50, 200, 50) # Verde (Completado)
-            status = "Completado"
-        elif i == nivel_atual:
-            cor_no = (255, 215, 0) # Dourado (Atual)
-            status = "Atual"
-        else:
-            cor_no = (100, 50, 50) # Vermelho Escuro (Bloqueado)
-            status = "Bloqueado"
-
-        # Desenhar Círculo do Nó
-        pygame.draw.circle(tela, cor_no, (cx, cy), 30)
-        pygame.draw.circle(tela, (255, 255, 255), (cx, cy), 30, 3) # Borda Branca
+        # Desenhar Marcador
+        pygame.draw.circle(tela, cor, (cx, cy), 15)
+        pygame.draw.circle(tela, (255, 255, 255), (cx, cy), 15, 2)
         
-        # Número do Nível
-        texto_num = fonte.render(str(i+1), True, (255, 255, 255))
-        tela.blit(texto_num, texto_num.get_rect(center=(cx, cy)))
-
-        # Hover Effect
-        rect = pygame.Rect(cx - 30, cy - 30, 60, 60)
-        if rect.collidepoint(mouse_pos):
-            pygame.draw.circle(tela, (255, 255, 255), (cx, cy), 35, 2) # Highlight
+        # Nome do Local (se mouse perto)
+        dist = ((cx - mouse_pos[0])**2 + (cy - mouse_pos[1])**2)**0.5
+        if dist < 40:
+            texto_local = fonte.render(local['nome'], True, (255, 255, 255))
+            bg_rect = texto_local.get_rect(center=(cx, cy - 30))
+            bg_rect.inflate_ip(10, 6)
+            pygame.draw.rect(tela, (0, 0, 0, 180), bg_rect, border_radius=5)
+            tela.blit(texto_local, texto_local.get_rect(center=(cx, cy - 30)))
             
-            # Tooltip
-            info_text = f"Nível {i+1}: {campaign_data[i]['mensagem_inicio'][:30]}..."
-            tooltip = fonte.render(info_text, True, (255, 255, 255))
-            bg_tooltip = pygame.Surface((tooltip.get_width() + 10, tooltip.get_height() + 10))
-            bg_tooltip.fill((0, 0, 0))
-            tela.blit(bg_tooltip, (cx - tooltip.get_width() // 2 - 5, cy - 60 - 5))
-            tela.blit(tooltip, (cx - tooltip.get_width() // 2, cy - 60))
+            # Highlight
+            pygame.draw.circle(tela, (255, 215, 0), (cx, cy), 20, 2)
+
+    # Desenhar Jogador (Token/Boneco)
+    px, py = campaign_manager.posicao_jogador
+    
+    # Tentar usar sprite do Guerreiro como avatar
+    avatar_img = game_images.get('personagem_guerreiro')
+    if avatar_img:
+        # Escalar para um tamanho pequeno (ex: 40x40)
+        avatar_scaled = pygame.transform.scale(avatar_img, (50, 50))
+        # Centralizar na posição
+        avatar_rect = avatar_scaled.get_rect(center=(int(px), int(py)))
+        
+        # Sombra
+        pygame.draw.ellipse(tela, (0, 0, 0, 100), (avatar_rect.x, avatar_rect.bottom - 10, 50, 15))
+        
+        tela.blit(avatar_scaled, avatar_rect)
+    else:
+        # Fallback para Token
+        pygame.draw.circle(tela, (0, 0, 0, 100), (int(px), int(py + 5)), 10)
+        pygame.draw.circle(tela, (0, 191, 255), (int(px), int(py)), 10)
+        pygame.draw.circle(tela, (255, 255, 255), (int(px), int(py)), 10, 2)
+    
+    # Desenhar Destino (se houver)
+    if campaign_manager.destino_movimento:
+        dx, dy = campaign_manager.destino_movimento
+        pygame.draw.line(tela, (255, 255, 255, 100), (px, py), (dx, dy), 1)
+        pygame.draw.circle(tela, (255, 255, 255, 100), (int(dx), int(dy)), 5, 1)
 
     # Botão Voltar
     botoes['voltar_menu'].rect.topleft = (20, 20)

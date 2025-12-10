@@ -46,7 +46,61 @@ CAMPAIGN_DATA = [
 class CampaignManager:
     def __init__(self):
         self.nivel_atual = 0
-        self.progresso_personagens = {} # Salvará o estado dos personagens do jogador
+        self.progresso_personagens = {} 
+        self.posicao_jogador = [100, 400] # Posição inicial (x, y)
+        self.destino_movimento = None # Para movimento suave
+        
+        # Definição dos Locais no Mapa Mundi (Coordenadas baseadas em 1024x768)
+        self.locais = [
+            {
+                "nome": "Floresta do Caos",
+                "pos": (150, 400),
+                "raio": 40,
+                "evento_id": 0, # Index em CAMPAIGN_DATA
+                "completado": False,
+                "cor": (34, 139, 34) # Forest Green
+            },
+            {
+                "nome": "Pântano de Vendala",
+                "pos": (500, 350),
+                "raio": 40,
+                "evento_id": 1,
+                "completado": False,
+                "cor": (47, 79, 79) # Dark Slate Gray
+            },
+            {
+                "nome": "Picos Cinzentos",
+                "pos": (600, 650),
+                "raio": 40,
+                "evento_id": 2,
+                "completado": False,
+                "cor": (105, 105, 105) # Dim Gray
+            },
+             {
+                "nome": "Bosque Nebuloso",
+                "pos": (800, 200),
+                "raio": 40,
+                "evento_id": 0, # Reutilizando evento 0 como placeholder
+                "completado": False,
+                "cor": (100, 200, 150)
+            },
+        ]
+
+    def atualizar_movimento(self):
+        if self.destino_movimento:
+            # Movimento simples linear
+            dx = self.destino_movimento[0] - self.posicao_jogador[0]
+            dy = self.destino_movimento[1] - self.posicao_jogador[1]
+            dist = (dx**2 + dy**2)**0.5
+            
+            velocidade = 5 # Pixels por frame
+            
+            if dist < velocidade:
+                self.posicao_jogador = list(self.destino_movimento)
+                self.destino_movimento = None
+            else:
+                self.posicao_jogador[0] += (dx / dist) * velocidade
+                self.posicao_jogador[1] += (dy / dist) * velocidade
 
     def get_battle_config(self):
         if self.nivel_atual < len(CAMPAIGN_DATA):

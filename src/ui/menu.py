@@ -104,18 +104,9 @@ def setup_menu_ui():
     y_start_units = painel_y + 120
     espacamento_y = 45
     
-    # Botões Time A
-    for i, (classe, nome_classe) in enumerate(config_times['classes']):
-        y_pos = y_start_units + i * espacamento_y
-        # Botões menores e quadrados com estilo mosaico
-        botoes_ui[f'A_add_{i}'] = Botao(coluna_a_x + 200, y_pos, 30, 30, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
-        botoes_ui[f'A_sub_{i}'] = Botao(coluna_a_x + 240, y_pos, 30, 30, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
-
-    # Botões Time B
-    for i, (classe, nome_classe) in enumerate(config_times['classes']):
-        y_pos = y_start_units + i * espacamento_y
-        botoes_ui[f'B_add_{i}'] = Botao(coluna_b_x + 200, y_pos, 30, 30, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
-        botoes_ui[f'B_sub_{i}'] = Botao(coluna_b_x + 240, y_pos, 30, 30, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    # Botões Time A e B (REMOVIDOS - Nova interação direta na lista)
+    # for i, (classe, nome_classe) in enumerate(config_times['classes']):
+    #     ...
 
     # Botões Chefe (Ajustados para ficar na coluna B quando ativo, ou ocultos)
     # Vamos manter a lógica de visibilidade no Game.handle_events/draw, mas posicionar aqui
@@ -154,6 +145,10 @@ def setup_menu_ui():
     checkbox_mapa_custom = Checkbox(check_x, y_check + 160, 20, "Usar Mapa Customizado", fonte_menu)
     checkbox_campanha = Checkbox(check_x, y_check + 200, 20, "Modo Campanha", fonte_menu)
     checkbox_limitadores = Checkbox(check_x, y_check + 240, 20, "Adicionar Limitadores", fonte_menu)
+    
+    # Volume Controls
+    botoes_ui['sfx_vol_down'] = Botao(0, 0, 40, 40, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['sfx_vol_up'] = Botao(0, 0, 40, 40, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
     
     bosses = [
         {"classe": ReiGoblin, "nome": "Rei Goblin"},
