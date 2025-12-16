@@ -1,0 +1,231 @@
+{
+    "nivel_atual": 3,
+    "progresso_personagens": {
+        "Guerreiro_A1": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 12,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 16,
+                "_destreza": 12,
+                "_constituicao": 14,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        },
+        "Mago_A2": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 7,
+            "mana_atual": 18,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 14,
+                "_constituicao": 12,
+                "_inteligencia": 16,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        },
+        "Ladino_A3": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 9,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 16,
+                "_constituicao": 12,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        },
+        "Arqueiro_A4": {
+            "nivel": 1,
+            "xp": 1,
+            "hp_atual": 11,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 16,
+                "_constituicao": 12,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        },
+        "Barbaro_A5": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 15,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 16,
+                "_destreza": 10,
+                "_constituicao": 16,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        },
+        "Clerigo_A6": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 10,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 14,
+                "_destreza": 10,
+                "_constituicao": 14,
+                "_inteligencia": 10,
+                "_sabedoria": 16,
+                "_carisma": 10
+            }
+        },
+        "Paladino_A7": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 12,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 16,
+                "_destreza": 10,
+                "_constituicao": 14,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 14
+            }
+        },
+        "Druida_A8": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 10,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 10,
+                "_constituicao": 14,
+                "_inteligencia": 10,
+                "_sabedoria": 16,
+                "_carisma": 10
+            }
+        },
+        "Bruxo_A9": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 10,
+            "mana_atual": 17,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 10,
+                "_constituicao": 14,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 16
+            }
+        },
+        "Goblin_A10": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 7,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 14,
+                "_constituicao": 10,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        },
+        "Esqueleto_A11": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 13,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 14,
+                "_constituicao": 15,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        },
+        "Kobold_A12": {
+            "nivel": 1,
+            "xp": 0,
+            "hp_atual": 5,
+            "mana_atual": 0,
+            "inventario": [
+                "HealthPotion"
+            ],
+            "stats": {
+                "_forca": 10,
+                "_destreza": 15,
+                "_constituicao": 9,
+                "_inteligencia": 10,
+                "_sabedoria": 10,
+                "_carisma": 10
+            }
+        }
+    },
+    "posicao_jogador": [
+        310,
+        344
+    ],
+    "locais": [
+        {
+            "nome": "Floresta do Caos",
+            "completado": false
+        },
+        {
+            "nome": "P\u00e2ntano de Vendala",
+            "completado": false
+        },
+        {
+            "nome": "Picos Cinzentos",
+            "completado": false
+        },
+        {
+            "nome": "Bosque Nebuloso",
+            "completado": false
+        }
+    ]
+}

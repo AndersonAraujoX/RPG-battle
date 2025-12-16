@@ -1,4 +1,5 @@
 import pygame
+import os
 from ..config import *
 from ..utils import resource_path
 from .componentes import Botao, Checkbox, Tab # Import Tab
@@ -58,9 +59,14 @@ def setup_menu_principal_ui():
     espacamento = 80
     
     botoes['nova_batalha'] = Botao(x_pos, y_start, largura_btn, altura_btn, "JOGAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    botoes['campanha'] = Botao(x_pos, y_start + espacamento, largura_btn, altura_btn, "CAMPANHA", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    botoes['opcoes'] = Botao(x_pos, y_start + espacamento * 2, largura_btn, altura_btn, "OPÇÕES", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    botoes['sair'] = Botao(x_pos, y_start + espacamento * 3, largura_btn, altura_btn, "SAIR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['nova_campanha'] = Botao(x_pos, y_start + espacamento, largura_btn, altura_btn, "NOVA CAMPANHA", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    
+    botoes['continuar'] = Botao(x_pos, y_start + espacamento * 2, largura_btn, altura_btn, "CONTINUAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    if not os.path.exists("campaign_save.json"):
+        botoes['continuar'].desabilitado = True
+        
+    botoes['opcoes'] = Botao(x_pos, y_start + espacamento * 3, largura_btn, altura_btn, "OPÇÕES", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['sair'] = Botao(x_pos, y_start + espacamento * 4, largura_btn, altura_btn, "SAIR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
     
     # Botões extras (Gerenciar/Bestiário) podem ser acessados via "JOGAR" ou "OPÇÕES" futuramente, 
     # ou podemos mantê-los menores se o usuário quiser. 

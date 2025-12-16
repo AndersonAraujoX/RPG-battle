@@ -1,24 +1,32 @@
 import pygame
 import sys
 from collections import deque
-from .config import *
 from .motor_combate import MotorCombate
+from .campanha import CampaignManager
+from .cutscene import CutsceneManager
 from .personagens import *
 from .ui.menu import setup_menu_ui, setup_menu_principal_ui
 from .ui.desenho import (
-    desenhar_barra_iniciativa, desenhar_cenario, desenhar_itens_no_chao,
-    desenhar_personagens, desenhar_pre_visualizacao_ataque,
-    desenhar_projeteis_e_efeitos, desenhar_floating_texts, desenhar_log,
-    desenhar_info_personagem, desenhar_inventario, desenhar_comandos,
-    desenhar_tela_fim, desenhar_tela_level_up, desenhar_tela_salvando,
-    desenhar_tela_carregando, desenhar_editor, desenhar_dialogo,
-    desenhar_menu_principal, desenhar_setup_batalha, desenhar_mapa_mundo
+    desenhar_menu_principal, desenhar_setup_batalha, desenhar_cenario,
+    desenhar_personagens, desenhar_barra_iniciativa, desenhar_comandos,
+    desenhar_log, desenhar_info_personagem, desenhar_projeteis_e_efeitos,
+    desenhar_itens_no_chao, desenhar_mapa_mundo, desenhar_floating_texts,
+    desenhar_dialogo, desenhar_tela_fim, desenhar_inventario, desenhar_pre_visualizacao_ataque,
+    desenhar_tela_level_up, desenhar_tela_salvando, desenhar_tela_carregando, desenhar_editor
+)
+from .config import (
+    LARGURA_TELA, ALTURA_TELA, COR_FUNDO, COR_TEXTO, COR_GRID, COR_CRITICO, COR_XP, COR_DANO,
+    TAMANHO_CELULA, ALTURA_BARRA_INICIATIVA, LARGURA_TABULEIRO, LARGURA_LOG,
+    ESTADO_JOGO_MENU, ESTADO_JOGO_SETUP, ESTADO_JOGO_COMBATE, ESTADO_JOGO_FIM,
+    ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_MAPA_MUNDO, ESTADO_JOGO_EDITOR, ESTADO_JOGO_CUTSCENE,
+    TIME_A, TIME_B, CORES_TERRENO,
+    TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL,
+    IMAGE_PERSONAGENS, IMAGE_TERRENOS, PAINEL_MODO_LOG, PAINEL_MODO_INFO
 )
 from .sistema_dialogo import Dialogo
 from .salvar_carregar import salvar_jogo, carregar_jogo
 from .utils import calcular_distancia, resource_path
 from .ui.componentes import Botao, FloatingText, Checkbox, Tab
-from .campanha import CampaignManager
 from .personagens.rei_goblin import ReiGoblin
 from .personagens.lorde_lich import LordeLich
 from .personagens.dragao_anciao import DragaoAnciao
@@ -46,8 +54,10 @@ class Game:
         self.estado_combate = None
         self.motor = None
         self.campaign_manager = CampaignManager()
+        self.cutscene_manager = CutsceneManager(self.fim_cutscene)
         self.unidade_selecionada = None
         self.personagem_info_painel = None
+        self.checkbox_campanha = None # Will be initialized in setup_ui
         self.painel_modo = PAINEL_MODO_LOG
         self.fila_animacoes = deque()
         self.animacao_atual = None
@@ -78,6 +88,7 @@ class Game:
         self.editor_mapa = [[TERRENO_NORMAL for _ in range(20)] for _ in range(20)]
         self.editor_terreno_selecionado = TERRENO_NORMAL
         self.dialogo = Dialogo()
+        self.game_over_processed = False
 
         self.setup_ui()
         self.tocar_musica('menu')
@@ -245,6 +256,7 @@ class Game:
             self.campaign_manager.carregar_progresso_personagens(self.motor.time_a)
 
             for p in self.motor.combatentes: p.dano_timer = 0
+            self.game_over_processed = False
             self.log_combate.clear()
             self.log_combate.append((f"--- Campanha: Nível {self.campaign_manager.nivel_atual + 1} ---", COR_CRITICO))
             self.log_combate.append((battle_config["mensagem_inicio"], COR_TEXTO))
@@ -302,8 +314,18 @@ class Game:
                                     self.play_sound('button_click')
                                     if nome == 'nova_batalha':
                                         self.estado_jogo = ESTADO_JOGO_SETUP
-                                    elif nome == 'campanha':
-                                        self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
+                                    elif nome == 'nova_campanha':
+                                        self.campaign_manager.reset()
+                                        self.checkbox_campanha.checked = True # Ativa modo campanha
+                                        self.cutscene_manager.iniciar()
+                                        self.estado_jogo = ESTADO_JOGO_CUTSCENE
+                                    elif nome == 'continuar':
+                                        if self.campaign_manager.carregar_campanha():
+                                            self.checkbox_campanha.checked = True
+                                            self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
+                                        else:
+                                            # TODO: Feedback visual se não houver save
+                                            print("Nenhum save encontrado!")
                                     elif nome == 'opcoes':
                                         # self.estado_jogo = ESTADO_JOGO_OPCOES # Futuro
                                         pass
@@ -401,6 +423,7 @@ class Game:
                                                 )
                                                 
                                                 self.estado_jogo = ESTADO_JOGO_COMBATE
+                                                self.game_over_processed = False
                                                 self.tocar_musica('batalha')
                                                 self.log_combate.clear()
                                                 self.log_combate.clear()
@@ -526,6 +549,20 @@ class Game:
                             if self.checkbox_limitadores.rect.collidepoint(mouse_pos): self.checkbox_limitadores.toggle()
 
                     elif self.estado_jogo == ESTADO_JOGO_COMBATE:
+                        # Handle End Game Buttons
+                        if self.motor and self.motor.vencedor:
+                            for nome, botao in self.botoes_fim.items():
+                                if botao.rect.collidepoint(mouse_pos):
+                                    self.play_sound('button_click')
+                                    if nome == 'reiniciar':
+                                         if self.checkbox_campanha.checked:
+                                             self.iniciar_proxima_batalha_campanha()
+                                         else:
+                                             self.estado_jogo = ESTADO_JOGO_SETUP
+                                    elif nome == 'voltar_menu':
+                                         self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+                            return # Block other inputs on end screen
+
                         # Handle Combat Buttons
                         for nome, botao in self.botoes_combate.items():
                             if botao.rect.collidepoint(mouse_pos):
@@ -609,6 +646,10 @@ class Game:
                             
                             if 0 <= grid_x < 20 and 0 <= grid_y < 20:
                                 self.editor_mapa[grid_y][grid_x] = self.editor_terreno_selecionado
+                    
+                    elif self.estado_jogo == ESTADO_JOGO_CUTSCENE:
+                        if event.type == pygame.KEYDOWN or (event.type == pygame.MOUSEBUTTONDOWN):
+                            self.cutscene_manager.pular()
 
     def update_game_logic(self, agora, personagem_ativo):
         if self.dialogo.ativo:
@@ -617,6 +658,9 @@ class Game:
 
         if self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
             self.campaign_manager.atualizar_movimento()
+
+        if self.estado_jogo == ESTADO_JOGO_CUTSCENE:
+            self.cutscene_manager.update()
 
         if self.estado_jogo == ESTADO_JOGO_COMBATE:
             # Animation Handling
@@ -659,6 +703,19 @@ class Game:
                         self.fila_animacoes.extend(resultado['eventos'])
                         self.tempo_proxima_acao_auto = 0 # Reset
                         self.atualizar_visibilidade()
+        
+        # Check for Battle End (Victory/Defeat) to Trigger Campaign Save
+        if self.motor and self.motor.vencedor and not self.game_over_processed:
+            self.game_over_processed = True
+            print(f"Batalha terminada. Vencedor: {self.motor.vencedor}")
+            
+            if self.motor.vencedor == "Time A" and self.checkbox_campanha.checked:
+                 self.campaign_manager.avancar_nivel()
+                 self.campaign_manager.salvar_progresso_personagens(self.motor.time_a)
+                 if self.campaign_manager.salvar_campanha():
+                     self.log_combate.append(("Progresso da Campanha Salvo!", COR_CRITICO))
+                 else:
+                     self.log_combate.append(("Erro ao salvar campanha!", COR_DANO))
 
     def draw_elements(self, tick, mouse_pos, personagem_ativo=None):
         self.tela.fill(COR_FUNDO)
@@ -694,6 +751,9 @@ class Game:
                 
                 desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
 
+                if self.motor.vencedor:
+                    desenhar_tela_fim(self.tela, self.fonte_titulo, self.motor.vencedor, ALTURA_BARRA_INICIATIVA, self.botoes_fim, mouse_pos)
+
         elif self.estado_jogo == ESTADO_JOGO_EDITOR:
             # Draw Grid Lines
             for y in range(20):
@@ -728,4 +788,11 @@ class Game:
             # Draw Title
             titulo = self.fonte_menu.render("Editor de Mapas", True, (255, 215, 0))
             self.tela.blit(titulo, (LARGURA_TABULEIRO + 20, 20))
+
+        elif self.estado_jogo == ESTADO_JOGO_CUTSCENE:
+            self.cutscene_manager.desenhar(self.tela)
+            
+    def fim_cutscene(self):
+        self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
+        self.tocar_musica('menu') # Ou outra música de mapa
 

@@ -1,3 +1,5 @@
+import json
+import os
 from .personagens import ReiGoblin, LordeLich, DragaoAnciao, Goblin, Esqueleto, Kobold
 
 # Exemplo de estrutura de campanha
@@ -121,3 +123,47 @@ class CampaignManager:
     def reset(self):
         self.nivel_atual = 0
         self.progresso_personagens = {}
+        self.posicao_jogador = [100, 400] # Reset position when starting over
+
+    def salvar_campanha(self):
+        data = {
+            "nivel_atual": self.nivel_atual,
+            "progresso_personagens": self.progresso_personagens,
+            "posicao_jogador": self.posicao_jogador,
+            # Salvar estado dos locais? Sim, pra saber quais completou
+            "locais": [
+                {"nome": l["nome"], "completado": l["completado"]} for l in self.locais
+            ]
+        }
+        try:
+            with open("campaign_save.json", "w") as f:
+                json.dump(data, f, indent=4)
+            print("Jogo salvo com sucesso!")
+            return True
+        except Exception as e:
+            print(f"Erro ao salvar jogo: {e}")
+            return False
+
+    def carregar_campanha(self):
+        if not os.path.exists("campaign_save.json"):
+            return False
+        
+        try:
+            with open("campaign_save.json", "r") as f:
+                data = json.load(f)
+            
+            self.nivel_atual = data.get("nivel_atual", 0)
+            self.progresso_personagens = data.get("progresso_personagens", {})
+            self.posicao_jogador = data.get("posicao_jogador", [100, 400])
+            
+            locais_salvos = data.get("locais", [])
+            for l_salvo in locais_salvos:
+                for l in self.locais:
+                    if l["nome"] == l_salvo["nome"]:
+                        l["completado"] = l_salvo["completado"]
+            
+            print("Jogo carregado com sucesso!")
+            return True
+        except Exception as e:
+            print(f"Erro ao carregar jogo: {e}")
+            return False
