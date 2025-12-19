@@ -14,13 +14,13 @@ from .ui.desenho import (
     desenhar_itens_no_chao, desenhar_mapa_mundo, desenhar_floating_texts,
     desenhar_dialogo, desenhar_tela_fim, desenhar_inventario, desenhar_pre_visualizacao_ataque,
     desenhar_tela_level_up, desenhar_tela_salvando, desenhar_tela_carregando, desenhar_editor,
-    desenhar_alcance_movimento
+    desenhar_alcance_movimento, desenhar_alcance_habilidade, desenhar_interface_retro
 )
 from .config import (
     LARGURA_TELA, ALTURA_TELA, COR_FUNDO, COR_TEXTO, COR_GRID, COR_CRITICO, COR_XP, COR_DANO,
     TAMANHO_CELULA, ALTURA_BARRA_INICIATIVA, LARGURA_TABULEIRO, LARGURA_LOG,
-    ESTADO_JOGO_MENU, ESTADO_JOGO_SETUP, ESTADO_JOGO_COMBATE, ESTADO_JOGO_FIM,
-    ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_MAPA_MUNDO, ESTADO_JOGO_EDITOR, ESTADO_JOGO_CUTSCENE,
+    ESTADO_JOGO_SETUP, ESTADO_JOGO_COMBATE, ESTADO_JOGO_FIM,
+    ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_MAPA_MUNDO, ESTADO_JOGO_EDITOR, ESTADO_JOGO_CUTSCENE, ESTADO_JOGO_NARRATIVA,
     TIME_A, TIME_B, CORES_TERRENO,
     TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL, TERRENO_FOGO, TERRENO_AGUA,
     IMAGE_PERSONAGENS, IMAGE_TERRENOS, PAINEL_MODO_LOG, PAINEL_MODO_INFO
@@ -58,6 +58,8 @@ class Game:
         self.campaign_manager = CampaignManager()
         self.cutscene_manager = CutsceneManager(self.fim_cutscene)
         self.unidade_selecionada = None
+        self.habilidade_selecionada = None # Estado para guardar qual habilidade está selecionada para uso
+        self.skill_menu_open = False # [NEW] Controls visibility of skill buttons vs main actions
         self.personagem_info_painel = None
         self.checkbox_campanha = None # Will be initialized in setup_ui
         self.painel_modo = PAINEL_MODO_LOG
@@ -94,6 +96,10 @@ class Game:
 
         self.setup_ui()
         self.tocar_musica('menu')
+        
+        # Optimization Trackers
+        self.last_char_id = None
+        self.last_menu_open = False
 
     def tocar_musica(self, tipo):
         try:
@@ -178,10 +184,31 @@ class Game:
         self.checkbox_campanha = checkbox_campanha_init
         self.checkbox_limitadores = checkbox_limitadores_init
         self.bosses = bosses_init
-        print("DEBUG: BUTTONS UPDATED V2")
-        self.botoes_combate['proxima_acao'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 50, LARGURA_LOG - 40, 40, "Próxima Ação", self.fonte_menu)
-        self.botoes_combate['salvar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 90, 100, 30, "Salvar", self.fonte_menu)
-        self.botoes_combate['carregar'] = Botao(LARGURA_TABULEIRO + 140, ALTURA_TELA - 90, 100, 30, "Carregar", self.fonte_menu)
+        
+        # --- Botoes de Combate (Action Bar - Bottom Left) ---
+        # Area: 600x168 (RECT_BARRA_ACOES)
+        
+        btn_width = 250
+        btn_height = 60
+        margin_x = 30
+        margin_y = 20
+        start_x = 30
+        start_y = 600 + 20
+        
+        self.botoes_combate['atacar'] = Botao(start_x, start_y, btn_width, btn_height, "Atacar", self.fonte_menu)
+        self.botoes_combate['habilidade'] = Botao(start_x + btn_width + margin_x, start_y, btn_width, btn_height, "Habilidade", self.fonte_menu)
+        
+        self.botoes_combate['item'] = Botao(start_x, start_y + btn_height + margin_y, btn_width, btn_height, "Item", self.fonte_menu)
+        self.botoes_combate['proxima_acao'] = Botao(start_x + btn_width + margin_x, start_y + btn_height + margin_y, btn_width, btn_height, "Defender", self.fonte_menu) # Maps to Next Action/Defend
+        
+        # System Buttons (Painel Direito)
+        x_sys = 800
+        y_sys = 720
+        self.botoes_combate['salvar'] = Botao(x_sys, y_sys - 40, 80, 30, "Salvar", self.fonte_info)
+        self.botoes_combate['carregar'] = Botao(x_sys + 90, y_sys - 40, 80, 30, "Carregar", self.fonte_info)
+        # Cheat
+        self.botoes_combate['cheat_win'] = Botao(x_sys, y_sys, 170, 30, "VENCER (CHEAT)", self.fonte_info)
+
         
         # Botões de aba do painel
         self.botoes_combate['aba_log'] = Botao(LARGURA_TABULEIRO, 60, 80, 30, "Log", self.fonte_menu)
@@ -244,7 +271,7 @@ class Game:
         battle_config = self.campaign_manager.get_battle_config()
         if not battle_config:
             self.log_combate.append(("CAMPANHA CONCLUÍDA!", COR_CRITICO))
-            self.estado_jogo = ESTADO_JOGO_MENU
+            self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
             return
 
         self.estado_jogo = ESTADO_JOGO_COMBATE
@@ -281,7 +308,7 @@ class Game:
 
         except ValueError as e:
             print(f"Erro ao iniciar batalha da campanha: {e}")
-            self.estado_jogo = ESTADO_JOGO_MENU
+            self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
 
     def iniciar_batalha_campanha_custom(self):
         self.tocar_musica('batalha')
@@ -349,7 +376,7 @@ class Game:
 
         except ValueError as e:
             print(f"Erro ao iniciar batalha custom: {e}")
-            self.estado_jogo = ESTADO_JOGO_MENU
+            self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
 
     def run(self):
         while self.rodando:
@@ -651,12 +678,45 @@ class Game:
 
                         # Handle Combat Buttons
                         for nome, botao in self.botoes_combate.items():
+                            # Visibility check based on skill_menu_open
+                            is_skill_btn = nome.startswith('habilidade_') or nome == 'voltar_skills'
+                            is_main_btn = nome in ['atacar', 'habilidade', 'item', 'proxima_acao']
+                            
+                            if self.skill_menu_open:
+                                if is_main_btn: continue
+                            else:
+                                if is_skill_btn: continue
+
                             if botao.rect.collidepoint(mouse_pos):
+                                print(f"DEBUG: Clicked button '{nome}' | MenuOpen: {self.skill_menu_open} | Active: {personagem_ativo}")
                                 self.play_sound('button_click')
+                                
                                 if nome == 'proxima_acao':
-                                    if personagem_ativo and personagem_ativo.time == TIME_A:
-                                        self.motor.avancar_turno()
                                         self.log_combate.append((f"{personagem_ativo.nome} passou a vez.", COR_TEXTO))
+                                        self.habilidade_selecionada = None
+                                        self.skill_menu_open = False
+                                        
+                                elif nome == 'habilidade': # Open Skill Menu
+                                     if personagem_ativo and personagem_ativo.time == TIME_A:
+                                         self.skill_menu_open = True
+                                         self.play_sound('button_click')
+                                         # (Re)Generate buttons for safety/update
+                                         self.atualizar_botoes_habilidade(personagem_ativo)
+
+                                elif nome == 'voltar_skills': # Close Skill Menu
+                                     print("DEBUG: Voltar Skills Clicked")
+                                     self.skill_menu_open = False
+                                     self.habilidade_selecionada = None
+                                     self.play_sound('button_click')
+
+                                elif nome.startswith('habilidade_'):
+                                    hab_key = nome.split('habilidade_')[1]
+                                    if self.habilidade_selecionada == hab_key:
+                                        self.habilidade_selecionada = None # Toggle off
+                                    else:
+                                        self.habilidade_selecionada = hab_key
+                                        self.log_combate.append((f"Habilidade selecionada: {personagem_ativo.habilidades[hab_key]['nome']}", COR_TEXTO))
+                                
                                 elif nome == 'salvar':
                                     self.motor.salvar_jogo()
                                     self.log_combate.append(("Jogo salvo!", COR_XP))
@@ -672,6 +732,8 @@ class Game:
                                 elif nome == 'cancelar':
                                     self.estado_jogo = ESTADO_JOGO_SETUP
                                     self.tocar_musica('menu')
+                                elif nome == 'cheat_win':
+                                    self.iniciar_sequencia_final()
 
                         # Handle Grid Interaction (Movement/Attack)
                         if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO:
@@ -686,37 +748,56 @@ class Game:
 
                                 # Player Action Logic
                                 if personagem_ativo and personagem_ativo.time == TIME_A and not self.animacao_atual and not self.fila_animacoes:
-                                    print(f"DEBUG: Click accepted for {personagem_ativo.nome}")
                                     
-                                    if clicked_unit and clicked_unit.time == TIME_B:
-                                        # Attack Enemy
-                                        print("DEBUG: Logic - Attack Path Selected")
+                                    # 1. Habilidade Selecionada
+                                    if self.habilidade_selecionada:
+                                        # Verifica se o tile clicado é válido
+                                        valid_tiles, tipo = self.motor.get_alcance_habilidade(personagem_ativo, self.habilidade_selecionada)
+                                        if (grid_x, grid_y) in valid_tiles:
+                                            eventos, logs = self.motor.jogador_usar_habilidade(
+                                                personagem_ativo, 
+                                                self.habilidade_selecionada, 
+                                                alvo=clicked_unit, 
+                                                pos_alvo=(grid_x, grid_y)
+                                            )
+                                            if eventos or logs:
+                                                self.fila_animacoes.extend(eventos)
+                                                self.log_combate.extend(logs)
+                                                # Só avança turno se realmente usou (eventos gerados ou gasto de mana confirmado)
+                                                # A função jogador_usar_habilidade retorna eventos se sucesso.
+                                                if eventos:
+                                                    self.motor.avancar_turno()
+                                                    self.habilidade_selecionada = None
+                                        else:
+                                            self.log_combate.append(("Alvo inválido para habilidade!", COR_DANO))
+                                            self.play_sound('invalid_action')
+                                            
+                                    # 2. Ataque Normal (clique em inimigo)
+                                    elif clicked_unit and clicked_unit.time == TIME_B:
                                         dist = calcular_distancia(personagem_ativo, clicked_unit)
                                         if dist <= personagem_ativo.alcance:
                                             eventos, logs = self.motor.jogador_ataca_personagem(personagem_ativo, clicked_unit)
-                                            print(f"DEBUG: Attack Result - Events: {len(eventos)}, Logs: {logs}")
                                             self.fila_animacoes.extend(eventos)
                                             self.log_combate.extend(logs)
                                             self.motor.avancar_turno()
                                         else:
                                             self.log_combate.append(("Alvo fora de alcance!", COR_DANO))
                                             self.play_sound('invalid_action')
+                                            
+                                    # 3. Movimento (clique em vazio ou aliado - para mover apenas)
                                     elif not clicked_unit:
-                                        # Move to empty tile
-                                        print(f"DEBUG: Logic - Move Path Selected to ({grid_x}, {grid_y})")
                                         eventos, logs = self.motor.jogador_move_personagem(personagem_ativo, grid_x, grid_y)
-                                        print(f"DEBUG: Move Result to ({grid_x}, {grid_y}) - Events: {len(eventos)}, Logs: {logs}")
                                         if eventos: # If move was successful (valid path)
                                             self.fila_animacoes.extend(eventos)
                                             self.log_combate.extend(logs)
                                             self.motor.avancar_turno()
                                             self.atualizar_visibilidade()
                                         else:
-                                            print("DEBUG: Logic - Move Failed (No Events)")
                                             if not logs: self.play_sound('invalid_action')
                                             self.log_combate.extend(logs)
                                 else:
-                                    print(f"DEBUG: Click IGNORED. Active: {personagem_ativo.nome if personagem_ativo else 'None'}, Time: {personagem_ativo.time if personagem_ativo else 'N/A'}, Anim: {self.animacao_atual is not None}, Queue: {len(self.fila_animacoes)}")
+                                    # Not player turn or busy
+                                    pass
 
                     elif self.estado_jogo == ESTADO_JOGO_EDITOR:
                         if mouse_pos[0] > LARGURA_TABULEIRO:
@@ -848,19 +929,85 @@ class Game:
                         self.log_combate.extend(resultado['logs'])
                         self.fila_animacoes.extend(resultado['eventos'])
                         self.tempo_proxima_acao_auto = 0 # Reset
+                        self.tempo_proxima_acao_auto = 0 # Reset
+                        self.tempo_proxima_acao_auto = 0 # Reset
                         self.atualizar_visibilidade()
+            
+            # Update Ability Buttons (Optimized)
+            current_char_id = id(personagem_ativo) if personagem_ativo else None
+            state_changed = (current_char_id != self.last_char_id) or (self.skill_menu_open != self.last_menu_open)
+            
+            if state_changed:
+                 self.atualizar_botoes_habilidade(personagem_ativo)
+                 self.last_char_id = current_char_id
+                 self.last_menu_open = self.skill_menu_open
+            
+            # Fallback: if not player turn, ensure menu is closed (handled in atualizar_botoes_habilidade, but we must call it if turn changed)
+            if personagem_ativo and personagem_ativo.time != TIME_A and self.skill_menu_open:
+                 self.skill_menu_open = False
+                 self.atualizar_botoes_habilidade(personagem_ativo)
+                 self.last_menu_open = False
+
+    def atualizar_botoes_habilidade(self, personagem_ativo):
+        # Remove old ability buttons
+        keys_to_remove = [k for k in self.botoes_combate if k.startswith('habilidade_') or k == 'voltar_skills']
+        for k in keys_to_remove:
+            del self.botoes_combate[k]
+            
+        if not personagem_ativo or personagem_ativo.time != TIME_A:
+            self.skill_menu_open = False
+            return
+
+        if self.skill_menu_open:
+            # Layout: Display skills in 2 columns within the Action Bar area
+            
+            btn_width = 180
+            btn_height = 50
+            margin_x = 20
+            margin_y = 10
+            start_x = 30
+            start_y = 620
+            
+            # LIGHTWEIGHT FIX: Always add Back button first
+            self.botoes_combate['voltar_skills'] = Botao(start_x + 2*(btn_width + margin_x), 550, 100, 50, "Voltar", self.fonte_menu)
+
+            if hasattr(personagem_ativo, 'habilidades') and personagem_ativo.habilidades:
+                i = 0
+                for key, dados in personagem_ativo.habilidades.items():
+                    col = i % 2
+                    row = i // 2
+                    
+                    x = start_x + col * (btn_width + margin_x)
+                    y = start_y + row * (btn_height + margin_y)
+                    
+                    # Check bounds
+                    if row > 2: break # Limit to 6 skills for now
+                    
+                    btn = Botao(x, y, btn_width, btn_height, dados['nome'], self.fonte_info)
+                    self.botoes_combate[f'habilidade_{key}'] = btn
+                    i += 1
         
         # Check for Battle End (Victory/Defeat) to Trigger Campaign Save
         if self.motor and self.motor.vencedor and not self.game_over_processed:
             self.game_over_processed = True
             print(f"Batalha terminada. Vencedor: {self.motor.vencedor}")
             
-            if self.motor.vencedor == "Time A" and self.checkbox_campanha.checked:
-                 self.campaign_manager.avancar_nivel()
-                 self.campaign_manager.salvar_progresso_personagens(self.motor.time_a)
-                 if self.campaign_manager.salvar_campanha():
+            if self.motor.vencedor == "Time A":
+                # Check for Boss Victory (Sienna Phoenix Defeated)
+                # We can check if any enemy left is SiennaPhoenix (already removed from motor list on death?)
+                # Or check a flag. Assuming victory means all enemies dead.
+                # If specific campaign battle:
+                
+                # TRIGGER POST-COMBAT SEQUENCE
+                if self.checkbox_campanha.checked: # Assuming this flag is true for the custom battle
+                     self.iniciar_sequencia_final()
+                     return
+
+                self.campaign_manager.avancar_nivel()
+                self.campaign_manager.salvar_progresso_personagens(self.motor.time_a)
+                if self.campaign_manager.salvar_campanha():
                      self.log_combate.append(("Progresso da Campanha Salvo!", COR_CRITICO))
-                 else:
+                else:
                      self.log_combate.append(("Erro ao salvar campanha!", COR_DANO))
 
     def draw_elements(self, tick, mouse_pos, personagem_ativo=None):
@@ -880,12 +1027,53 @@ class Game:
                                    self.imagens, self.volume_sfx, self.menu_tabs, self.active_tab_id, mouse_pos)
         
         elif self.estado_jogo == ESTADO_JOGO_COMBATE:
+             # 1. Background / Interface Retro
+            desenhar_interface_retro(self.tela, self.fonte_menu)
+            
+            # 2. Cenário (Tabuleiro) - Tabuleiro começa em (0,0)
             if self.motor:
                 visibilidade = self.motor.visibilidade_map
-                desenhar_cenario(self.tela, self.motor, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
-                desenhar_alcance_movimento(self.tela, self.motor, personagem_ativo, ALTURA_BARRA_INICIATIVA)
+                desenhar_cenario(self.tela, self.motor, self.imagens, 0, visibilidade)
+                
+                # Itens e Personagens
+                desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, 0, visibilidade)
+                desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, 0, visibilidade)
+                
+                # Visualize Movement or Ability Range
+                if self.habilidade_selecionada:
+                    desenhar_alcance_habilidade(self.tela, self.motor, personagem_ativo, self.habilidade_selecionada, 0, mouse_pos)
+                else:
+                    desenhar_alcance_movimento(self.tela, self.motor, personagem_ativo, 0)
+                    desenhar_pre_visualizacao_ataque(self.tela, self.motor, self.motor.tabuleiro.get_personagem_em(mouse_pos[0] // TAMANHO_CELULA, mouse_pos[1] // TAMANHO_CELULA) if mouse_pos[0] < LARGURA_TABULEIRO and mouse_pos[1] < 600 else None, self.imagens, 0)
+
+                desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual, 0, self.imagens)
+                
+                # 4. UI Direita (Log, Info)
+                desenhar_log(self.tela, self.fonte_log, self.log_combate, ALTURA_TELA, 0)
+                
+                if self.unidade_selecionada:
+                    desenhar_info_personagem(self.tela, self.fonte_info, self.unidade_selecionada, 0)
+                elif personagem_ativo:
+                    desenhar_info_personagem(self.tela, self.fonte_info, personagem_ativo, 0)
+                
+                # 5. UI Baixo (Comandos)
+                desenhar_comandos(self.tela, self.fonte_info, 0, self.botoes_combate, mouse_pos, personagem_ativo)
+                
+                desenhar_floating_texts(self.tela, self.floating_texts)
+                desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
+                
+                if self.motor.vencedor:
+                   desenhar_tela_fim(self.tela, self.fonte_titulo, self.fonte_menu, self.motor.vencedor, self.botoes_fim, mouse_pos)
                 desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade)
                 desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
+                
+                # Visualize Movement or Ability Range
+                if self.habilidade_selecionada:
+                    desenhar_alcance_habilidade(self.tela, self.motor, personagem_ativo, self.habilidade_selecionada, ALTURA_BARRA_INICIATIVA, mouse_pos)
+                else:
+                    desenhar_alcance_movimento(self.tela, self.motor, personagem_ativo, ALTURA_BARRA_INICIATIVA)
+                    desenhar_pre_visualizacao_ataque(self.tela, self.motor, self.motor.tabuleiro.get_personagem_em(mouse_pos[0] // TAMANHO_CELULA, (mouse_pos[1] - ALTURA_BARRA_INICIATIVA) // TAMANHO_CELULA) if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO else None, self.imagens, ALTURA_BARRA_INICIATIVA)
+
                 desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual, ALTURA_BARRA_INICIATIVA, self.imagens)
                 desenhar_barra_iniciativa(self.tela, self.motor.ordem_de_combate, personagem_ativo, self.imagens)
                 desenhar_log(self.tela, self.fonte_log, self.log_combate, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
@@ -893,13 +1081,29 @@ class Game:
                 if self.unidade_selecionada:
                     desenhar_info_personagem(self.tela, self.fonte_info, self.unidade_selecionada, ALTURA_BARRA_INICIATIVA)
                 
-                desenhar_comandos(self.tela, self.fonte_info, 0, self.botoes_combate, mouse_pos)
+                desenhar_comandos(self.tela, self.fonte_info, 0, self.botoes_combate, mouse_pos, personagem_ativo)
                 desenhar_floating_texts(self.tela, self.floating_texts)
                 
                 desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
 
                 if self.motor.vencedor:
                     desenhar_tela_fim(self.tela, self.fonte_titulo, self.motor.vencedor, ALTURA_BARRA_INICIATIVA, self.botoes_fim, mouse_pos)
+        
+        elif self.estado_jogo == ESTADO_JOGO_CUTSCENE:
+             self.cutscene_manager.desenhar(self.tela)
+
+        elif self.estado_jogo == ESTADO_JOGO_NARRATIVA:
+             # Draw Background (Ornallus / Space / Void)
+             self.tela.fill((10, 5, 20)) # Dark Purple/Black background
+             if "world" in self.imagens:
+                  bg = pygame.transform.scale(self.imagens["world"], (LARGURA_TELA, ALTURA_TELA)) # Reuse Intro World image or Placeholder
+                  bg.set_alpha(100)
+                  self.tela.blit(bg, (0,0))
+             
+             # Draw Portraits or Characters if needed (Visual Novel Style)
+             # For now, relying on Dialogue Box overlay
+             
+             desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
 
         elif self.estado_jogo == ESTADO_JOGO_EDITOR:
             # Draw Grid Lines
@@ -951,10 +1155,36 @@ class Game:
             titulo = self.fonte_menu.render("Editor de Mapas", True, (255, 215, 0))
             self.tela.blit(titulo, (x_ui + 20, 20))
 
-        elif self.estado_jogo == ESTADO_JOGO_CUTSCENE:
-            self.cutscene_manager.desenhar(self.tela)
-            
+    def iniciar_sequencia_final(self):
+        # 1. Start "History" Cutscene
+        slides_history = [
+            {"imagem": "world", "texto": "A batalha terminou. O silêncio retornou ao vazio.", "duracao": 180},
+            {"imagem": "destruction", "texto": "A Fênix, outrora símbolo de renascimento, agora repousa em cinzas.", "duracao": 180},
+            {"imagem": "heroes", "texto": "Mas a vitória teve seu preço. E o destino de Ornallus ainda é incerto.", "duracao": 200},
+            {"imagem": "gathering", "texto": "FINAL DE KAPITULO 1", "duracao": 240} # Title Card
+        ]
+        
+        self.estado_jogo = ESTADO_JOGO_CUTSCENE
+        self.cutscene_manager.iniciar(slides=slides_history, callback_fim=self.iniciar_cena_ornallus)
+
+    def iniciar_cena_ornallus(self):
+        # 2. Start Narrative Scene
+        self.estado_jogo = ESTADO_JOGO_NARRATIVA
+        
+        # Setup Dialogue
+        dialogo_ornallus = [
+            ("Mestre Kayron", "Vocês retornaram... Eu senti a perturbação no éter.", "kayron"),
+            ("Koema", "Ela se transformou, Mestre. O poder dela era... instável.", "koema"),
+            ("Eryn", "Instável? Ou corrompido? As leituras que tivemos aqui foram caóticas.", "eryn"),
+            ("Novak", "Não importa agora. Ela caiu. Mas disse algo sobre o 'Vazio' antes do fim.", "novak"),
+            ("Mestre Kayron", "O Vazio... Se ela tocou o Vazio, então isso é apenas o começo.", "kayron"),
+            ("Rilem", "Ótimo. Mais problemas. Eu preciso de um aumento.", "rilem"),
+            ("Yukito", "A luz nos guiará, não importa a escuridão.", "yukito"),
+            ("Mestre Kayron", "Descansem agora. Amanhã, discutiremos o que isso significa para Ornallus.", "kayron")
+        ]
+        
+        self.dialogo.iniciar_dialogo(dialogo_ornallus)
+
     def fim_cutscene(self):
         self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
         self.tocar_musica('menu') # Ou outra música de mapa
-

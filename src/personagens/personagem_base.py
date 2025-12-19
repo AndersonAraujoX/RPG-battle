@@ -1,7 +1,7 @@
 import random
 import math
-from src.config import TIME_A, TIME_B, TERRENO_FLORESTA, TERRENO_ROCHA, TERRENO_BARRIL, PROPRIEDADES_STATUS_EFEITO
-from ..utils import calcular_distancia
+from src.config import TIME_A, TIME_B, TERRENO_FLORESTA, TERRENO_ROCHA, TERRENO_BARRIL, PROPRIEDADES_STATUS_EFEITO, DANO_FISICO
+from ..utils import calcular_distancia, rolar_d20
 from .status_efeito import StatusEfeito
 from src.itens.item import HealthPotion, ManaPotion, Antidote, SmokeBomb
 
@@ -37,9 +37,8 @@ class Personagem:
             self.ac_base = data.get("ac", 10)
             self.dado_dano = tuple(data.get("dado_dano", [1, 4]))
             self.dado_vida = tuple(data.get("dado_vida", [1, 6]))
-            self._velocidade = data.get("velocidade", 4)
             self.alcance = data.get("alcance", 1)
-            self.tipo_dano_base = data.get("tipo_dano", "Físico")
+            self.tipo_dano_base = data.get("tipo_dano", DANO_FISICO)
             
             # Calculate hp_max based on provided value or formula
             base_hp = data.get("hp", (self.dado_vida[1] + self.mod_con))
@@ -47,18 +46,20 @@ class Personagem:
         else:
             # Default stats if not found in JSON
             self._forca, self._destreza, self._constituicao, self._inteligencia, self._sabedoria, self._carisma = 10, 10, 10, 10, 10, 10
+            # Damage Resilience System
+            self.resistencias = [] # Take half damage (integer division)
+            self.vulnerabilidades = [] # Take double damage
+            self.imunidades = [] # Take no damage
+            
             self.ac_base = 10
             self.dado_dano = (1, 4)
             self.dado_vida = (1, 6)
             self._velocidade = 4
             self.alcance = 1
-            self.tipo_dano_base = "Físico"
+            self.tipo_dano_base = DANO_FISICO
             self.hp_max = 10 + self.mod_con
 
         # Initialize imunity/resistance BEFORE using data
-        self.imunidades = {}
-        self.resistencias = {}
-        self.vulnerabilidades = {}
         
         if class_name in DADOS_PERSONAGENS:
              self.imunidades = DADOS_PERSONAGENS[class_name].get("imunidades", {})
@@ -88,13 +89,16 @@ class Personagem:
         self.sound_player = sound_player
         self.eventos_animacao = []
         self.status_efeitos = []
-        self.imunidades = data.get("imunidades", {}) # Agora um dicionário
-        self.resistencias = data.get("resistencias", {}) # Novo atributo
-        self.vulnerabilidades = data.get("vulnerabilidades", {}) # Novo atributo
+        # Removed redundant data.get calls here
         self.inventario = [HealthPotion()]
         self.elevacao = 0
         self.threat_level = 1
         self.loot_table = [] # Lista de tuplas (ItemClass, chance 0.0-1.0)
+        
+        # Death Saves & State System
+        self.death_saves_successes = 0
+        self.death_saves_failures = 0
+        self.estado = "NORMAL" # NORMAL, INCONSCIENTE, MORTO, ESTABILIZADO
         
         self.habilidades = {}
         self.custo_habilidades = {}
@@ -377,62 +381,73 @@ class Personagem:
         self.eventos_animacao.append({'tipo': 'ataque', 'atacante': self, 'alvo': alvo, 'habilidade': habilidade})
         if self.sound_player: self.sound_player('attack')
 
-        flanking_bonus = 0
-        if self.alcance == 1 and time_aliado:
-            # Posição do atacante em relação ao alvo
-            dx_atacante = self.pos_x - alvo.pos_x
-            dy_atacante = self.pos_y - alvo.pos_y
+        if self.sound_player: self.sound_player('attack')
 
+        vantagem = False
+        desvantagem = False
+        msg_modificadores = []
+
+        # 1. Flanking (Grants Advantage)
+        if self.alcance == 1 and time_aliado:
             for aliado in time_aliado:
                 if aliado is not self and aliado.esta_vivo and aliado.alcance == 1 and calcular_distancia(aliado, alvo) <= 1:
-                    # Posição do aliado em relação ao alvo
-                    dx_aliado = aliado.pos_x - alvo.pos_x
-                    dy_aliado = aliado.pos_y - alvo.pos_y
+                     dx_self = self.pos_x - alvo.pos_x
+                     dy_self = self.pos_y - alvo.pos_y
+                     dx_ally = aliado.pos_x - alvo.pos_x
+                     dy_ally = aliado.pos_y - alvo.pos_y
+                     
+                     if dx_self == -dx_ally and dy_self == -dy_ally:
+                         vantagem = True
+                         msg_modificadores.append(f"Flanqueando com {aliado.nome}")
+                         break
 
-                    # Verifica se estão em lados opostos (vetores opostos)
-                    # Ex: Atacante (0, 1) [Sul] e Aliado (0, -1) [Norte] -> Soma = (0, 0)
-                    if dx_atacante == -dx_aliado and dy_atacante == -dy_aliado:
-                        flanking_bonus = 2
-                        logger((f"  {self.nome} está flanqueando {alvo.nome} com {aliado.nome}! (+2 Ataque)", COR_TEXTO))
-                        break
-
+        # 2. Elevation (Higher Ground grants Advantage)
+        if self.elevacao > alvo.elevacao and self.alcance > 1:
+            vantagem = True
+            msg_modificadores.append("Terreno Alto")
+            
         logger((f"{self.nome} (Lvl {self.nivel}) ataca {alvo.nome} (Lvl {alvo.nivel}).", COR_TEXTO))
         
-        ac_alvo = alvo.ac
+        # Calculate Cover
+        # Need to import calcular_cobertura inside method to avoid circular import if utils imports Personagem (it doesn't, but safe)
+        from src.utils import calcular_cobertura
+        bonus_cobertura = calcular_cobertura(self, alvo, tabuleiro)
+        
+        ac_alvo = alvo.ac + bonus_cobertura
+        
+        if bonus_cobertura > 0:
+            if bonus_cobertura >= 1000: # Blocked functionality in future? Currently just massive AC
+                logger((f"  Alvo tem COBERTURA TOTAL! (Linha de visão bloqueada)", (255, 100, 100)))
+            elif bonus_cobertura >= 5:
+                logger((f"  Alvo tem +5 AC por Cobertura 3/4!", (200, 200, 255)))
+            else:
+                 logger((f"  Alvo tem +2 AC por Meia Cobertura!", (200, 200, 255)))
             
         terreno_alvo = tabuleiro.get_terrain_em(alvo.pos_x, alvo.pos_y)
         if terreno_alvo == TERRENO_FLORESTA:
             if self.alcance > 1: # Ranged attack
-                logger((f"  {alvo.nome} está em uma floresta, o ataque pode errar!", COR_TEXTO))
-                if random.random() < 0.5: # 50% chance to miss
-                    logger((f"  O ataque se perde na vegetação e erra!", COR_TEXTO))
-                    if self.sound_player: self.sound_player('miss')
-                    self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': 'ERROU!'})
-                    return
-            else: # Melee attack
-                ac_alvo += 2
-                logger((f"  {alvo.nome} recebe cobertura da floresta (+2 AC)!", COR_TEXTO))
+                # Forest grants cover against ranged -> Disadvantage? Or keep Miss Chance?
+                # 5e Rules: Cover grants +AC. Obscurement grants Disadvantage.
+                # Let's simple use Cover (+2 AC) for now as implemented, or swap to Disadvantage?
+                # Let's keep Cover +2 AC for consistency with "Cover" system task.
+                # But user asked for Mechanics. Let's make it Disadvantage to test the system?
+                # No, Cover is typically AC. Let's stick to AC for terrain.
+                pass 
+                
+        # Execute Attack Roll
+        rolagem_ataque, msg_dado = rolar_d20(vantagem=vantagem, desvantagem=desvantagem)
         
-        elif terreno_alvo in [TERRENO_ROCHA, TERRENO_BARRIL]:
-            ac_alvo += 2
-            logger((f"  {alvo.nome} recebe cobertura de {terreno_alvo} (+2 AC)!", COR_TEXTO))
+        total_ataque = rolagem_ataque + self.bonus_ataque
+        
+        mod_str = f" ({', '.join(msg_modificadores)})" if msg_modificadores else ""
+        log_ataque = f"  Ataque: {rolagem_ataque}{msg_dado} + {self.bonus_ataque} = {total_ataque}{mod_str} vs AC {ac_alvo}."
 
-        # Elevation advantage
-        bonus_elevacao = 0
-        if self.elevacao > alvo.elevacao and self.alcance > 1: # Ranged attack from higher ground
-            logger((f"  {self.nome} tem vantagem de elevação! (+1 Ataque, +1 Dano)", COR_TEXTO))
-            bonus_elevacao = 1
-            
-        rolagem_ataque = random.randint(1, 20)
-        total_ataque = rolagem_ataque + self.bonus_ataque + flanking_bonus + bonus_elevacao
-        log_ataque = f"  Rolagem de Ataque: {rolagem_ataque} (d20) + {self.bonus_ataque} (bônus) + {flanking_bonus} (flanco) + {bonus_elevacao} (elevação) = {total_ataque}."
-
-        if rolagem_ataque == 20:
+        if rolagem_ataque == 20: # Critical Hit
             logger((f"{log_ataque} Acerto CRÍTICO!", COR_CRITICO))
             if self.sound_player: self.sound_player('critical_hit')
             self.causar_dano(alvo, tabuleiro, logger, is_critico=True, tipo_dano_override=tipo_dano_override)
         elif total_ataque >= ac_alvo:
-            logger((f"{log_ataque} Acerta (AC do alvo é {ac_alvo})!", COR_TEXTO))
+            logger((f"{log_ataque} Acerta!", COR_TEXTO))
             self.causar_dano(alvo, tabuleiro, logger, tipo_dano_override=tipo_dano_override)
         else:
             logger((f"{log_ataque} Erra (AC do alvo é {ac_alvo}).", COR_TEXTO))
@@ -463,24 +478,27 @@ class Personagem:
         
         if self.sound_player: self.sound_player('hit')
 
-    def receber_dano(self, quantidade, atacante, tabuleiro, logger=print, tipo_dano="Fisico"):
+    def receber_dano(self, quantidade, atacante=None, tabuleiro=None, logger=print, tipo_dano=DANO_FISICO):
         from src.config import COR_DANO, COR_TEXTO
         if tipo_dano in self.imunidades:
             logger((f"  {self.nome} é imune a dano do tipo '{tipo_dano}'!", COR_TEXTO))
             self.eventos_animacao.append({'tipo': 'dano', 'alvo': self, 'dano': 'IMUNE'})
             self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'IMUNE', 'cor': (200, 200, 200)})
-            return
+            return 0, " (Imune)"
 
         dano_final = float(quantidade)
+        msg_eficacia = ""
 
         # Aplica vulnerabilidades (dano dobrado)
         if tipo_dano in self.vulnerabilidades:
             dano_final *= 2.0
+            msg_eficacia = " (Vulnerável!)"
             logger((f"  Dano dobrado! {self.nome} é vulnerável a '{tipo_dano}'.", COR_DANO))
 
         # Aplica resistências (meio dano)
         if tipo_dano in self.resistencias:
             dano_final *= 0.5
+            msg_eficacia = " (Resistente!)"
             logger((f"  Dano reduzido! {self.nome} é resistente a '{tipo_dano}'.", COR_TEXTO))
         
         dano_final = int(round(dano_final))
@@ -495,40 +513,81 @@ class Personagem:
 
         if self.hp_atual <= 0:
             self.hp_atual = 0
-            self.esta_vivo = False
-            nome_atacante = atacante.nome if atacante else "um efeito de status"
-            logger((f"  {self.nome} foi derrotado por {nome_atacante}!", COR_DANO))
-            if atacante:
-                atacante.kills += 1
-                atacante.ganhar_xp(1, logger)
             
-            # Chance de dropar um item
-            # Chance de dropar um item do inventário
-            if self.inventario and random.random() < 0.5: # 50% de chance de dropar
+            if self.estado != "MORTO":
+                if self.estado != "INCONSCIENTE":
+                    self.estado = "INCONSCIENTE"
+                    self.death_saves_successes = 0
+                    self.death_saves_failures = 0
+                    logger((f"  {self.nome} caiu INCONSCIENTE!", COR_DANO))
+                    self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'INCONSCIENTE', 'cor': (100, 100, 100)})
+                else: 
+                     # Already unconscious, taking damage = 1 death save failure
+                     self.death_saves_failures += 1
+                     logger((f"  {self.nome} (Inconsciente) recebe dano: 1 Falha no Teste de Morte. ({self.death_saves_failures}/3)", COR_DANO))
+                     if self.death_saves_failures >= 3:
+                         self.morrer(tabuleiro, logger, atacante)
+            
+        else:
+            logger((f"  {self.nome} está com {self.hp_atual}/{self.hp_max} HP.", COR_TEXTO))
+            
+        return dano_final, msg_eficacia
+
+    def realizar_teste_morte(self, logger=print):
+        from src.config import COR_TEXTO, COR_XP, COR_DANO, COR_CURA
+        
+        rolagem = rolar_d20()[0]
+        msg = f"Teste de Morte: {rolagem}"
+        
+        if rolagem == 20: 
+            self.hp_atual = 1
+            self.estado = "NORMAL"
+            self.death_saves_successes = 0
+            self.death_saves_failures = 0
+            logger((f"  {msg} -> CRÍTICO! {self.nome} recupera 1 HP e acorda!", COR_CURA))
+            self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'RENASCEU!', 'cor': COR_CURA})
+            return
+            
+        elif rolagem == 1: 
+            self.death_saves_failures += 2
+            logger((f"  {msg} -> FALHA CRÍTICA! 2 Falhas adicionadas.", COR_DANO))
+            
+        elif rolagem >= 10: 
+            self.death_saves_successes += 1
+            logger((f"  {msg} -> Sucesso. ({self.death_saves_successes}/3)", COR_XP))
+            
+        else: 
+            self.death_saves_failures += 1
+            logger((f"  {msg} -> Falha. ({self.death_saves_failures}/3)", COR_DANO))
+            
+        if self.death_saves_successes >= 3:
+            self.estado = "ESTABILIZADO"
+            self.death_saves_successes = 0
+            self.death_saves_failures = 0
+            logger((f"  {self.nome} está ESTABILIZADO.", COR_XP))
+            
+        if self.death_saves_failures >= 3:
+            self.morrer(None, logger, None) 
+
+    def morrer(self, tabuleiro, logger, atacante):
+        from src.config import COR_DANO
+        self.estado = "MORTO"
+        self.esta_vivo = False
+        logger((f"  {self.nome} MORREU!", COR_DANO))
+        self.eventos_animacao.append({'tipo': 'morte', 'personagem': self})
+        
+        if atacante:
+             atacante.kills += 1
+             atacante.ganhar_xp(1, logger)
+
+        if tabuleiro:
+            # Drop items logic
+            if self.inventario and random.random() < 0.5:
                 item_dropado = random.choice(self.inventario)
                 tabuleiro.itens_no_chao[self.pos_y][self.pos_x] = item_dropado
                 logger((f"  {self.nome} dropou {item_dropado.nome}!", (255, 215, 0)))
-            
-            # Chance de dropar loot específico
-            for item_class, chance in self.loot_table:
-                if random.random() < chance:
-                    item_dropado = item_class()
-                    # Se já tiver item no chão, substitui (simplificação) ou ignora
-                    if tabuleiro.itens_no_chao[self.pos_y][self.pos_x] is None:
-                        tabuleiro.itens_no_chao[self.pos_y][self.pos_x] = item_dropado
-                        logger((f"  {self.nome} dropou {item_dropado.nome}!", (255, 215, 0)))
-                    else:
-                         # Tenta colocar em volta
-                        for dx, dy in [(0,1), (0,-1), (1,0), (-1,0)]:
-                            nx, ny = self.pos_x + dx, self.pos_y + dy
-                            if 0 <= nx < tabuleiro.largura and 0 <= ny < tabuleiro.altura and tabuleiro.itens_no_chao[ny][nx] is None:
-                                tabuleiro.itens_no_chao[ny][nx] = item_dropado
-                                logger((f"  {self.nome} dropou {item_dropado.nome}!", (255, 215, 0)))
-                                break
 
-            self.eventos_animacao.append({'tipo': 'morte', 'personagem': self})
-        else:
-            logger((f"  {self.nome} está com {self.hp_atual}/{self.hp_max} HP.", COR_TEXTO))
+
 
     def receber_cura(self, quantidade, logger=print):
         from src.config import COR_CURA
@@ -536,6 +595,37 @@ class Personagem:
         logger((f"  {self.nome} é curado em {quantidade} e agora tem {self.hp_atual}/{self.hp_max} HP.", COR_CURA))
         self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': f'+{quantidade}', 'cor': COR_CURA})
         if self.sound_player: self.sound_player('heal')
+
+    def fazer_teste_resistencia(self, atributo, dificuldade, logger=print):
+        from src.config import COR_TEXTO, COR_XP
+        
+        modificadores = {
+            'forca': self.mod_for,
+            'destreza': self.mod_des,
+            'constituicao': self.mod_con,
+            'inteligencia': self.mod_int,
+            'sabedoria': self.mod_sab,
+            'carisma': self.mod_car
+        }
+        
+        mod = modificadores.get(atributo.lower(), 0)
+        rolagem = rolar_d20()[0] # Standard roll, NO advantage/disadvantage implemented for saves yet
+        total = rolagem + mod + self.bonus_proficiencia # Assuming proficient? Or just mod? 
+        # 5e: Saves use proficiency ONLY if class is proficient in that save.
+        # For simplicity in this project, let's add proficiency to all saves OR checks?
+        # Let's keep it simple: Just Attribute Mod for now, unless we define "Save Proficiencies".
+        # Re-reading plan: "Roll d20 + Attribute Modifier". Okay.
+        
+        total = rolagem + mod
+        # Note: Some classes might have proficiency in saves. Feature for later.
+        
+        sucesso = total >= dificuldade
+        resultado_str = "SUCESSO" if sucesso else "FALHA"
+        cor = COR_XP if sucesso else COR_TEXTO
+        
+        logger((f"  {self.nome} faz teste de {atributo.capitalize()}: {rolagem} (d20) + {mod} (mod) = {total} vs DC {dificuldade}. -> {resultado_str}", cor))
+        
+        return sucesso, f" ({resultado_str})"
         self.eventos_animacao.append({'tipo': 'cura', 'alvo': self, 'cura': quantidade})
 
     def to_dict(self):

@@ -11,7 +11,29 @@ class Mago(Personagem):
         # Mana system
         self.mana_max = 20 + (nivel * 2)
         self.mana_atual = self.mana_max
-        self.custo_habilidades = {'bola_de_fogo': 8, 'raio_de_gelo': 4}
+        self.habilidades = {
+            'bola_de_fogo': {
+                'nome': "Bola de Fogo",
+                'custo': 8,
+                'alcance': self.velocidade + 5, # Alcance de conjuração
+                'area': 1, # Raio (1 = 3x3)
+                'descricao': "Explosão de fogo em área (3x3).",
+                'tipo': 'area',
+                'dano': "3d6",
+                'tipo_dano': "Fogo"
+            },
+            'raio_de_gelo': {
+                'nome': "Raio de Gelo",
+                'custo': 4,
+                'alcance': self.alcance,
+                'area': 0,
+                'descricao': "Raio congelante em alvo único.",
+                'tipo': 'alvo',
+                'dano': "1d10",
+                'tipo_dano': "Gelo"
+            }
+        }
+        self.custo_habilidades = {k: v['custo'] for k, v in self.habilidades.items()}
 
     @property
     def bonus_ataque(self): return self.mod_int + self.bonus_proficiencia

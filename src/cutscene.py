@@ -4,7 +4,7 @@ from .config import LARGURA_TELA, ALTURA_TELA, COR_TEXTO
 from .utils import resource_path
 
 class CutsceneManager:
-    def __init__(self, callback_fim):
+    def __init__(self, callback_fim=None):
         self.callback_fim = callback_fim
         self.slides = []
         self.slide_atual = 0
@@ -15,7 +15,12 @@ class CutsceneManager:
         self.fade_speed = 5
         self.fonte = pygame.font.Font(None, 48)
         self.musica_intro = None
+        self.imagens = {}
 
+        # Default intro slides (will be loaded if load_sequence is not called)
+        self._load_intro_data()
+
+    def _load_intro_data(self):
         # Carregar imagens
         try:
             self.imagens = {
@@ -42,34 +47,19 @@ class CutsceneManager:
         # Slide 5: Heroes (The Journey)
         
         self.slides = [
-            {
-                "imagem": "world",
-                "texto": "Em uma era antiga, onde lendas floresciam...",
-                "duracao": 180 # 3s
-            },
-            {
-                "imagem": "destruction",
-                "texto": "...e se perdiam nas cinzas da guerra.",
-                "duracao": 180 # 3s
-            },
-            {
-                "imagem": "villains",
-                "texto": "Um mal ancestral despertou, e as sombras da ruína se ergueram.",
-                "duracao": 220 # ~3.6s
-            },
-            {
-                "imagem": "gathering",
-                "texto": "Mas a esperança persiste. Bravos heróis se reuniram.",
-                "duracao": 200 # ~3.3s
-            },
-            {
-                "imagem": "heroes",
-                "texto": "Levantando-se para desafiar o destino e enfrentar o vazio eterno.",
-                "duracao": 240 # ~4s
-            }
+            {"imagem": "world", "texto": "Em uma era antiga, onde lendas floresciam...", "duracao": 180},
+            {"imagem": "destruction", "texto": "...e se perdiam nas cinzas da guerra.", "duracao": 180},
+            {"imagem": "villains", "texto": "Um mal ancestral despertou, e as sombras da ruína se ergueram.", "duracao": 220},
+            {"imagem": "gathering", "texto": "Mas a esperança persiste. Bravos heróis se reuniram.", "duracao": 200},
+            {"imagem": "heroes", "texto": "Levantando-se para desafiar o destino e enfrentar o vazio eterno.", "duracao": 240}
         ]
 
-    def iniciar(self):
+    def iniciar(self, slides=None, callback_fim=None, musica=None):
+        if slides:
+            self.slides = slides
+        if callback_fim:
+            self.callback_fim = callback_fim
+            
         self.slide_atual = 0
         self.tempo_slide_atual = 0
         self.fade_state = "IN"
@@ -77,13 +67,13 @@ class CutsceneManager:
         self.ativo = True
         
         try:
-            # Tocar intro.wav
-            caminho_audio = resource_path("assets/sounds/intro.wav")
+            # Tocar musica (se especificada ou padrao)
+            caminho_audio = resource_path(musica if musica else "assets/sounds/intro.wav")
             if os.path.exists(caminho_audio):
                  pygame.mixer.music.load(caminho_audio)
                  pygame.mixer.music.play()
             else:
-                 print("Audio intro.wav nao encontrado")
+                 print(f"Audio {caminho_audio} nao encontrado")
         except Exception as e:
             print(f"Erro ao tocar audio cutscene: {e}")
 

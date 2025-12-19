@@ -4,13 +4,51 @@ from src.config import (
     LARGURA_TELA, ALTURA_TELA, COR_TEXTO, COR_FUNDO, COR_LINHA, COR_HP_BAR_FUNDO, COR_HP_BAR_FRENTE,
     COR_DANO, COR_CURA, COR_XP, COR_LEVEL_UP, COR_STATUS, COR_CRITICO, TIME_A, TIME_B,
     TAMANHO_CELULA, CORES_TERRENO, CORES_TIME, PROPRIEDADES_STATUS_EFEITO, TERRENO_PAREDE, 
-    LARGURA_TABULEIRO, LARGURA_LOG, COR_BOTAO_HOVER,    COR_MANA_BAR, COR_ENERGIA_BAR, COR_BOTAO, COR_BOTAO_HOVER
+    LARGURA_TABULEIRO, LARGURA_LOG, COR_BOTAO_HOVER,    COR_MANA_BAR, COR_ENERGIA_BAR, COR_BOTAO, COR_BOTAO_HOVER,
+    RECT_TABULEIRO, RECT_BARRA_ACOES, RECT_PAINEL_INFO, RECT_LOG, RECT_INVENTARIO, RECT_TUTORIAL,
+    COR_BORDA_DOURADA, COR_FUNDO_PEDRA, COR_FUNDO_RETRO, COR_TEXTO_RETRO, COR_TITULO_RETRO,
+    COR_BOTAO_MENU_HOVER
 )
 from src.personagens import (
     Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe, Paladino,
     ReiGoblin, LordeLich, DragaoAnciao, Druida, Bruxo
 )
 from src.utils import calcular_distancia, resource_path
+
+
+# Helper para desenhar caixas estilo Retro
+class PainelUI:
+    @staticmethod
+    def desenhar_painel(tela, rect, titulo=None, fonte_titulo=None):
+        # Fundo
+        pygame.draw.rect(tela, COR_FUNDO_RETRO, rect)
+        pygame.draw.rect(tela, COR_FUNDO_PEDRA, rect, border_radius=5)
+        
+        # Borda Dourada Interna/Externa
+        pygame.draw.rect(tela, COR_BORDA_DOURADA, rect, 4, border_radius=5)
+        pygame.draw.rect(tela, (100, 80, 20), rect, 2, border_radius=5) # Sombra
+        
+        # Titulo
+        if titulo and fonte_titulo:
+            texto = fonte_titulo.render(titulo, True, COR_TITULO_RETRO)
+            # Fundo Titulo
+            bg_rect = texto.get_rect(topleft=(rect.x + 10, rect.y - 10))
+            bg_rect.inflate_ip(10, 4)
+            pygame.draw.rect(tela, COR_FUNDO_RETRO, bg_rect)
+            pygame.draw.rect(tela, COR_BORDA_DOURADA, bg_rect, 2)
+            tela.blit(texto, (rect.x + 15, rect.y - 12))
+
+# --- Funções de Desenho ---
+
+def desenhar_interface_retro(tela, fonte_titulo):
+    # Desenhar os painéis fixos
+    PainelUI.desenhar_painel(tela, RECT_PAINEL_INFO, "Info", fonte_titulo)
+    PainelUI.desenhar_painel(tela, RECT_LOG, "Log", fonte_titulo)
+    PainelUI.desenhar_painel(tela, RECT_INVENTARIO, "Inventário", fonte_titulo)
+    PainelUI.desenhar_painel(tela, RECT_BARRA_ACOES, "Ações", fonte_titulo)
+
+
+    PainelUI.desenhar_painel(tela, RECT_BARRA_ACOES, "Ações", fonte_titulo)
 
 def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
     # Crie superfícies para o nevoeiro uma vez para reutilização
@@ -259,6 +297,40 @@ def desenhar_alcance_movimento(tela, motor, personagem_ativo, y_offset):
         rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
         tela.blit(highlight_surf, rect.topleft)
         pygame.draw.rect(tela, border_color, rect, 1)
+
+def desenhar_alcance_habilidade(tela, motor, personagem_ativo, habilidade_key, y_offset, mouse_pos=None):
+    tiles, tipo = motor.get_alcance_habilidade(personagem_ativo, habilidade_key)
+    
+    color = (255, 50, 50, 80) # Reddish for attack/ability
+    border_color = (255, 0, 0)
+    
+    highlight_surf = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
+    highlight_surf.fill(color)
+    
+    for x, y in tiles:
+        rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
+        tela.blit(highlight_surf, rect.topleft)
+        pygame.draw.rect(tela, border_color, rect, 1)
+        
+    # Draw Area of Effect preview under mouse if applicable
+    if mouse_pos and mouse_pos[0] < LARGURA_TABULEIRO and mouse_pos[1] > y_offset:
+        gx = mouse_pos[0] // TAMANHO_CELULA
+        gy = (mouse_pos[1] - y_offset) // TAMANHO_CELULA
+        
+        if (gx, gy) in tiles:
+            dados = personagem_ativo.habilidades[habilidade_key]
+            raio = dados.get('area', 0)
+            if raio > 0:
+                 # Draw AOE preview
+                 aoe_surf = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
+                 aoe_surf.fill((255, 200, 0, 100)) # Orange core
+                 
+                 for dy in range(-raio, raio + 1):
+                     for dx in range(-raio, raio + 1):
+                         tx, ty = gx + dx, gy + dy
+                         if 0 <= tx < 20 and 0 <= ty < 20:
+                             r = pygame.Rect(tx * TAMANHO_CELULA, ty * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
+                             tela.blit(aoe_surf, r.topleft)
 
 def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_images):
     BARRA_ALTURA = 80 # Increased height
@@ -512,7 +584,68 @@ def desenhar_tela_fim(tela, fonte, vencedor, y_offset, botoes, mouse_pos):
     botoes['voltar_menu'].update_hover(mouse_pos)
     botoes['voltar_menu'].desenhar(tela, fonte)
 
-def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos):
+def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos, personagem_ativo=None):
+    # Determine visibility mode
+    skill_menu_open = any(k == 'voltar_skills' for k in botoes.keys()) # Heuristic or passed param
+    
+    # Retro Style Text
+    fonte_retro = pygame.font.SysFont("Courier New", 16, bold=True)
+
+    for nome, botao in botoes.items():
+        is_skill_btn = nome.startswith('habilidade_') or nome == 'voltar_skills'
+        is_main_btn = nome in ['atacar', 'habilidade', 'item', 'proxima_acao']
+        
+        # Visibility Logic
+        if skill_menu_open:
+            if is_main_btn: continue
+        else:
+            if is_skill_btn: continue
+            
+        # Draw Button
+        # Special Style for Action Bar Buttons
+        if is_main_btn or is_skill_btn:
+            # Custom Retro Button Draw
+            rect = botao.rect
+            hover = rect.collidepoint(mouse_pos)
+            
+            # Colors
+            cor_fundo = (60, 40, 20) if not hover else (80, 60, 40)
+            cor_borda = (218, 165, 32) # Gold
+            
+            # Shadow
+            pygame.draw.rect(tela, (20, 10, 5), rect.move(2, 2))
+            
+            # Main Body
+            pygame.draw.rect(tela, cor_fundo, rect)
+            pygame.draw.rect(tela, cor_borda, rect, 2)
+            
+            # Inner Detail
+            pygame.draw.rect(tela, (40, 30, 10), rect.inflate(-6, -6), 1)
+            
+            # Text
+            cor_texto = (255, 255, 255) if hover else (200, 200, 180)
+            txt_surf = fonte_retro.render(botao.texto, True, cor_texto)
+            txt_rect = txt_surf.get_rect(center=rect.center)
+            tela.blit(txt_surf, txt_rect)
+            
+        else:
+            # System buttons (Save/Load/etc)
+            botao.desenhar(tela, fonte, mouse_pos)
+            # To avoid managing button state in Game class for dynamic abilities everytime, 
+            # we can draw them here and check collision in Game.handle_events identifying them by position or a temporary list.
+            # BUT, Game.handle_events needs to know where they are.
+            # Ideally Game updates a list of ability buttons when turn starts.
+            
+            # For now, let's assume 'botoes' contains 'habilidade_X' keys injected by Game, OR we draw them here and Game calculates too.
+            # Let's trust Game to pass them in 'botoes' dict, OR we iterate strictly for drawing and Game iterates strictly for input.
+            
+            # Better: The Game class should update `self.botoes_combate` when `personagem_ativo` changes.
+            pass
+            
+    # Iterate all buttons passed to draw them (including dynamic ones if they are in the dict)
+    for nome, botao in botoes.items():
+        if nome.startswith('habilidade_'):
+             botao.desenhar(tela, fonte, mouse_pos)
     area_comandos = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 240 + y_offset, LARGURA_LOG, 240)
     
     # Fundo do Painel de Comandos (Marrom translúcido)

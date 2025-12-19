@@ -117,6 +117,7 @@ class Yukito(Personagem):
         self.mana_atual = 50
         self.mana_max = 50
         self._inteligencia += 5
+        self.inicializar_habilidades()
         
     def inicializar_habilidades(self):
         # Artillery/AoE Mage
@@ -124,25 +125,20 @@ class Yukito(Personagem):
             "nome": "Tempestade de Fogo", 
             "descricao": "Grande área de fogo (3x3).",
             "custo": 15,
-            "custo_recurso": "mana",
-            "tipo": "acao",
-            "alvo": "area",
+            "tipo": "area", # Standardized from "acao"/"alvo"
             "alcance": 8,
-            "raio": 1, # 3x3 effective
-            "dano": 10,
+            "area": 1, # Standardized from "raio"
+            "dano": "10", # String for display, int for logic
             "tipo_dano": "Fogo"
         }
-        self.custo_habilidades['tempestade_fogo'] = 15
-        
         self.habilidades['explosao_arcana'] = {
             "nome": "Explosão Arcana",
             "descricao": "Dano massivo em alvo único.",
             "custo": 10,
-            "custo_recurso": "mana",
-            "tipo": "acao",
-            "alvo": "inimigo",
+            "tipo": "alvo",
             "alcance": 8,
-            "dano": 15,
+            "area": 0,
+            "dano": "15",
             "tipo_dano": "Magico"
         }
-        self.custo_habilidades['explosao_arcana'] = 10
+        self.custo_habilidades = {k: v['custo'] for k, v in self.habilidades.items()}

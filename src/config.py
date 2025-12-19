@@ -1,3 +1,5 @@
+import pygame
+
 # --- Constantes de Tela e Tabuleiro ---
 LARGURA_TELA = 1024
 ALTURA_BARRA_INICIATIVA = 80
@@ -31,6 +33,33 @@ COR_FUNDO_MENU = (10, 10, 15)
 COR_BOTAO_MENU = (40, 30, 50)
 COR_BOTAO_MENU_HOVER = (60, 50, 80)
 
+# Directions
+DIRECAO_CIMA = (0, -1)
+DIRECAO_BAIXO = (0, 1)
+DIRECAO_ESQUERDA = (-1, 0)
+DIRECAO_DIREITA = (1, 0)
+
+# Damage Types (D&D 5e)
+DANO_CORTANTE = "cortante"
+DANO_PERFURANTE = "perfurante"
+DANO_CONTUNDENTE = "contundente"
+DANO_FOGO = "fogo"
+DANO_GELO = "gelo"
+DANO_ELETRICO = "eletrico"
+DANO_ACIDO = "acido"
+DANO_VENENO = "veneno"
+DANO_NECROTICO = "necrotico"
+DANO_RADIANTE = "radiante"
+DANO_PSIQUICO = "psiquico"
+DANO_FORCA = "forca"
+DANO_TROVAO = "trovao"
+DANO_FISICO = "fisico" # Fallback/Generic
+
+# Colors associated with damage types (Optional for UI)
+COR_DANO_FOGO = (255, 69, 0)
+COR_DANO_GELO = (0, 191, 255)
+COR_DANO_VENENO = (50, 205, 50)
+
 # --- Constantes de Terreno (importadas para uso nas cores) ---
 TERRENO_NORMAL = "NORMAL"
 TERRENO_FLORESTA = "FLORESTA"
@@ -55,20 +84,14 @@ CORES_TERRENO = {
 }
 
 # --- Constantes de Estado de Jogo ---
-ESTADO_JOGO_MENU_PRINCIPAL = "MENU_PRINCIPAL" # Novo estado
-ESTADO_JOGO_SETUP = "SETUP" # Antigo MENU
-ESTADO_JOGO_MENU = "MENU" # Deprecated, alias for SETUP for compatibility or removed
 ESTADO_JOGO_MENU_PRINCIPAL = 0
 ESTADO_JOGO_SETUP = 1
-ESTADO_JOGO_FIM = 3 # Victory/Defeat Screen
+ESTADO_JOGO_FIM = 3
 ESTADO_JOGO_COMBATE = 4
 ESTADO_JOGO_EDITOR = 5
 ESTADO_JOGO_CUTSCENE = 6
-ESTADO_JOGO_LEVEL_UP = 4
-ESTADO_JOGO_SALVANDO = 5
-ESTADO_JOGO_CARREGANDO = 6
-ESTADO_JOGO_EDITOR = 7
-ESTADO_JOGO_MAPA_MUNDO = 8 # Assuming "EDITOR" was a typo and should be a comment or removed.
+ESTADO_JOGO_MAPA_MUNDO = 8
+ESTADO_JOGO_NARRATIVA = 9
 
 # --- Cores do Novo Menu ---
 COR_FUNDO_MENU = (5, 5, 5) # Quase preto
@@ -157,6 +180,33 @@ PROPRIEDADES_STATUS_EFEITO = {
         "bonus_dano_ataque": 2
     }
 }
+
+
+# --- Constantes do Novo Layout (Retro UI) ---
+# Dimensões da Tela: 1024 x 768 (Fixa)
+LARGURA_TELA = 1024
+ALTURA_TELA = 768 # Sem barra extra, tudo contido
+ALTURA_BARRA_INICIATIVA = 0 # Integrada ou removida por enquanto? Vamos manter 0 e redesenhar se precisar.
+# Layout: Coluna Esquerda (Jogo + Ações), Coluna Direita (Info + Log)
+
+# Esquerda (Total 600px largura)
+RECT_TABULEIRO = pygame.Rect(0, 0, 600, 600) # 20x30 = 600
+RECT_BARRA_ACOES = pygame.Rect(0, 600, 600, 168) # 768 - 600 = 168
+
+# Direita (Total 424px largura -> 1024 - 600)
+X_DIREITA = 600
+LARGURA_DIREITA = 424
+RECT_PAINEL_INFO = pygame.Rect(X_DIREITA, 0, LARGURA_DIREITA, 120)       # Cabecalho / Info Unidade
+RECT_LOG = pygame.Rect(X_DIREITA, 120, LARGURA_DIREITA, 300)             # Log de Combate
+RECT_INVENTARIO = pygame.Rect(X_DIREITA, 420, LARGURA_DIREITA, 150)      # Inventario
+RECT_TUTORIAL = pygame.Rect(X_DIREITA, 570, LARGURA_DIREITA, 198)        # Tutorial / Extra
+
+# Cores Retro
+COR_BORDA_DOURADA = (184, 134, 11)   # DarkGoldenrod
+COR_FUNDO_PEDRA = (45, 40, 35)       # Dark Stone/Wood
+COR_FUNDO_RETRO = (30, 25, 20)       # Darker background for panels
+COR_TEXTO_RETRO = (240, 230, 200)    # Cream
+COR_TITULO_RETRO = (255, 215, 0)     # Gold
 
 # --- Imagens (Placeholders) ---
 image_path_heroes = "assets/images/characters/heroes/"
