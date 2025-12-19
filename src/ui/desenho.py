@@ -240,6 +240,26 @@ def desenhar_pre_visualizacao_ataque(tela, motor, hovered_enemy, game_images, y_
 
 
 
+def desenhar_alcance_movimento(tela, motor, personagem_ativo, y_offset):
+    if not personagem_ativo or personagem_ativo.time != TIME_A:
+        return
+
+    movimentos_validos = motor.get_movimento_valido(personagem_ativo)
+    
+    # Surface para highlight azulado
+    highlight_surf = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
+    highlight_surf.fill((0, 100, 255, 60)) # Azul com transparência
+    
+    # Borda
+    border_color = (0, 150, 255)
+
+    for x, y in movimentos_validos:
+        # Só desenha se estiver visível (ou se o jogo permitir ver range total)
+        # Vamos assumir que sempre mostra o range
+        rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA + y_offset, TAMANHO_CELULA, TAMANHO_CELULA)
+        tela.blit(highlight_surf, rect.topleft)
+        pygame.draw.rect(tela, border_color, rect, 1)
+
 def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_images):
     BARRA_ALTURA = 80 # Increased height
     SPRITE_SIZE = 50 # Increased size
@@ -376,7 +396,7 @@ def desenhar_info_personagem(tela, fonte, unidade, y_offset):
 
     y = 100
     # Nome (Dourado)
-    nome_render = fonte.render(f"{unidade.nome} ({unidade.classe_nome})", True, (255, 215, 0))
+    nome_render = fonte.render(f"{unidade.nome} ({unidade.__class__.__name__})", True, (255, 215, 0))
     tela.blit(nome_render, (LARGURA_TABULEIRO + 20, y))
     y += 30
     
@@ -415,9 +435,9 @@ def desenhar_info_personagem(tela, fonte, unidade, y_offset):
         tela.blit(fonte.render(status, True, cor), (LARGURA_TABULEIRO + 200, y)); y += 30
     y += 15 # Espaçamento
     tela.blit(fonte.render("Efeitos de Status:", True, COR_TEXTO), (LARGURA_TABULEIRO + 20, y)); y += 30
-    if not personagem.status_efeitos: tela.blit(fonte.render("  Nenhum", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
-    for efeito in personagem.status_efeitos:
-        if y + 25 > max_altura:
+    if not unidade.status_efeitos: tela.blit(fonte.render("  Nenhum", True, (150,150,150)), (LARGURA_TABULEIRO + 20, y))
+    for efeito in unidade.status_efeitos:
+        if y + 25 > area_info.bottom:
             break
         cor_status = PROPRIEDADES_STATUS_EFEITO.get(efeito.nome, {}).get("cor", COR_TEXTO) # Pega a cor do config
         tela.blit(fonte.render(f"  - {efeito.nome} ({efeito.duracao_restante} turnos)", True, cor_status), (LARGURA_TABULEIRO + 20, y)); y += 30
@@ -577,11 +597,13 @@ def desenhar_editor(tela, fonte_menu, editor_mapa, botoes, terreno_selecionado, 
             pygame.draw.rect(tela, COR_LINHA, rect, 1)
             
     # Desenha a UI do editor na lateral
-    area_ui = pygame.Rect(LARGURA_TABULEIRO, 0, LARGURA_LOG, ALTURA_TELA)
+    largura_mapa_pixels = len(editor_mapa[0]) * TAMANHO_CELULA
+    x_ui = max(LARGURA_TABULEIRO, largura_mapa_pixels)
+    area_ui = pygame.Rect(x_ui, 0, LARGURA_TELA - x_ui, ALTURA_TELA)
     pygame.draw.rect(tela, (30, 30, 40), area_ui)
     
     titulo_render = fonte_menu.render("Editor de Mapas", True, COR_TEXTO)
-    tela.blit(titulo_render, titulo_render.get_rect(center=(LARGURA_TABULEIRO + LARGURA_LOG // 2, 50)))
+    tela.blit(titulo_render, titulo_render.get_rect(center=(x_ui + (LARGURA_TELA - x_ui) // 2, 50)))
 
     for nome, botao in botoes.items():
         botao.update_hover(mouse_pos)
@@ -676,7 +698,7 @@ def draw_text_with_outline(surface, text, font, color, pos, outline_color=(0,0,0
 def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
     # Fundo
     try:
-        bg_img = pygame.image.load(resource_path("assets/images/menu_background.png")).convert()
+        bg_img = pygame.image.load(resource_path("assets/images/ui/menu_background.png")).convert()
         bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
         tela.blit(bg_img, (0, 0))
     except Exception as e:
@@ -779,7 +801,7 @@ def desenhar_dialogo(tela, fonte, dialogo_sistema, game_images):
 def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id, mouse_pos=None):
     # Fundo (Wallpaper)
     try:
-        bg_img = pygame.image.load(resource_path("assets/images/menu_background.png")).convert()
+        bg_img = pygame.image.load(resource_path("assets/images/ui/menu_background.png")).convert()
         bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
         # Escurecer um pouco para legibilidade
         overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
@@ -944,7 +966,7 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
 def desenhar_mapa_mundo(tela, fonte, botoes, campaign_manager, nivel_atual, game_images, mouse_pos):
     # Fundo (Mapa Mundi)
     try:
-        bg_img = pygame.image.load(resource_path("assets/images/mapa_mundo.png")).convert()
+        bg_img = pygame.image.load(resource_path("assets/images/ui/mapa_mundo.png")).convert()
         bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
         tela.blit(bg_img, (0, 0))
     except:

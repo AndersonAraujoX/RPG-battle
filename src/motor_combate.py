@@ -6,28 +6,73 @@ from .utils import calcular_distancia
 from .config import COR_TEXTO, COR_DANO, COR_CRITICO, COR_STATUS, COR_CURA
 
 class MotorCombate:
-    def __init__(self, args_times, gerar_terreno=False, mapa_custom=None, sound_player=None, modo_chefe=False, stats_chefe=None, boss_class=None):
-        self.tabuleiro = Tabuleiro(20, 20)
-        self.visibilidade_map = [[0 for _ in range(20)] for _ in range(20)] # 0: Hidden, 1: Visited, 2: Visible
-        if mapa_custom:
-            self.tabuleiro.terrain_grid = mapa_custom
-        elif gerar_terreno:
-            self.tabuleiro.gerar_terreno_aleatorio()
+    def __init__(self, args_times, gerar_terreno=False, mapa_custom=None, sound_player=None, modo_chefe=False, stats_chefe=None, boss_class=None, custom_time_a=None, custom_mapa_arquivo=None):
+        from .salvar_carregar import carregar_mapa_json
         
         self.sound_player = sound_player
-        self.time_a, self.time_b = self._setup_times(args_times, modo_chefe, stats_chefe, boss_class)
         
-        if not self.time_a or not self.time_b:
-            raise ValueError("Ambos os times precisam de pelo menos um personagem.")
+        # Load custom map from file if provided
+        if custom_mapa_arquivo:
+            try:
+                import json
+                with open(custom_mapa_arquivo, 'r') as f:
+                    mapa_custom = json.load(f)
+            except Exception as e:
+                print(f"Erro ao carregar mapa customizado {custom_mapa_arquivo}: {e}")
+
+        if mapa_custom:
+            h = len(mapa_custom)
+            w = len(mapa_custom[0]) if h > 0 else 20
+            self.tabuleiro = Tabuleiro(w, h)
+            self.tabuleiro.terrain_grid = mapa_custom
+            self.visibilidade_map = [[0 for _ in range(w)] for _ in range(h)]
+        else:
+            self.tabuleiro = Tabuleiro(20, 20)
+            self.visibilidade_map = [[0 for _ in range(20)] for _ in range(20)]
+            if gerar_terreno:
+                self.tabuleiro.gerar_terreno_aleatorio()
+        
+        self.custom_time_a = custom_time_a
+        
+        if custom_time_a:
+            self.time_a = custom_time_a
+            for p in self.time_a:
+                self.tabuleiro.adicionar_personagem_na_borda(p, 'sul')
+            self.time_b = [] # Placeholder until set_time_b_custom is called or standard setup
             
-        self.combatentes = self.time_a + self.time_b
-        for p in self.combatentes: 
-            p.rolar_iniciativa()
+            # If standard args are passed along with custom_time_a, we might ignore them for Time A 
+            # but arguably we should just use custom_time_a if present.
             
-        self.ordem_de_combate = sorted(self.combatentes, key=lambda x: x.iniciativa, reverse=True)
+            if not args_times: # If empty args, we assume manual setup for B too or standard
+                 pass
+        else:
+            self.time_a, self.time_b = self._setup_times(args_times, modo_chefe, stats_chefe, boss_class)
+        
+        self.combatentes = []
+        if self.time_a: self.combatentes.extend(self.time_a)
+        if self.time_b: self.combatentes.extend(self.time_b)
+        
+        if self.combatentes:
+            for p in self.combatentes: 
+                p.rolar_iniciativa()
+            self.ordem_de_combate = sorted(self.combatentes, key=lambda x: x.iniciativa, reverse=True)
+            
         self.turno = 1
         self.combatente_atual_idx = 0
         self.vencedor = None
+        self.atualizar_visibilidade()
+        self.sienna_phase_2_triggered = False
+
+    def set_time_b_custom(self, time_b_instances):
+        self.time_b = time_b_instances
+        for p in self.time_b:
+            self.tabuleiro.adicionar_personagem_na_borda(p, 'norte')
+        self.combatentes = self.time_a + self.time_b
+        
+    def start_battle_custom(self):
+        for p in self.combatentes: 
+            p.rolar_iniciativa()
+        self.ordem_de_combate = sorted(self.combatentes, key=lambda x: x.iniciativa, reverse=True)
         self.atualizar_visibilidade()
 
     def atualizar_visibilidade(self):
@@ -200,7 +245,10 @@ class MotorCombate:
         for p in self.combatentes:
             eventos_turno.extend(p.eventos_animacao)
             p.eventos_animacao.clear()
+        
+        self._verificar_eventos_script_campanha(logs_turno, eventos_turno)
         self._verificar_fim_de_combate(logs_turno)
+        
         self.combatente_atual_idx = (self.combatente_atual_idx + 1) % len(self.ordem_de_combate)
         if self.combatente_atual_idx == 0: self.turno += 1
 
@@ -216,6 +264,61 @@ class MotorCombate:
                     if not personagem_movendo.esta_vivo:
                         logs_turno.append((f"  {personagem_movendo.nome} foi derrotado pelo ataque de oportunidade!", COR_DANO))
                         return False
+        return True
+
+    def _verificar_eventos_script_campanha(self, logs_turno, eventos_turno):
+        # Round 2 Dialogue
+        if self.turno == 2 and self.combatente_atual_idx == 0:
+            if not getattr(self, 'round_2_dialogue_triggered', False):
+                self.round_2_dialogue_triggered = True
+                eventos_turno.append({
+                    'tipo': 'dialogo',
+                    'mensagens': [
+                        ("Koema", "Ela é forte, mas está instável!", "koema"),
+                        ("Novak", "Yukito, mantenha a frente! Rilem, flanqueie!", "novak"),
+                        ("Yukito", "Entendido! Pela luz!", "yukito"),
+                        ("Rilem", "Já estou na sombra dela...", "rilem"),
+                        ("Sienna", "Planejem o quanto quiserem. O resultado será o mesmo!", "sienna")
+                    ]
+                })
+            
+        # Sienna Phase 2 Logic
+        sienna = next((p for p in self.time_b if p.classe_nome == "Sienna"), None)
+        if sienna and sienna.hp_atual <= 0 and not self.sienna_phase_2_triggered:
+            self.sienna_phase_2_triggered = True
+            from .personagens import SiennaPhoenix
+            
+            logs_turno.append(("Sienna cai...", COR_TEXTO))
+            logs_turno.append(("...Mas seu corpo se desfaz em pura energia!", COR_CRITICO))
+            logs_turno.append(("SIENNA RENASCE COMO A FÊNIX DO VAZIO!", COR_CRITICO))
+            
+            # Remove Sienna
+            sienna.esta_vivo = False
+            self.tabuleiro.grid[sienna.pos_y][sienna.pos_x] = None
+            
+            # Spawn Phoenix at same pos
+            phoenix = SiennaPhoenix("Sienna (Fênix)", "B", sound_player=self.sound_player)
+            phoenix.pos_x, phoenix.pos_y = sienna.pos_x, sienna.pos_y
+            self.tabuleiro.personagens[phoenix.pos_y][phoenix.pos_x] = phoenix
+            
+            self.time_b.append(phoenix)
+            self.combatentes.append(phoenix)
+            self.ordem_de_combate.append(phoenix)
+            self.ordem_de_combate.insert(self.combatente_atual_idx + 1, phoenix)
+            
+            eventos_turno.append({'tipo': 'spawn', 'personagem': phoenix})
+
+        # Phoenix Death Logic -> Rasante
+        phoenix = next((p for p in self.time_b if p.classe_nome == "SiennaPhoenix"), None)
+        if phoenix and phoenix.hp <= 0:
+             logs_turno.append(("A Fênix solta um guincho final...", COR_CRITICO))
+             logs_turno.append(("Ela mergulha em um rasante mortal sobre o grupo!", COR_CRITICO))
+             
+             for p in self.time_a:
+                 if p.esta_vivo:
+                     p.receber_dano(20, phoenix, self.tabuleiro, logs_turno.append, tipo_dano="Eletrico")
+             
+             logs_turno.append(("A energia se dissipa. O silêncio retorna.", COR_TEXTO))
         return True
 
     def _fugir(self, p, inimigos, logs_turno):
@@ -401,6 +504,52 @@ class MotorCombate:
             for p in self.combatentes:
                 p.tick_cooldowns()
                 p.tick_recursos()
+
+    def get_movimento_valido(self, personagem):
+        """Retorna uma lista de tuplas (x, y) representando as células alcançáveis."""
+        movimentos = []
+        if not personagem: return []
+        
+        start_pos = (personagem.pos_x, personagem.pos_y)
+        open_set = [(0, start_pos)]
+        g_cost = {start_pos: 0}
+        
+        while open_set:
+            current_cost, current_pos = heapq.heappop(open_set)
+            
+            if current_cost > personagem.velocidade:
+                continue
+
+            if current_pos != start_pos:
+                movimentos.append(current_pos)
+
+            for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                neighbor_pos = (current_pos[0] + dx, current_pos[1] + dy)
+                
+                # Check bounds
+                if not (0 <= neighbor_pos[0] < self.tabuleiro.largura and 0 <= neighbor_pos[1] < self.tabuleiro.altura):
+                    continue
+                
+                # Check walls
+                if self.tabuleiro.terrain_grid[neighbor_pos[1]][neighbor_pos[0]] == TERRENO_PAREDE:
+                    continue
+                
+                # Check occupancy (cannot stop on occupied tile)
+                # Note: A* prevents passing through enemies usually, but for validity we check if destination is user-occupied
+                # If we want to show tiles we can *reach* (even if passing through allies), we need logic.
+                # Here we assume simple: cannot enter occupied tile.
+                if self.tabuleiro.get_personagem_em(neighbor_pos[0], neighbor_pos[1]) is not None:
+                     continue
+
+                move_cost = 2 if self.tabuleiro.terrain_grid[neighbor_pos[1]][neighbor_pos[0]] == TERRENO_DIFICIL else 1
+                tentative_cost = current_cost + move_cost
+                
+                if tentative_cost <= personagem.velocidade:
+                    if neighbor_pos not in g_cost or tentative_cost < g_cost[neighbor_pos]:
+                        g_cost[neighbor_pos] = tentative_cost
+                        heapq.heappush(open_set, (tentative_cost, neighbor_pos))
+        
+        return movimentos
 
     def jogador_move_personagem(self, personagem, novo_x, novo_y):
         logs_movimento = []

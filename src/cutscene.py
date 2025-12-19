@@ -19,9 +19,11 @@ class CutsceneManager:
         # Carregar imagens
         try:
             self.imagens = {
-                "world": pygame.image.load(resource_path("assets/images/intro_world.png")).convert(),
-                "villains": pygame.image.load(resource_path("assets/images/intro_villains.png")).convert(),
-                "heroes": pygame.image.load(resource_path("assets/images/intro_heroes.png")).convert()
+                "world": pygame.image.load(resource_path("assets/images/ui/intro_world.png")).convert(),
+                "destruction": pygame.image.load(resource_path("assets/images/ui/intro_destruction.png")).convert(),
+                "villains": pygame.image.load(resource_path("assets/images/ui/intro_villains.png")).convert(),
+                "gathering": pygame.image.load(resource_path("assets/images/ui/intro_gathering.png")).convert(),
+                "heroes": pygame.image.load(resource_path("assets/images/ui/intro_heroes.png")).convert()
             }
             # Resize images to fit screen if needed
             for k, img in self.imagens.items():
@@ -31,25 +33,39 @@ class CutsceneManager:
             print(f"Erro ao carregar imagens da cutscene: {e}")
             self.imagens = {}
 
-
-
         # Duração total ~17s (1020 frames)
-        # Estimativa baseada no tamanho do texto
+        # Dividindo texto épico em 5 slides
+        # Slide 1: World
+        # Slide 2: Destruction (The Fall)
+        # Slide 3: Villains (The Awakening)
+        # Slide 4: Gathering (The Call)
+        # Slide 5: Heroes (The Journey)
+        
         self.slides = [
             {
                 "imagem": "world",
-                "texto": "Em uma era antiga, onde lendas se perdem nas brumas do esquecimento...",
-                "duracao": 290 # ~4.8s
+                "texto": "Em uma era antiga, onde lendas floresciam...",
+                "duracao": 180 # 3s
+            },
+            {
+                "imagem": "destruction",
+                "texto": "...e se perdiam nas cinzas da guerra.",
+                "duracao": 180 # 3s
             },
             {
                 "imagem": "villains",
-                "texto": "Um mal ancestral despertou, e as sombras da ruína se ergueram para devorar a luz...",
-                "duracao": 340 # ~5.6s
+                "texto": "Um mal ancestral despertou, e as sombras da ruína se ergueram.",
+                "duracao": 220 # ~3.6s
+            },
+            {
+                "imagem": "gathering",
+                "texto": "Mas a esperança persiste. Bravos heróis se reuniram.",
+                "duracao": 200 # ~3.3s
             },
             {
                 "imagem": "heroes",
-                "texto": "Mas a esperança persiste. Bravos heróis se levantam para desafiar o destino e enfrentar o vazio eterno.",
-                "duracao": 400 # ~6.6s
+                "texto": "Levantando-se para desafiar o destino e enfrentar o vazio eterno.",
+                "duracao": 240 # ~4s
             }
         ]
 

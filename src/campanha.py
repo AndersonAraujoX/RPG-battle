@@ -1,21 +1,20 @@
 import json
 import os
-from .personagens import ReiGoblin, LordeLich, DragaoAnciao, Goblin, Esqueleto, Kobold
+from .personagens import ReiGoblin, LordeLich, DragaoAnciao, Goblin, Esqueleto, Kobold, Sienna, SiennaPhoenix
 
 # Exemplo de estrutura de campanha
 # Cada entrada é uma batalha, com a configuração de inimigos
 CAMPAIGN_DATA = [
     {
         "inimigos": [
-            (Goblin, 2),
-            (Kobold, 1),
+            (Sienna, 1),
         ],
-        "mapa": "mapa_floresta.json", # Futuramente, usar mapas específicos
-        "mensagem_inicio": "Uma pequena horda de goblins bloqueia o caminho!",
+        "mapa": "mapa_torre.json", 
+        "mensagem_inicio": "O topo da Torre do Relógio. Sienna aguarda.",
         "dialogo_inicio": [
-            ("Guerreiro", "O que é aquilo na estrada?", "guerreiro"),
-            ("Goblin", "Kekeke! Comida fresca!", "goblin"),
-            ("Mago", "Preparem-se! Eles parecem hostis.", "mago"),
+            ("Sienna", "Vocês demoraram. Achei que teriam desistido.", "sienna"),
+            ("Novak", "Acabou, Sienna. Entregue o artefato.", "novak"),
+            ("Sienna", "Tolos. Vocês não fazem ideia do poder que ele contém.", "sienna"),
         ]
     },
     {

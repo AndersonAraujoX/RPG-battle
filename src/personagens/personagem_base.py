@@ -55,6 +55,16 @@ class Personagem:
             self.tipo_dano_base = "Físico"
             self.hp_max = 10 + self.mod_con
 
+        # Initialize imunity/resistance BEFORE using data
+        self.imunidades = {}
+        self.resistencias = {}
+        self.vulnerabilidades = {}
+        
+        if class_name in DADOS_PERSONAGENS:
+             self.imunidades = DADOS_PERSONAGENS[class_name].get("imunidades", {})
+             self.resistencias = DADOS_PERSONAGENS[class_name].get("resistencias", {})
+             self.vulnerabilidades = DADOS_PERSONAGENS[class_name].get("vulnerabilidades", {})
+
         # Override with custom stats if provided
         if stats:
             if 'hp' in stats: self.hp_max = stats['hp']
@@ -85,6 +95,9 @@ class Personagem:
         self.elevacao = 0
         self.threat_level = 1
         self.loot_table = [] # Lista de tuplas (ItemClass, chance 0.0-1.0)
+        
+        self.habilidades = {}
+        self.custo_habilidades = {}
 
     def equipar_arma(self, arma):
         self.arma_equipada = arma
@@ -107,7 +120,7 @@ class Personagem:
         if self.energia_max > 0:
             self.energia_atual = min(self.energia_max, self.energia_atual + 1)
 
-    def aplicar_status_efeito(self, nome_efeito, duracao_turnos=1, logger=print):
+    def aplicar_status_efeito(self, nome_efeito, duracao_turnos=1, logger=print, **kwargs):
         from src.config import COR_STATUS, COR_TEXTO
         if nome_efeito in self.imunidades:
             logger((f"  {self.nome} é imune a {nome_efeito}!", COR_TEXTO))
@@ -120,10 +133,12 @@ class Personagem:
         for efeito in self.status_efeitos:
             if efeito.nome == nome_efeito:
                 efeito.duracao_restante += duracao_turnos
+                # Update extra data if provided
+                if kwargs: efeito.dados_extra.update(kwargs)
                 logger((f"  {self.nome} teve a duração de {nome_efeito} estendida para {efeito.duracao_restante} turnos.", COR_STATUS))
                 return
 
-        novo_efeito = StatusEfeito(nome_efeito, duracao_turnos)
+        novo_efeito = StatusEfeito(nome_efeito, duracao_turnos, **kwargs)
         self.status_efeitos.append(novo_efeito)
         logger((f"  {self.nome} foi afetado por {novo_efeito.nome} por {novo_efeito.duracao_restante} turnos.", COR_STATUS))
         self.eventos_animacao.append({'tipo': 'status_aplicado', 'personagem': self, 'efeito': novo_efeito.nome})
@@ -215,8 +230,6 @@ class Personagem:
             return self.armadura_equipada.bonus_ac
         return self.ac_base
 
-
-
     @property
     def mod_for(self): return (self.forca - 10) // 2
     @property
@@ -251,17 +264,38 @@ class Personagem:
                 bonus += efeito.propriedades["bonus_dano_ataque"]
         return bonus
 
-
-
     def rolar_iniciativa(self):
         self.iniciativa = random.randint(1, 20) + self.mod_des
         return self.iniciativa
+
+    def pode_atacar(self, alvo, tabuleiro):
+        if not alvo or not alvo.esta_vivo:
+            return False
+        dist = calcular_distancia(self, alvo)
+        if dist > self.alcance:
+            return False
+        # Check Line of Sight
+        if not tabuleiro.calcular_linha_visao(self.pos_x, self.pos_y, alvo.pos_x, alvo.pos_y):
+            return False
+        return True
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         from src.config import COR_TEXTO
         if not self.pode_agir:
             logs_turno.append((f"  {self.nome} está impedido de agir devido a um efeito de status.", COR_TEXTO))
             return {'acao': 'passar'}
+            
+        # Check for Provoked Status
+        status_provocado = next((e for e in self.status_efeitos if e.nome == "Provocado"), None)
+        if status_provocado:
+            provocador = status_provocado.dados_extra.get("provocador")
+            if provocador and provocador.esta_vivo and provocador in inimigos:
+                 logs_turno.append((f"  {self.nome} está FURIOSO e foca seus ataques em {provocador.nome}!", COR_TEXTO))
+                 # Se estiver ao alcance, ataca
+                 if calcular_distancia(self, provocador) <= self.alcance:
+                     return {'acao': 'atacar', 'alvo': provocador}
+                 # Se não, move-se em direção a ele
+                 return {'acao': 'mover', 'alvo': provocador}
 
         # 0. Pegar item se estiver em cima de um
         item_no_chao = tabuleiro.get_item_em(self.pos_x, self.pos_y)

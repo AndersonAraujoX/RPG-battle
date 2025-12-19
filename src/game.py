@@ -2,6 +2,7 @@ import pygame
 import sys
 from collections import deque
 from .motor_combate import MotorCombate
+from .map_generator import MapGenerator
 from .campanha import CampaignManager
 from .cutscene import CutsceneManager
 from .personagens import *
@@ -12,7 +13,8 @@ from .ui.desenho import (
     desenhar_log, desenhar_info_personagem, desenhar_projeteis_e_efeitos,
     desenhar_itens_no_chao, desenhar_mapa_mundo, desenhar_floating_texts,
     desenhar_dialogo, desenhar_tela_fim, desenhar_inventario, desenhar_pre_visualizacao_ataque,
-    desenhar_tela_level_up, desenhar_tela_salvando, desenhar_tela_carregando, desenhar_editor
+    desenhar_tela_level_up, desenhar_tela_salvando, desenhar_tela_carregando, desenhar_editor,
+    desenhar_alcance_movimento
 )
 from .config import (
     LARGURA_TELA, ALTURA_TELA, COR_FUNDO, COR_TEXTO, COR_GRID, COR_CRITICO, COR_XP, COR_DANO,
@@ -20,11 +22,11 @@ from .config import (
     ESTADO_JOGO_MENU, ESTADO_JOGO_SETUP, ESTADO_JOGO_COMBATE, ESTADO_JOGO_FIM,
     ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_MAPA_MUNDO, ESTADO_JOGO_EDITOR, ESTADO_JOGO_CUTSCENE,
     TIME_A, TIME_B, CORES_TERRENO,
-    TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL,
+    TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL, TERRENO_FOGO, TERRENO_AGUA,
     IMAGE_PERSONAGENS, IMAGE_TERRENOS, PAINEL_MODO_LOG, PAINEL_MODO_INFO
 )
 from .sistema_dialogo import Dialogo
-from .salvar_carregar import salvar_jogo, carregar_jogo
+from .salvar_carregar import salvar_jogo, carregar_jogo, salvar_mapa_json, carregar_mapa_json
 from .utils import calcular_distancia, resource_path
 from .ui.componentes import Botao, FloatingText, Checkbox, Tab
 from .personagens.rei_goblin import ReiGoblin
@@ -221,8 +223,20 @@ class Game:
         }
         self.active_tab_id = "times"
         self.menu_tabs["times"].selected = True
-
-
+        
+        # --- UI do Gerador de Mapas ---
+        self.map_gen_width = 20
+        self.map_gen_height = 20
+        y_gen = 600
+        x_gen = LARGURA_TABULEIRO + 20
+        
+        self.botoes_gerador = {
+            'w_dec': Botao(x_gen, y_gen, 30, 30, "-", self.fonte_menu),
+            'w_inc': Botao(x_gen + 80, y_gen, 30, 30, "+", self.fonte_menu),
+            'h_dec': Botao(x_gen, y_gen + 40, 30, 30, "-", self.fonte_menu),
+            'h_inc': Botao(x_gen + 80, y_gen + 40, 30, 30, "+", self.fonte_menu),
+            'gerar': Botao(x_gen, y_gen + 80, 150, 40, "Gerar Aleatório", self.fonte_menu)
+        }
 
 
     def iniciar_proxima_batalha_campanha(self):
@@ -267,6 +281,74 @@ class Game:
 
         except ValueError as e:
             print(f"Erro ao iniciar batalha da campanha: {e}")
+            self.estado_jogo = ESTADO_JOGO_MENU
+
+    def iniciar_batalha_campanha_custom(self):
+        self.tocar_musica('batalha')
+        battle_config = self.campaign_manager.get_battle_config()
+        if not battle_config:
+            return
+
+        self.estado_jogo = ESTADO_JOGO_COMBATE
+        
+        # Create Protagonists explicitly
+        time_a_instances = [
+            Novak("Novak", "A", sound_player=self.play_sound),
+            Koema("Koema", "A", sound_player=self.play_sound),
+            Rilem("Rilem", "A", sound_player=self.play_sound),
+            Yukito("Yukito", "A", sound_player=self.play_sound)
+        ]
+        
+        # Time B (Sienna) comes from config, but let's handle specifically to ensure boss flag?
+        # Actually MotorCombate handles list of classes or instances?
+        # Standard MotorCombate takes counts. We need to pass instances or modify MotorCombate to accept instances in args.
+        # Let's check MotorCombate.
+        pass # Placeholder for thought
+        
+        # MotorCombate constructor:
+        # def __init__(self, args_times, ...)
+        # It expects args_times to be a list of COUNTS corresponding to classes.
+        # This is bad for custom instances.
+        
+        # Force Custom Instances requires a change in MotorCombate or a Hack.
+        # Let's Modify MotorCombate to accept `custom_time_a` and `custom_time_b` kwargs.
+        
+        try:
+            self.motor = MotorCombate(
+                [],  # Empty args
+                gerar_terreno=False, 
+                mapa_custom=None, # Will load from file
+                sound_player=self.play_sound,
+                custom_time_a=time_a_instances,
+                custom_mapa_arquivo=battle_config.get("mapa")
+            )
+            
+            # Setup Enemies from Config
+            enemies_config = battle_config["inimigos"]
+            # enemies_config is [(Class, count), ...]
+            # We want to instantiate them.
+            time_b_instances = []
+            for cls, count in enemies_config:
+                for i in range(count):
+                    nome = f"{cls.__name__}" if count == 1 else f"{cls.__name__}_{i+1}"
+                    # Check if it's Sienna to pass stats? Sienna class handles itself default.
+                    inst = cls(nome, "B", sound_player=self.play_sound)
+                    time_b_instances.append(inst)
+            
+            self.motor.set_time_b_custom(time_b_instances) # Helper we will add
+            self.motor.start_battle_custom() # Helper to init positions/initiative
+            
+            self.game_over_processed = False
+            self.log_combate.clear()
+            self.log_combate.append((f"--- O Confronto Final ---", COR_CRITICO))
+            self.log_combate.append((battle_config["mensagem_inicio"], COR_TEXTO))
+
+            # Iniciar Diálogo da Campanha
+            if "dialogo_inicio" in battle_config:
+                self.dialogo.iniciar_dialogo(battle_config["dialogo_inicio"])
+
+        except ValueError as e:
+            print(f"Erro ao iniciar batalha custom: {e}")
             self.estado_jogo = ESTADO_JOGO_MENU
 
     def run(self):
@@ -315,10 +397,14 @@ class Game:
                                     if nome == 'nova_batalha':
                                         self.estado_jogo = ESTADO_JOGO_SETUP
                                     elif nome == 'nova_campanha':
+                                        self.checkbox_campanha.checked = True
+                                        self.checkbox_chefe.checked = False
+                                        
+                                        # Initialize Campaign
                                         self.campaign_manager.reset()
-                                        self.checkbox_campanha.checked = True # Ativa modo campanha
-                                        self.cutscene_manager.iniciar()
-                                        self.estado_jogo = ESTADO_JOGO_CUTSCENE
+                                        
+                                        # Start Custom Campaign (Sienna Tower)
+                                        self.iniciar_batalha_campanha_custom()
                                     elif nome == 'continuar':
                                         if self.campaign_manager.carregar_campanha():
                                             self.checkbox_campanha.checked = True
@@ -600,11 +686,15 @@ class Game:
 
                                 # Player Action Logic
                                 if personagem_ativo and personagem_ativo.time == TIME_A and not self.animacao_atual and not self.fila_animacoes:
+                                    print(f"DEBUG: Click accepted for {personagem_ativo.nome}")
+                                    
                                     if clicked_unit and clicked_unit.time == TIME_B:
                                         # Attack Enemy
+                                        print("DEBUG: Logic - Attack Path Selected")
                                         dist = calcular_distancia(personagem_ativo, clicked_unit)
                                         if dist <= personagem_ativo.alcance:
                                             eventos, logs = self.motor.jogador_ataca_personagem(personagem_ativo, clicked_unit)
+                                            print(f"DEBUG: Attack Result - Events: {len(eventos)}, Logs: {logs}")
                                             self.fila_animacoes.extend(eventos)
                                             self.log_combate.extend(logs)
                                             self.motor.avancar_turno()
@@ -613,17 +703,63 @@ class Game:
                                             self.play_sound('invalid_action')
                                     elif not clicked_unit:
                                         # Move to empty tile
+                                        print(f"DEBUG: Logic - Move Path Selected to ({grid_x}, {grid_y})")
                                         eventos, logs = self.motor.jogador_move_personagem(personagem_ativo, grid_x, grid_y)
+                                        print(f"DEBUG: Move Result to ({grid_x}, {grid_y}) - Events: {len(eventos)}, Logs: {logs}")
                                         if eventos: # If move was successful (valid path)
                                             self.fila_animacoes.extend(eventos)
                                             self.log_combate.extend(logs)
                                             self.motor.avancar_turno()
                                             self.atualizar_visibilidade()
                                         else:
+                                            print("DEBUG: Logic - Move Failed (No Events)")
                                             if not logs: self.play_sound('invalid_action')
                                             self.log_combate.extend(logs)
+                                else:
+                                    print(f"DEBUG: Click IGNORED. Active: {personagem_ativo.nome if personagem_ativo else 'None'}, Time: {personagem_ativo.time if personagem_ativo else 'N/A'}, Anim: {self.animacao_atual is not None}, Queue: {len(self.fila_animacoes)}")
 
                     elif self.estado_jogo == ESTADO_JOGO_EDITOR:
+                        if mouse_pos[0] > LARGURA_TABULEIRO:
+                            print(f"DEBUG: Click in Editor UI area. Pos: {mouse_pos}")
+                            # Handle Generator Buttons
+                            for nome, botao in self.botoes_gerador.items():
+                                if botao.rect.collidepoint(mouse_pos):
+                                    print(f"DEBUG: Button {nome} clicked. Current size: {self.map_gen_width}x{self.map_gen_height}")
+                                    self.play_sound('button_click')
+                                    if nome == 'w_dec' and self.map_gen_width > 10: self.map_gen_width -= 1
+                                    elif nome == 'w_inc' and self.map_gen_width < 30: self.map_gen_width += 1
+                                    elif nome == 'h_dec' and self.map_gen_height > 10: self.map_gen_height -= 1
+                                    elif nome == 'h_inc' and self.map_gen_height < 22: self.map_gen_height += 1
+                                    if nome == 'gerar':
+                                        self.editor_mapa = MapGenerator.gerar_aleatorio(self.map_gen_width, self.map_gen_height)
+                                        # Update UI positions
+                                        largura_mapa_pixels = self.map_gen_width * TAMANHO_CELULA
+                                        x_ui = max(LARGURA_TABULEIRO, largura_mapa_pixels) + 20
+                                        # Recalcula posição dos botões do gerador
+                                        base_y_gen = 600
+                                        self.botoes_gerador['w_dec'].rect.x = x_ui
+                                        self.botoes_gerador['w_inc'].rect.x = x_ui + 80
+                                        self.botoes_gerador['h_dec'].rect.x = x_ui
+                                        self.botoes_gerador['h_inc'].rect.x = x_ui + 80
+                                        self.botoes_gerador['gerar'].rect.x = x_ui
+                                        
+                                        # Recalcula posição dos botões de terreno
+                                        for i, t_nome in enumerate([TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_FOGO, TERRENO_AGUA, TERRENO_ROCHA, TERRENO_BARRIL]):
+                                            if t_nome in self.botoes_editor:
+                                                self.botoes_editor[t_nome].rect.x = x_ui
+                                        
+                                        # Update editor map dimensions text pos (handled in draw)
+                                    else:
+                                        # Update width/height buttons
+                                        pass 
+                                        
+                        # Handle Terrain Selection
+                        for nome, botao in self.botoes_editor.items():
+                            if botao.rect.collidepoint(mouse_pos):
+                                self.play_sound('button_click')
+                                if nome in [TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL]:
+                                    self.editor_terreno_selecionado = nome
+
                         # Handle Editor Buttons
                         for nome, botao in self.botoes_editor.items():
                             if botao.rect.collidepoint(mouse_pos):
@@ -631,11 +767,18 @@ class Game:
                                 if nome in [TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL]:
                                     self.editor_terreno_selecionado = nome
                                 elif nome == 'salvar':
-                                    print("Salvar Mapa clicado (Implementar lógica de arquivo)")
-                                    # Implementar lógica real de salvar mapa aqui
+                                    if salvar_mapa_json(self.editor_mapa):
+                                        print("Mapa Salvo com Sucesso!")
+                                        self.play_sound('level_up') # Feedback sonoro
                                 elif nome == 'carregar':
-                                    print("Carregar Mapa clicado (Implementar lógica de arquivo)")
-                                    # Implementar lógica real de carregar mapa aqui
+                                    mapa_carregado = carregar_mapa_json()
+                                    if mapa_carregado:
+                                        self.editor_mapa = mapa_carregado
+                                        # Update dimensions for generator UI
+                                        self.map_gen_height = len(self.editor_mapa)
+                                        self.map_gen_width = len(self.editor_mapa[0]) if self.map_gen_height > 0 else 20
+                                        print("Mapa Carregado com Sucesso!")
+                                        self.play_sound('level_up')
                                 elif nome == 'voltar':
                                     self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
 
@@ -690,6 +833,9 @@ class Game:
                 
                 if self.animacao_atual['tipo'] == 'ataque': self.play_sound('attack')
                 elif self.animacao_atual['tipo'] == 'dano': self.play_sound('hit')
+                elif self.animacao_atual['tipo'] == 'dialogo':
+                     self.dialogo.iniciar_dialogo(self.animacao_atual['mensagens'])
+                     self.animacao_atual = None # Ends animation step immediately, dialogue takes over via self.dialogo
             
             # AI Turn Logic
             elif self.motor and not self.motor.vencedor:
@@ -737,6 +883,7 @@ class Game:
             if self.motor:
                 visibilidade = self.motor.visibilidade_map
                 desenhar_cenario(self.tela, self.motor, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
+                desenhar_alcance_movimento(self.tela, self.motor, personagem_ativo, ALTURA_BARRA_INICIATIVA)
                 desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade)
                 desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual, ALTURA_BARRA_INICIATIVA, self.imagens)
@@ -744,7 +891,7 @@ class Game:
                 desenhar_log(self.tela, self.fonte_log, self.log_combate, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
                 
                 if self.unidade_selecionada:
-                    desenhar_info_personagem(self.tela, self.fonte_info, self.unidade_selecionada, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
+                    desenhar_info_personagem(self.tela, self.fonte_info, self.unidade_selecionada, ALTURA_BARRA_INICIATIVA)
                 
                 desenhar_comandos(self.tela, self.fonte_info, 0, self.botoes_combate, mouse_pos)
                 desenhar_floating_texts(self.tela, self.floating_texts)
@@ -756,8 +903,8 @@ class Game:
 
         elif self.estado_jogo == ESTADO_JOGO_EDITOR:
             # Draw Grid Lines
-            for y in range(20):
-                for x in range(20):
+            for y in range(len(self.editor_mapa)):
+                for x in range(len(self.editor_mapa[y])):
                     rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA + ALTURA_BARRA_INICIATIVA, TAMANHO_CELULA, TAMANHO_CELULA)
                     
                     # Draw terrain from editor_mapa
@@ -785,9 +932,24 @@ class Game:
                     pygame.draw.rect(self.tela, (255, 215, 0), botao.rect.inflate(4, 4), 2, border_radius=5)
                 botao.desenhar(self.tela, self.fonte_menu, mouse_pos)
             
+            # Draw Generator UI
+            for nome, botao in self.botoes_gerador.items():
+                botao.update_hover(mouse_pos)
+                botao.desenhar(self.tela, self.fonte_menu)
+                
+            # Draw Generator Text
+            largura_mapa_pixels = len(self.editor_mapa[0]) * TAMANHO_CELULA
+            x_ui = max(LARGURA_TABULEIRO, largura_mapa_pixels)
+            txt_x = x_ui + 130
+            
+            txt_w = self.fonte_menu.render(f"Largura: {self.map_gen_width}", True, COR_TEXTO)
+            self.tela.blit(txt_w, (txt_x, 605))
+            txt_h = self.fonte_menu.render(f"Altura: {self.map_gen_height}", True, COR_TEXTO)
+            self.tela.blit(txt_h, (txt_x, 645))
+            
             # Draw Title
             titulo = self.fonte_menu.render("Editor de Mapas", True, (255, 215, 0))
-            self.tela.blit(titulo, (LARGURA_TABULEIRO + 20, 20))
+            self.tela.blit(titulo, (x_ui + 20, 20))
 
         elif self.estado_jogo == ESTADO_JOGO_CUTSCENE:
             self.cutscene_manager.desenhar(self.tela)

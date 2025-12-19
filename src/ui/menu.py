@@ -14,7 +14,7 @@ def desenhar_menu_principal(tela, fonte, botoes_menu):
     
     # Logo
     try:
-        logo_img = pygame.image.load(resource_path("assets/images/logo.png")).convert_alpha()
+        logo_img = pygame.image.load(resource_path("assets/images/ui/logo.png")).convert_alpha()
         # Scale logo if necessary (e.g., to width 600)
         target_width = 600
         scale_factor = target_width / logo_img.get_width()

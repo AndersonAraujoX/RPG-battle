@@ -80,5 +80,39 @@
         "stats": { "destreza": 15, "constituicao": 9 },
         "dado_vida": [1, 6], "hp": 5, "ac": 12, "dado_dano": [1, 4],
         "velocidade": 4, "alcance": 5, "tipo_dano": "Perfurante"
+    },
+    "Novak": {
+        "stats": { "forca": 18, "constituicao": 16, "destreza": 14 },
+        "dado_vida": [1, 10], "hp": 45, "ac": 19, "dado_dano": [1, 10],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Cortante"
+    },
+    "Koema": {
+        "stats": { "inteligencia": 18, "constituicao": 12, "destreza": 14 },
+        "dado_vida": [1, 6], "hp": 30, "ac": 12, "dado_dano": [1, 8],
+        "velocidade": 3, "alcance": 6, "tipo_dano": "Magico"
+    },
+    "Rilem": {
+        "stats": { "destreza": 20, "constituicao": 14 },
+        "dado_vida": [1, 8], "hp": 38, "ac": 16, "dado_dano": [1, 6],
+        "velocidade": 5, "alcance": 8, "tipo_dano": "Perfurante"
+    },
+    "Yukito": {
+        "stats": { "forca": 16, "constituicao": 14, "carisma": 16 },
+        "dado_vida": [1, 10], "hp": 42, "ac": 18, "dado_dano": [1, 8],
+        "velocidade": 3, "alcance": 1, "tipo_dano": "Cortante"
+    },
+    "Sienna": {
+        "stats": { "destreza": 22, "constituicao": 18, "inteligencia": 16 },
+        "dado_vida": [1, 10], "hp": 300, "ac": 20, "dado_dano": [2, 6],
+        "velocidade": 6, "alcance": 1, "tipo_dano": "Eletrico",
+        "resistencias": { "Eletrico": 1.0 },
+        "imunidades": ["Paralisia"]
+    },
+    "SiennaPhoenix": {
+        "stats": { "destreza": 25, "constituicao": 20, "inteligencia": 20 },
+        "dado_vida": [1, 20], "hp": 200, "ac": 22, "dado_dano": [3, 8],
+        "velocidade": 8, "alcance": 2, "tipo_dano": "Eletrico",
+        "resistencias": { "Eletrico": 1.0, "Fogo": 0.5 },
+        "imunidades": ["Paralisia", "Atordoado"]
     }
 }

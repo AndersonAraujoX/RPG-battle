@@ -13,3 +13,5 @@ from .dragao_anciao import DragaoAnciao
 from .druida import Druida
 from .bruxo import Bruxo
 from .minions import Goblin, Esqueleto, Kobold
+from .protagonistas import Novak, Koema, Rilem, Yukito
+from .sienna import Sienna, SiennaPhoenix

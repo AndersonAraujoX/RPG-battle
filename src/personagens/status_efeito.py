@@ -2,13 +2,14 @@
 from ..config import PROPRIEDADES_STATUS_EFEITO
 
 class StatusEfeito:
-    def __init__(self, nome, duracao_turnos=1):
+    def __init__(self, nome, duracao_turnos=1, **kwargs):
         if nome not in PROPRIEDADES_STATUS_EFEITO:
             raise ValueError(f"Status Effect '{nome}' not defined in PROPRIEDADES_STATUS_EFEITO.")
         
         self.nome = nome
         self.propriedades = PROPRIEDADES_STATUS_EFEITO[nome]
         self.duracao_restante = duracao_turnos
+        self.dados_extra = kwargs
     
     def aplicar_efeito_por_turno(self, personagem, tabuleiro, logger=print):
         if self.duracao_restante <= 0: return

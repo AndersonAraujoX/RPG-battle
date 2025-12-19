@@ -131,41 +131,80 @@ PROPRIEDADES_STATUS_EFEITO = {
         "descricao": "Recebe dano de maldição a cada turno e tem seu ataque reduzido.",
         "efeito_por_turno": {"dano_fixo": 3},
         "bonus_ataque_fixo": -2,
+    },
+    "Provocado": {
+        "cor": (255, 120, 0),
+        "icone": "!",
+        "descricao": "Forçado a atacar quem provocou.",
+        # Mechanic handled in logic
+    },
+    "Defesa Quebrada": {
+        "cor": (150, 150, 150),
+        "icone": "D-",
+        "descricao": "Classe de Armadura reduzida.",
+        "bonus_ac_fixo": -3
+    },
+    "Ataque Reduzido": {
+         "cor": (100, 100, 200),
+         "icone": "A-",
+         "descricao": "Dano de ataque reduzido.",
+         "bonus_dano_ataque": -2
+    },
+    "Comando Tatico": {
+        "cor": (255, 215, 0),
+        "icone": "A+",
+        "descricao": "Ataque aumentado por comando tático.",
+        "bonus_dano_ataque": 2
     }
 }
 
 # --- Imagens (Placeholders) ---
-# ATENÇÃO: Substitua 'caminho/para/imagem.png' pelos caminhos reais das suas imagens.
-# Certifique-se de que as imagens existam ou o jogo pode falhar ao carregar.
+image_path_heroes = "assets/images/characters/heroes/"
+image_path_monsters = "assets/images/characters/monsters/"
+image_path_bosses = "assets/images/characters/bosses/"
+image_path_env = "assets/images/environment/"
+image_path_ui = "assets/images/ui/"
+
 IMAGE_PERSONAGENS = {
-    "Guerreiro": "assets/images/guerreiro.png",
-    "Mago": "assets/images/mago.png",
-    "Ladino": "assets/images/ladino.png",
-    "Arqueiro": "assets/images/arqueiro.png",
-    "Barbaro": "assets/images/barbaro.png",
-    "Clerigo": "assets/images/clerigo.png",
-    "Chefe": "assets/images/chefe.png",
-    "Paladino": "assets/images/paladino.png",
-    "ReiGoblin": "assets/images/rei_goblin.png",
-    "LordeLich": "assets/images/lorde_lich.png",
-    "DragaoAnciao": "assets/images/dragao_anciao.png",
-    "Druida": "assets/images/druida.png",
-    "Bruxo": "assets/images/bruxo.png",
-    "Goblin": "assets/images/goblin.png",
-    "Esqueleto": "assets/images/esqueleto.png",
-    "Kobold": "assets/images/kobold.png",
-    # Adicione outros personagens conforme necessário
+    # Protagonists (Specific)
+    "Novak": image_path_heroes + "Novak.png",
+    "Koema": image_path_heroes + "Koema.png",
+    "Rilem": image_path_heroes + "Rilem.png",
+    "Yukito": image_path_heroes + "Yukito.png",
+
+    # Generic Classes
+    "Guerreiro": image_path_heroes + "guerreiro.png",
+    "Mago": image_path_heroes + "mago.png",
+    "Ladino": image_path_heroes + "ladino.png",
+    "Arqueiro": image_path_heroes + "arqueiro.png",
+    "Barbaro": image_path_heroes + "barbaro.png",
+    "Clerigo": image_path_heroes + "clerigo.png",
+    "Paladino": image_path_heroes + "paladino.png",
+    "Druida": image_path_heroes + "druida.png",
+    "Bruxo": image_path_heroes + "bruxo.png",
+    
+    # Bosses
+    "Chefe": image_path_bosses + "chefe.png",
+    "Sienna": image_path_bosses + "Sienna.png",
+    "SiennaPhoenix": image_path_bosses + "Sienna.png",
+
+    # Monsters
+    "Goblin": image_path_monsters + "goblin.png",
+    "Esqueleto": image_path_monsters + "esqueleto.png",
+    "Kobold": image_path_monsters + "kobold.png",
+    "ReiGoblin": image_path_monsters + "rei_goblin.png",
+    "LordeLich": image_path_monsters + "lorde_lich.png",
+    "DragaoAnciao": image_path_monsters + "dragao_anciao.png",
 }
 
 IMAGE_TERRENOS = {
-    TERRENO_NORMAL: "assets/images/terreno_normal.png",
-    TERRENO_FLORESTA: "assets/images/terreno_floresta.png",
-    TERRENO_DIFICIL: "assets/images/terreno_dificil.png",
-    TERRENO_PAREDE: "assets/images/terreno_parede.png",
-    TERRENO_GELO: "assets/images/terreno_gelo.png",
-    TERRENO_FOGO: "assets/images/terreno_fogo.png",
-    TERRENO_AGUA: "assets/images/terreno_agua.png",
-    TERRENO_ROCHA: "assets/images/terreno_rocha.png",
-    TERRENO_BARRIL: "assets/images/terreno_barril.png",
-    # Adicione outros terrenos conforme necessário
+    TERRENO_NORMAL: image_path_env + "terreno_normal.png",
+    TERRENO_FLORESTA: image_path_env + "terreno_floresta.png",
+    TERRENO_DIFICIL: image_path_env + "terreno_dificil.png",
+    TERRENO_PAREDE: image_path_env + "terreno_parede.png",
+    TERRENO_GELO: image_path_env + "terreno_gelo.png",
+    TERRENO_FOGO: image_path_env + "terreno_fogo.png",
+    TERRENO_AGUA: image_path_env + "terreno_agua.png",
+    TERRENO_ROCHA: image_path_env + "terreno_rocha.png",
+    TERRENO_BARRIL: image_path_env + "terreno_barril.png",
 }
