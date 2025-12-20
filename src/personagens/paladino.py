@@ -7,8 +7,34 @@ class Paladino(Personagem):
         self.threat_level = 1.3
         
         self.usos_lay_on_hands = self.mod_car + 1
-        self.cooldowns['smite_evil'] = 0
         self.cooldown_max['smite_evil'] = 3
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['lay_on_hands'] = {
+            "nome": "Cura pelas Mãos",
+            "descricao": "Cura um aliado ou a si mesmo.",
+            "custo": 0, # Uses charges (usos_lay_on_hands)
+            "tipo": "acao",
+            "alvo": "aliado",
+            "alcance": 1,
+            "cura": "5*Nivel"
+        }
+        self.habilidades['smite_evil'] = {
+            "nome": "Destruir o Mal (Smite)",
+            "descricao": "Ataque com dano radiante extra.",
+            "custo": 0,
+            "cooldown": 3,
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 1,
+            "dano": "arma+2d8",
+            "tipo_dano": "Radiante"
+        }
+        
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia

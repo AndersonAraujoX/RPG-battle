@@ -677,7 +677,7 @@ class Game:
                             return # Block other inputs on end screen
 
                         # Handle Combat Buttons
-                        for nome, botao in self.botoes_combate.items():
+                        for nome, botao in list(self.botoes_combate.items()):
                             # Visibility check based on skill_menu_open
                             is_skill_btn = nome.startswith('habilidade_') or nome == 'voltar_skills'
                             is_main_btn = nome in ['atacar', 'habilidade', 'item', 'proxima_acao']

@@ -17,6 +17,30 @@ class Ladino(Personagem):
         self.equipar_arma(Adaga())
         self.equipar_armadura(CouracaDeCouro())
         self.equipar_acessorio(BotasDaVelocidade())
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['golpe_sombrio'] = {
+            "nome": "Golpe Sombrio",
+            "descricao": "Ataque com dano extra se tiver energia.",
+            "custo": 5, # Energia
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 1,
+            "dano": "arma+2d6",
+            "tipo_dano": "Fisico"
+        }
+        self.habilidades['esconder'] = {
+            "nome": "Esconder-se",
+            "descricao": "Fica invisível até atacar ou ser descoberto.",
+            "custo": 5,
+            "tipo": "bonus",
+            "alvo": "si_mesmo",
+            "alcance": 0
+        }
+        
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
 
     @property
     def bonus_ataque(self): return self.mod_des + self.bonus_proficiencia

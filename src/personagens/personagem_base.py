@@ -37,8 +37,10 @@ class Personagem:
             self.ac_base = data.get("ac", 10)
             self.dado_dano = tuple(data.get("dado_dano", [1, 4]))
             self.dado_vida = tuple(data.get("dado_vida", [1, 6]))
+            self.dado_vida = tuple(data.get("dado_vida", [1, 6]))
             self.alcance = data.get("alcance", 1)
             self.tipo_dano_base = data.get("tipo_dano", DANO_FISICO)
+            self._velocidade = data.get("speed", 6)
             
             # Calculate hp_max based on provided value or formula
             base_hp = data.get("hp", (self.dado_vida[1] + self.mod_con))
@@ -96,15 +98,30 @@ class Personagem:
         self.loot_table = [] # Lista de tuplas (ItemClass, chance 0.0-1.0)
         
         # Death Saves & State System
+        self.classe_nome = self.__class__.__name__
         self.death_saves_successes = 0
         self.death_saves_failures = 0
         self.estado = "NORMAL" # NORMAL, INCONSCIENTE, MORTO, ESTABILIZADO
         
+        # Turn State (Action Economy)
+        self.movimento_realizado = False
+        self.acao_realizada = False
+        self.acao_bonus_realizada = False
+        
         self.habilidades = {}
         self.custo_habilidades = {}
 
+    def iniciar_turno(self):
+        self.movimento_realizado = False
+        self.acao_realizada = False
+        self.acao_bonus_realizada = False
+        self.tick_cooldowns()
+        self.tick_recursos()
+
     def equipar_arma(self, arma):
         self.arma_equipada = arma
+        if hasattr(arma, 'dado_dano'):
+            self.dado_dano = arma.dado_dano
 
     def equipar_armadura(self, armadura):
         self.armadura_equipada = armadura
@@ -112,6 +129,7 @@ class Personagem:
     def equipar_acessorio(self, acessorio):
         self.acessorios_equipados.append(acessorio)
 
+    # Removed tick_cooldowns/tick_recursos from here (moved to iniciar_turno or keep as helpers called by it)
     def tick_cooldowns(self):
         for key in self.cooldowns:
             if self.cooldowns[key] > 0:
@@ -125,7 +143,7 @@ class Personagem:
             self.energia_atual = min(self.energia_max, self.energia_atual + 1)
 
     def aplicar_status_efeito(self, nome_efeito, duracao_turnos=1, logger=print, **kwargs):
-        from src.config import COR_STATUS, COR_TEXTO
+        from src.config import COR_STATUS, COR_TEXTO, COR_DANO
         if nome_efeito in self.imunidades:
             logger((f"  {self.nome} é imune a {nome_efeito}!", COR_TEXTO))
             return
@@ -301,80 +319,56 @@ class Personagem:
                  # Se não, move-se em direção a ele
                  return {'acao': 'mover', 'alvo': provocador}
 
-        # 0. Pegar item se estiver em cima de um
-        item_no_chao = tabuleiro.get_item_em(self.pos_x, self.pos_y)
-        if item_no_chao:
-            return {'acao': 'pegar_item', 'item': item_no_chao}
-
-        # 1. Usar Poção de Cura se com pouca vida
+        # 1. Usar Item (Action) - Only if Action not taken
+        if not self.acao_realizada:
+            # 1.1 Cura
             for item in self.inventario:
-                if isinstance(item, HealthPotion):
-                    logs_turno.append((f"  {self.nome} está com pouca vida e usa uma Poção de Cura!", COR_TEXTO))
+                if isinstance(item, HealthPotion) and self.hp_atual / self.hp_max < 0.3:
+                    logs_turno.append((f"  {self.nome} usa Poção de Cura!", COR_TEXTO))
                     item.usar(self, logs_turno.append)
                     self.inventario.remove(item)
-                    return {'acao': 'usar_item', 'item': item}
-        
-        # 1.1 Usar Poção de Mana se com pouco mana
-        if self.mana_max > 0 and self.mana_atual / self.mana_max < 0.3:
-             for item in self.inventario:
-                if isinstance(item, ManaPotion):
-                    logs_turno.append((f"  {self.nome} está com pouco mana e usa uma Poção de Mana!", COR_TEXTO))
-                    item.usar(self, logs_turno.append)
-                    self.inventario.remove(item)
-                    return {'acao': 'usar_item', 'item': item}
+                    return {'acao': 'usar_item', 'item': item} # Item use counts as Action for now
 
-        # 1.2 Usar Antídoto se envenenado
-        from src.config import STATUS_ENVENENADO
-        if any(e.nome == STATUS_ENVENENADO for e in self.status_efeitos):
-             for item in self.inventario:
-                if isinstance(item, Antidote):
-                    logs_turno.append((f"  {self.nome} usa um Antídoto para curar o veneno!", COR_TEXTO))
-                    item.usar(self, logs_turno.append)
-                    self.inventario.remove(item)
-                    return {'acao': 'usar_item', 'item': item}
-
-        # 1.3 Usar Bomba de Fumaça se precisar fugir e não puder (ou para garantir)
-        if self.hp_atual / self.hp_max < 0.2 and inimigos:
-             for item in self.inventario:
-                if isinstance(item, SmokeBomb):
-                    logs_turno.append((f"  {self.nome} usa uma Bomba de Fumaça para escapar!", COR_TEXTO))
-                    item.usar(self, logs_turno.append)
-                    self.inventario.remove(item)
-                    return {'acao': 'fugir'} # Tenta fugir imediatamente após usar
-        
-        # 2. Tentar fugir se com pouca vida
-        if self.hp_atual / self.hp_max < 0.25 and inimigos and self.pode_fugir:
-            return {'acao': 'fugir'}
-
-        if not inimigos:
-            return {'acao': 'passar'}
-
-        # 3. Lógica de seleção de alvo aprimorada
-        avg_damage = (self.dado_dano[0] * (self.dado_dano[1] + 1) / 2) + self.bonus_dano
-        
+        # 2. Main Action: Attack
         inimigos_em_range = [p for p in inimigos if calcular_distancia(self, p) <= self.alcance]
         
-        # Prioridade 1: Inimigos que podem ser finalizados neste turno
-        alvos_finalizaveis = [p for p in inimigos_em_range if p.hp_atual <= avg_damage]
-        if alvos_finalizaveis:
-            alvo = max(alvos_finalizaveis, key=lambda p: p.threat_level)
-            logs_turno.append((f"  ({self.nome} identifica uma oportunidade de finalizar {alvo.nome}!)", COR_TEXTO))
-            return {'acao': 'atacar', 'alvo': alvo}
-        
-        # Prioridade 2: Atacar o inimigo mais próximo em range
-        if inimigos_em_range:
-            alvo = min(inimigos_em_range, key=lambda p: calcular_distancia(self,p))
-            logs_turno.append((f"  ({self.nome} ataca o inimigo mais próximo ao seu alcance: {alvo.nome}.)", COR_TEXTO))
-            return {'acao': 'atacar', 'alvo': alvo}
+        if not self.acao_realizada:
+            if inimigos_em_range:
+                # Select target
+                # Prioridade: Finalizável > Ameaça > Próximo
+                avg_damage = (self.dado_dano[0] * (self.dado_dano[1] + 1) / 2) + self.bonus_dano
+                alvos_finalizaveis = [p for p in inimigos_em_range if p.hp_atual <= avg_damage]
+                
+                if alvos_finalizaveis:
+                    alvo = max(alvos_finalizaveis, key=lambda p: p.threat_level)
+                    return {'acao': 'atacar', 'alvo': alvo}
+                else:
+                    alvo = min(inimigos_em_range, key=lambda p: calcular_distancia(self, p))
+                    return {'acao': 'atacar', 'alvo': alvo}
 
-        # Prioridade 3: Mover-se em direção ao inimigo com menor HP
-        alvo = min(inimigos, key=lambda p: p.hp_atual)
-        logs_turno.append((f"  ({self.nome} se move em direção a {alvo.nome}, o inimigo com menos vida.)", COR_TEXTO))
-        return {'acao': 'mover', 'alvo': alvo}
+        # 3. Movement
+        if not self.movimento_realizado:
+            # If we haven't attacked yet (because out of range), move to closest enemy
+            if not self.acao_realizada and not inimigos_em_range:
+                alvo = min(inimigos, key=lambda p: calcular_distancia(self, p))
+                # Only return move if we actually are far
+                if calcular_distancia(self, alvo) > self.alcance:
+                     return {'acao': 'mover', 'alvo': alvo}
+            
+            # If we already attacked, maybe move away (Kiting)? 
+            # Complex AI for later. for now, melee stick, ranged keep distance.
+            # Ranged Kiting logic:
+            if self.alcance > 1 and inimigos_em_range and self.acao_realizada:
+                 # Try to move away from closest enemy if adjacent
+                 closest = min(inimigos_em_range, key=lambda p: calcular_distancia(self, p))
+                 if calcular_distancia(self, closest) <= 1:
+                     return {'acao': 'fugir'} # Using Standard Move to run away
+
+        return {'acao': 'passar'}
         
         return {'acao': 'passar'}
 
-    def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print, tipo_dano_override=None, habilidade=None):
+    def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print, tipo_dano_override=None, habilidade=None, vantagem=False, desvantagem=False, bonus_dano_extra=0):
         from src.config import COR_TEXTO, COR_CRITICO
         if not self.esta_vivo: return
         
@@ -383,9 +377,9 @@ class Personagem:
 
         if self.sound_player: self.sound_player('attack')
 
-        vantagem = False
-        desvantagem = False
         msg_modificadores = []
+        if vantagem: msg_modificadores.append("Vantagem (Habilidade)")
+        if desvantagem: msg_modificadores.append("Desvantagem (Habilidade)")
 
         # 1. Flanking (Grants Advantage)
         if self.alcance == 1 and time_aliado:
@@ -445,16 +439,16 @@ class Personagem:
         if rolagem_ataque == 20: # Critical Hit
             logger((f"{log_ataque} Acerto CRÍTICO!", COR_CRITICO))
             if self.sound_player: self.sound_player('critical_hit')
-            self.causar_dano(alvo, tabuleiro, logger, is_critico=True, tipo_dano_override=tipo_dano_override)
+            self.causar_dano(alvo, tabuleiro, logger, is_critico=True, tipo_dano_override=tipo_dano_override, bonus_dano_extra=bonus_dano_extra)
         elif total_ataque >= ac_alvo:
             logger((f"{log_ataque} Acerta!", COR_TEXTO))
-            self.causar_dano(alvo, tabuleiro, logger, tipo_dano_override=tipo_dano_override)
+            self.causar_dano(alvo, tabuleiro, logger, tipo_dano_override=tipo_dano_override, bonus_dano_extra=bonus_dano_extra)
         else:
             logger((f"{log_ataque} Erra (AC do alvo é {ac_alvo}).", COR_TEXTO))
             if self.sound_player: self.sound_player('miss')
             self.eventos_animacao.append({'tipo': 'dano', 'alvo': alvo, 'dano': 'ERROU!'})
 
-    def causar_dano(self, alvo, tabuleiro, logger=print, is_critico=False, tipo_dano_override=None):
+    def causar_dano(self, alvo, tabuleiro, logger=print, is_critico=False, tipo_dano_override=None, bonus_dano_extra=0):
         from src.config import COR_DANO, COR_CRITICO
         if self.arma_equipada:
             dado_dano = self.arma_equipada.dado_dano
@@ -471,8 +465,9 @@ class Personagem:
         
         if is_critico: logger((f"  Dano CRÍTICO!", COR_CRITICO))
 
-        dano_total = max(1, dano_rolado + self.bonus_dano)
-        logger((f"  Rolagem de Dano: {dano_rolado} ({num_rolagens}d{dado_dano[1]}) + {self.bonus_dano} (bônus) = {dano_total} de dano {tipo_dano}.", COR_DANO))
+        dano_total = max(1, dano_rolado + self.bonus_dano + bonus_dano_extra)
+        msg_extra = f" + {bonus_dano_extra} (extra)" if bonus_dano_extra > 0 else ""
+        logger((f"  Rolagem de Dano: {dano_rolado} ({num_rolagens}d{dado_dano[1]}) + {self.bonus_dano} (bônus){msg_extra} = {dano_total} de dano {tipo_dano}.", COR_DANO))
         
         alvo.receber_dano(dano_total, self, tabuleiro, logger, tipo_dano=tipo_dano)
         

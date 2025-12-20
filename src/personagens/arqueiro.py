@@ -11,6 +11,33 @@ class Arqueiro(Personagem):
 
         from ..itens.armas_comuns import ArcoCurto
         self.equipar_arma(ArcoCurto())
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['tiro_duplo'] = {
+            "nome": "Tiro Duplo",
+            "descricao": "Dispara duas flechas rapidamente.",
+            "custo": 0,
+            "cooldown": 3,
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 12, # Weapon range?
+            "dano": "arma", # x2 logic handled in implementation
+        }
+        self.habilidades['chuva_flechas'] = {
+             "nome": "Chuva de Flechas",
+             "descricao": "Ataque em área (2x2).",
+             "custo": 0,
+             "cooldown": 5,
+             "tipo": "area",
+             "alcance": 10,
+             "area": 1,
+             "dano": "1d6"
+        }
+        
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
 
     @property
     def bonus_ataque(self): return self.mod_des + self.bonus_proficiencia

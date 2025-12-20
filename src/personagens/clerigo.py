@@ -11,8 +11,42 @@ class Clerigo(Personagem):
         # Faith system
         self.fe_max = 10 + nivel
         self.fe_atual = self.fe_max
-        self.custo_habilidades = {'canalizar_divindade': 4}
-        self.threat_level = 4
+        self.fe_atual = self.fe_max
+        # self.custo_habilidades handled in init now
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['curar_ferimentos'] = {
+            "nome": "Curar Ferimentos",
+            "descricao": "Restaura vida de um aliado.",
+            "custo": 3, # Fe
+            "tipo": "acao",
+            "alvo": "aliado",
+            "alcance": 1,
+            "cura": "1d8+3"
+        }
+        self.habilidades['canalizar_divindade'] = {
+            "nome": "Canalizar Divindade",
+            "descricao": "Cura em área ou alvo distante.", # Original logic: Single target?
+            "custo": 5,
+            "tipo": "acao",
+            "alvo": "aliado",
+            "alcance": 5,
+            "cura": "2d6+3"
+        }
+        self.habilidades['chama_sagrada'] = {
+            "nome": "Chama Sagrada",
+            "descricao": "Dano radiante à distância.",
+            "custo": 0, # Cantrip
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 12,
+            "dano": "1d8",
+            "tipo_dano": "Radiante"
+        }
+        
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia

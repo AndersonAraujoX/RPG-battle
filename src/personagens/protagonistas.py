@@ -8,7 +8,10 @@ class Novak(Personagem):
         self.hp_atual = 50
         self.ac_base = 18 # High AC
         self._forca += 4
+        self._forca += 4
         self._constituicao += 4
+        
+        self.inicializar_habilidades()
         
     def inicializar_habilidades(self):
         # Tank Agressivo
@@ -37,6 +40,9 @@ class Novak(Personagem):
             "tipo_dano": "Fogo"
         }
         self.cooldown_max['golpe_flamejante'] = 2
+        
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
 
 class Koema(Personagem):
     def __init__(self, nome, time, nivel=5, sound_player=None):
@@ -47,7 +53,10 @@ class Koema(Personagem):
         self.mana_atual = 30 
         self.mana_max = 30
         self._destreza += 2
+        self._destreza += 2
         self._inteligencia += 2
+        
+        self.inicializar_habilidades()
 
     def inicializar_habilidades(self):
         # Jack-of-all-trades
@@ -74,6 +83,9 @@ class Koema(Personagem):
             "cura": 10
         }
         self.custo_habilidades['primeiros_socorros'] = 5
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
 
 class Rilem(Personagem):
     def __init__(self, nome, time, nivel=5, sound_player=None):
@@ -83,6 +95,8 @@ class Rilem(Personagem):
         self.energia_max = 40
         self._destreza += 4
         self._inteligencia += 3 # For strategy
+        
+        self.inicializar_habilidades()
 
     def inicializar_habilidades(self):
         # Support/Strategist
@@ -109,6 +123,9 @@ class Rilem(Personagem):
             "debuff": "reduzir_ac"
         }
         self.custo_habilidades['quebrar_defesa'] = 10
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
 
 class Yukito(Personagem):
     def __init__(self, nome, time, nivel=5, sound_player=None):
@@ -142,3 +159,5 @@ class Yukito(Personagem):
             "tipo_dano": "Magico"
         }
         self.custo_habilidades = {k: v['custo'] for k, v in self.habilidades.items()}
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
