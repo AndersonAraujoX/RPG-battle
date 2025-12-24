@@ -5,6 +5,8 @@ class Sienna(Chefe):
     def __init__(self, nome, time, nivel=1, sound_player=None, stats=None):
         super().__init__(nome, time, sound_player=sound_player, stats=stats)
         self.classe_nome = "Sienna"
+        self.hp_max = 80 # Reduzido de valores mais altos
+        self.hp_atual = self.hp_max
         self.mana_atual = 50
         self.mana_max = 50
         self.inicializar_habilidades()

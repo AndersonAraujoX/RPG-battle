@@ -1,0 +1,51 @@
+{
+    "inimigos": [
+        {
+            "tipo": "Goblin",
+            "qtd": 2,
+            "pos": [
+                [
+                    12,
+                    5
+                ],
+                [
+                    13,
+                    8
+                ]
+            ]
+        },
+        {
+            "tipo": "Kobold",
+            "qtd": 2,
+            "pos": [
+                [
+                    10,
+                    6
+                ],
+                [
+                    11,
+                    7
+                ]
+            ]
+        },
+        {
+            "tipo": "ReiGoblin",
+            "qtd": 1,
+            "pos": [
+                [
+                    15,
+                    10
+                ]
+            ]
+        }
+    ],
+    "itens": [
+        {
+            "tipo": "pocao_vida",
+            "pos": [
+                8,
+                8
+            ]
+        }
+    ]
+}

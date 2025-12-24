@@ -182,6 +182,24 @@ class MotorCombate:
             if not getattr(atacante, 'turn_started_log', False):
                  logs_turno.append((f"Vez de {atacante.nome}", COR_TEXTO))
                  atacante.turn_started_log = True
+                 
+                 # --- PERK: Aura de Vitalidade (Koema) ---
+                 if atacante.tem_perk("aura_vitalidade"):
+                     aliados_proximos = [p for p in (self.time_a if atacante.time == "A" else self.time_b) if p.esta_vivo and p != atacante and calcular_distancia(atacante, p) <= 1.5]
+                     if aliados_proximos:
+                         logs_turno.append((f"  Aura de Vitalidade de {atacante.nome} cura aliados próximos!", COR_CURA))
+                         for aliado in aliados_proximos:
+                             aliado.receber_cura(atacante.mod_sab + 2, logs_turno.append)
+
+                 # --- PERK: Inspiração (Rilem) ---
+                 if atacante.tem_perk("inspiracao"):
+                      # Aplica buff de movimento em todos os aliados
+                      aliados = (self.time_a if atacante.time == "A" else self.time_b)
+                      for aliado in aliados:
+                          if aliado.esta_vivo:
+                              aliado.aplicar_status_efeito("Inspirado", 1, logs_turno.append, bonus_velocidade=2)
+                      logs_turno.append((f"  {atacante.nome} inspira seus aliados! (+Movimento)", COR_STATUS))
+
             
             time_inimigo = [p for p in (self.time_b if atacante.time == "A" else self.time_a) if p.esta_vivo and p.estado != "MORTO"]
             time_aliado = [p for p in (self.time_a if atacante.time == "A" else self.time_b) if p.esta_vivo]
@@ -271,7 +289,7 @@ class MotorCombate:
             # Spawn Phoenix at same pos
             phoenix = SiennaPhoenix("Sienna (Fênix)", "B", sound_player=self.sound_player)
             phoenix.pos_x, phoenix.pos_y = sienna.pos_x, sienna.pos_y
-            self.tabuleiro.personagens[phoenix.pos_y][phoenix.pos_x] = phoenix
+            self.tabuleiro.grid[phoenix.pos_y][phoenix.pos_x] = phoenix
             
             self.time_b.append(phoenix)
             self.combatentes.append(phoenix)
@@ -446,7 +464,7 @@ class MotorCombate:
                 nome_minion = f"{minion_class.__name__}_{random.randint(100, 999)}"
                 minion = minion_class(nome_minion, summoner.time, nivel=1, sound_player=self.sound_player)
                 minion.pos_x, minion.pos_y = x, y
-                self.tabuleiro.personagens[y][x] = minion
+                self.tabuleiro.grid[y][x] = minion
                 self.combatentes.append(minion)
                 if summoner.time == "A":
                     self.time_a.append(minion)
@@ -594,7 +612,7 @@ class MotorCombate:
         elif habilidade_key == 'provocar':
              eventos.append({'tipo': 'ataque', 'atacante': atacante, 'alvo': None, 'habilidade': 'provocar'})
              logs.append((f"{atacante.nome} ruge, provocando os inimigos!", COR_STATUS))
-             raio = dados['area']
+             raio = dados.get('area', 2)
              alvos_area = self.tabuleiro.get_personagens_em_area(atacante.pos_x, atacante.pos_y, raio)
              for inimigo in alvos_area:
                  if inimigo.time != atacante.time and inimigo.esta_vivo:
@@ -863,6 +881,15 @@ class MotorCombate:
         logs_ataque = []
         atacante.atacar(alvo, time_inimigo, time_aliado, self.tabuleiro, logger=logs_ataque.append)
         
+        # --- PERK: Lâmina Incendiária (Novak) ---
+        if atacante.tem_perk("lamina_incendiaria") and alvo.esta_vivo is not None: # Check simple attack assumption
+             self.tabuleiro.aplicar_dano_terreno(alvo.pos_x, alvo.pos_y, "Fogo", logger=lambda x,y: None) # Silent create text? Or log?
+             # aplicar_dano_terreno actually damages if stand, but visual update handles creation?
+             # My visual update logic relies on terrain_grid.
+             # aplicar_dano_terreno does NOT set terrain.
+             self.tabuleiro.terrain_grid[alvo.pos_y][alvo.pos_x] = TERRENO_FOGO
+             logs_ataque.append((f"  [Lâmina Incendiária] O chão sob {alvo.nome} pega fogo!", COR_DANO_FOGO))
+
         eventos = list(atacante.eventos_animacao)
         atacante.eventos_animacao.clear()
         return eventos, logs_ataque
@@ -1053,6 +1080,12 @@ class MotorCombate:
                  logs_turno.append((f"  {atacante.nome} executa um Golpe Flamejante!", COR_DANO_FOGO))
                  atacante.cooldowns['golpe_flamejante'] = atacante.habilidades['golpe_flamejante']['cooldown']
                  atacante.atacar(alvo, time_inimigo, time_aliado, self.tabuleiro, logger=logs_turno.append, bonus_dano_extra=5, tipo_dano_override="Fogo")
+                 
+                 # --- PERK: Terra Arrasada (Yukito) ---
+                 if atacante.tem_perk("terra_arrasada"):
+                      self.tabuleiro.terrain_grid[alvo.pos_y][alvo.pos_x] = TERRENO_FOGO
+                      logs_turno.append((f"  [Terra Arrasada] A terra queima!", COR_DANO_FOGO))
+                      
                  atacante.acao_realizada = True
 
             elif habilidade == 'truque_sujo':
@@ -1087,7 +1120,13 @@ class MotorCombate:
             elif habilidade == 'quebrar_defesa':
                  alvo = acao['alvo']
                  logs_turno.append((f"  {atacante.nome} tenta Quebrar a Defesa de {alvo.nome}!", COR_STATUS))
-                 alvo.aplicar_status_efeito("Defesa Quebrada", 3, logs_turno.append)
+                 
+                 duracao = 3
+                 if atacante.tem_perk("analise_profunda"):
+                     duracao = 10 # Permanente na prática para combate
+                     logs_turno.append((f"  [Análise Profunda] O debuff durará mais tempo!", COR_STATUS))
+
+                 alvo.aplicar_status_efeito("Defesa Quebrada", duracao, logs_turno.append)
                  if 'quebrar_defesa' in atacante.custo_habilidades and hasattr(atacante, 'energia_atual'):
                      atacante.energia_atual -= atacante.custo_habilidades['quebrar_defesa']
                  atacante.acao_realizada = True
@@ -1143,7 +1182,11 @@ class MotorCombate:
             elif habilidade == 'canalizar_divindade':
                 alvo_cura = acao['alvo']
                 # Handle both Ally and Self logic
-                atacante.fe_atual -= atacante.custo_habilidades.get('canalizar_divindade', 4)
+                custo = atacante.custo_habilidades.get('canalizar_divindade', 4)
+                if atacante.tem_perk("maos_rapidas"):
+                    custo = max(1, custo - 1)
+                
+                atacante.fe_atual -= custo
                 cura = sum(random.randint(1, 6) for _ in range(2)) + atacante.mod_sab
                 alvo_cura.receber_cura(cura, logs_turno.append)
                 atacante.acao_realizada = True
@@ -1186,6 +1229,16 @@ class MotorCombate:
                 atacante.eventos_animacao.append({'tipo': 'ataque_area', 'atacante': atacante, 'x': alvo_central.pos_x, 'y': alvo_central.pos_y, 'raio': 1})
                 if atacante.sound_player: atacante.sound_player('attack')
                 
+                if atacante.sound_player: atacante.sound_player('attack')
+                
+                # --- PERK: Poço de Gravidade (Yukito) ---
+                if atacante.tem_perk("poco_gravidade"):
+                    logs_turno.append((f"  [Poço de Gravidade] Inimigos são puxados para o centro!", (150, 0, 200)))
+                    for vitima in alvos_afetados:
+                         if vitima.pos_x != alvo_central.pos_x or vitima.pos_y != alvo_central.pos_y:
+                             # Move towards center
+                             self.tabuleiro.mover_personagem(vitima, alvo_central.pos_x, alvo_central.pos_y) 
+
                 for vitima in alvos_afetados:
                      dano_base = sum(random.randint(1, 6) for _ in range(3)) 
                      dano_rolado = sum(random.randint(1, 6) for _ in range(3))

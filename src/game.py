@@ -1,6 +1,8 @@
 import pygame
 import sys
 from collections import deque
+from src.config import *
+from src.perks import PERKS
 from .motor_combate import MotorCombate
 from .map_generator import MapGenerator
 from .campanha import CampaignManager
@@ -21,9 +23,11 @@ from .config import (
     TAMANHO_CELULA, ALTURA_BARRA_INICIATIVA, LARGURA_TABULEIRO, LARGURA_LOG,
     ESTADO_JOGO_SETUP, ESTADO_JOGO_COMBATE, ESTADO_JOGO_FIM,
     ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_MAPA_MUNDO, ESTADO_JOGO_EDITOR, ESTADO_JOGO_CUTSCENE, ESTADO_JOGO_NARRATIVA,
+    ESTADO_JOGO_DEV, ESTADO_JOGO_LEVEL_UP,
     TIME_A, TIME_B, CORES_TERRENO,
     TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL, TERRENO_FOGO, TERRENO_AGUA,
-    IMAGE_PERSONAGENS, IMAGE_TERRENOS, PAINEL_MODO_LOG, PAINEL_MODO_INFO
+    IMAGE_PERSONAGENS, IMAGE_TERRENOS, PAINEL_MODO_LOG, PAINEL_MODO_INFO,
+    COR_BOTAO_DESABILITADO
 )
 from .sistema_dialogo import Dialogo
 from .salvar_carregar import salvar_jogo, carregar_jogo, salvar_mapa_json, carregar_mapa_json
@@ -186,28 +190,32 @@ class Game:
         self.bosses = bosses_init
         
         # --- Botoes de Combate (Action Bar - Bottom Left) ---
-        # Area: 600x168 (RECT_BARRA_ACOES)
+        # Area: 600x168 (RECT_BARRA_ACOES) [0-600, 600-768]
         
         btn_width = 250
         btn_height = 60
-        margin_x = 30
-        margin_y = 20
-        start_x = 30
+        margin_x = 20
+        margin_y = 15
+        
+        # Centralizar na area de 600px
+        total_width = (btn_width * 2) + margin_x
+        start_x = (600 - total_width) // 2
         start_y = 600 + 20
         
         self.botoes_combate['atacar'] = Botao(start_x, start_y, btn_width, btn_height, "Atacar", self.fonte_menu)
         self.botoes_combate['habilidade'] = Botao(start_x + btn_width + margin_x, start_y, btn_width, btn_height, "Habilidade", self.fonte_menu)
         
         self.botoes_combate['item'] = Botao(start_x, start_y + btn_height + margin_y, btn_width, btn_height, "Item", self.fonte_menu)
-        self.botoes_combate['proxima_acao'] = Botao(start_x + btn_width + margin_x, start_y + btn_height + margin_y, btn_width, btn_height, "Defender", self.fonte_menu) # Maps to Next Action/Defend
+        self.botoes_combate['proxima_acao'] = Botao(start_x + btn_width + margin_x, start_y + btn_height + margin_y, btn_width, btn_height, "Defender", self.fonte_menu)
         
-        # System Buttons (Painel Direito)
-        x_sys = 800
-        y_sys = 720
-        self.botoes_combate['salvar'] = Botao(x_sys, y_sys - 40, 80, 30, "Salvar", self.fonte_info)
-        self.botoes_combate['carregar'] = Botao(x_sys + 90, y_sys - 40, 80, 30, "Carregar", self.fonte_info)
+        # System Buttons (Painel Direito) - [600-1024] Center ~812
+        x_sys_center = 600 + (LARGURA_LOG // 2) 
+        # Buttons width 80+90 = 170. Start around center - 85.
+        
+        self.botoes_combate['salvar'] = Botao(x_sys_center - 90, 720, 80, 30, "Salvar", self.fonte_info)
+        self.botoes_combate['carregar'] = Botao(x_sys_center + 10, 720, 80, 30, "Carregar", self.fonte_info)
         # Cheat
-        self.botoes_combate['cheat_win'] = Botao(x_sys, y_sys, 170, 30, "VENCER (CHEAT)", self.fonte_info)
+        self.botoes_combate['cheat_win'] = Botao(x_sys_center - 85, 755, 170, 20, "VENCER (CHEAT)", self.fonte_personagem)
 
         
         # Botões de aba do painel
@@ -265,6 +273,42 @@ class Game:
             'gerar': Botao(x_gen, y_gen + 80, 150, 40, "Gerar Aleatório", self.fonte_menu)
         }
 
+        # --- Menu DEV (Grid 2 Colunas) ---
+        y_dev = 150
+        w_btn = 250
+        h_btn = 50
+        gap_x = 40
+        gap_y = 20
+        col1_x = LARGURA_TELA // 2 - w_btn - gap_x // 2
+        col2_x = LARGURA_TELA // 2 + gap_x // 2
+        
+        self.botoes_dev = {
+            # Coluna 1
+            'teste_combate': Botao(col1_x, y_dev, w_btn, h_btn, "Teste 1v1", self.fonte_menu),
+            'teste_editor': Botao(col1_x, y_dev + (h_btn + gap_y), w_btn, h_btn, "Editor de Mapas", self.fonte_menu),
+            'teste_dialogo': Botao(col1_x, y_dev + (h_btn + gap_y)*2, w_btn, h_btn, "Teste Diálogo", self.fonte_menu),
+            'teste_levelup': Botao(col1_x, y_dev + (h_btn + gap_y)*3, w_btn, h_btn, "Teste Level Up", self.fonte_menu),
+            
+            # Coluna 2
+            'teste_boss': Botao(col2_x, y_dev, w_btn, h_btn, "Teste Boss (Sienna)", self.fonte_menu),
+            'teste_mapa': Botao(col2_x, y_dev + (h_btn + gap_y), w_btn, h_btn, "Teste Mapa Mundo", self.fonte_menu),
+            'teste_cutscene': Botao(col2_x, y_dev + (h_btn + gap_y)*2, w_btn, h_btn, "Teste Final (Cutscene)", self.fonte_menu),
+            'teste_fim': Botao(col2_x, y_dev + (h_btn + gap_y)*3, w_btn, h_btn, "Teste Vitória", self.fonte_menu),
+
+            # Coluna 3 (Skill Tree Debug)
+            'tree_warrior': Botao(col2_x + w_btn + gap_x, y_dev, w_btn, h_btn, "Tree: Warrior", self.fonte_menu),
+            'tree_mage': Botao(col2_x + w_btn + gap_x, y_dev + (h_btn + gap_y), w_btn, h_btn, "Tree: Mage", self.fonte_menu),
+            'tree_rogue': Botao(col2_x + w_btn + gap_x, y_dev + (h_btn + gap_y)*2, w_btn, h_btn, "Tree: Rogue", self.fonte_menu),
+            'tree_cleric': Botao(col2_x + w_btn + gap_x, y_dev + (h_btn + gap_y)*3, w_btn, h_btn, "Tree: Cleric", self.fonte_menu),
+
+            
+            # Voltar
+            'voltar': Botao(LARGURA_TELA // 2 - 100, y_dev + (h_btn + gap_y)*4 + 20, 200, 50, "Voltar", self.fonte_menu, cor_fundo=(80, 20, 20))
+        }
+        # self.botoes_dev['teste_particulas'].desabilitado = True # Removido Particles por enquanto para limpar
+        self.modo_level_up = 'stat' # 'stat' or 'perk'
+        self.previous_state = ESTADO_JOGO_MENU_PRINCIPAL # To store state before level up or menus
+
 
     def iniciar_proxima_batalha_campanha(self):
         self.tocar_musica('batalha')
@@ -288,10 +332,15 @@ class Game:
 
         args = time_a_config + time_b_config
 
+        mapa_arquivo = battle_config.get("mapa")
+        # Se tiver mapa definido, não gera terreno aleatório
+        gerar_terreno = True if not mapa_arquivo else False
+
         try:
             self.motor = MotorCombate(args, 
                                       sound_player=self.play_sound, 
-                                      gerar_terreno=True) # Terreno aleatório para cada batalha da campanha
+                                      gerar_terreno=gerar_terreno,
+                                      custom_mapa_arquivo=mapa_arquivo) 
             
             # Carrega o progresso dos personagens do jogador
             self.campaign_manager.carregar_progresso_personagens(self.motor.time_a)
@@ -399,6 +448,37 @@ class Game:
         pygame.quit()
 
 
+    def verificar_opcoes_level_up(self):
+        # Limpa os botões de level up existentes
+        self.botoes_level_up.clear()
+
+        if not self.personagem_level_up:
+            return
+
+        if self.modo_level_up == 'stat':
+            # Botões de atributos
+            self.botoes_level_up = {
+                'forca': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 60, 200, 40, "+1 Força", self.fonte_menu),
+                'destreza': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 10, 200, 40, "+1 Destreza", self.fonte_menu),
+                'constituicao': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 40, 200, 40, "+1 Constituição", self.fonte_menu),
+                'inteligencia': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 90, 200, 40, "+1 Inteligência", self.fonte_menu),
+                'sabedoria': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 140, 200, 40, "+1 Sabedoria", self.fonte_menu),
+                'carisma': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 190, 200, 40, "+1 Carisma", self.fonte_menu),
+            }
+        elif self.modo_level_up == 'perk':
+            # Botões de perks
+            perks_disponiveis = self.personagem_level_up.get_perks_disponiveis()
+            
+            # Posições para os botões de perk
+            y_start = ALTURA_TELA // 2 - (len(perks_disponiveis) * 50) // 2
+            for i, perk_id in enumerate(perks_disponiveis):
+                perk_info = PERKS.get(perk_id, {"nome": "Perk Desconhecido"})
+                self.botoes_level_up[f"perk_{perk_id}"] = Botao(
+                    LARGURA_TELA // 2 - 150, y_start + i * 60, 300, 50,
+                    perk_info["nome"], self.fonte_menu
+                )
+
+
     def handle_events(self, mouse_pos, personagem_ativo):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -423,6 +503,9 @@ class Game:
                                     self.play_sound('button_click')
                                     if nome == 'nova_batalha':
                                         self.estado_jogo = ESTADO_JOGO_SETUP
+                                        self.active_tab_id = "times"
+                                        for t in self.menu_tabs.values(): t.selected = False
+                                        self.menu_tabs["times"].selected = True
                                     elif nome == 'nova_campanha':
                                         self.checkbox_campanha.checked = True
                                         self.checkbox_chefe.checked = False
@@ -440,10 +523,169 @@ class Game:
                                             # TODO: Feedback visual se não houver save
                                             print("Nenhum save encontrado!")
                                     elif nome == 'opcoes':
-                                        # self.estado_jogo = ESTADO_JOGO_OPCOES # Futuro
-                                        pass
+                                        self.estado_jogo = ESTADO_JOGO_SETUP
+                                        self.active_tab_id = "configuracoes"
+                                        for t in self.menu_tabs.values(): t.selected = False
+                                        self.menu_tabs["configuracoes"].selected = True
+                                        
                                     elif nome == 'sair':
                                         self.rodando = False
+                                    elif nome == 'dev':
+                                        self.estado_jogo = ESTADO_JOGO_DEV
+
+                    elif self.estado_jogo == ESTADO_JOGO_DEV:
+                        if event.button == 1:
+                            for nome, botao in self.botoes_dev.items():
+                                if botao.rect.collidepoint(mouse_pos):
+                                    self.play_sound('button_click')
+                                    if nome == 'voltar':
+                                        self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+                                    elif nome == 'teste_combate':
+                                        # Inicia combate simples 1x1
+                                        try:
+                                            # Arg list needs 24 items (12 classes Team A + 12 classes Team B)
+                                            # Team A: 1 Guerreiro (index 0)
+                                            # Team B: 1 Goblin (index 9)
+                                            # List: [1, 0... (11 zeros)] + [0... (9 zeros), 1, 0, 0]
+                                            args_a = [0] * 12
+                                            args_a[0] = 1 # Guerreiro
+                                            args_b = [0] * 12
+                                            args_b[9] = 1 # Goblin
+                                            
+                                            self.motor = MotorCombate(args_a + args_b, sound_player=self.play_sound, gerar_terreno=True)
+                                            self.estado_jogo = ESTADO_JOGO_COMBATE
+                                            self.log_combate.clear()
+                                            self.log_combate.append(("--- MODO DEV: TESTE COMBATE ---", COR_CRITICO))
+                                            self.tocar_musica('batalha')
+                                        except Exception as e:
+                                            print(f"Erro dev combate: {e}")
+                                    elif nome == 'teste_boss':
+                                        # Inicia Sienna
+                                        self.campaign_manager.reset()
+                                        self.iniciar_batalha_campanha_custom()
+                                    elif nome == 'teste_editor':
+                                        self.estado_jogo = ESTADO_JOGO_EDITOR
+                                    elif nome == 'teste_mapa':
+                                        self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
+                                    elif nome == 'teste_cutscene':
+                                        # Inicia a sequência final como teste
+                                        self.iniciar_sequencia_final()
+                                    elif nome == 'teste_fim':
+                                        self.motor.vencedor = "Time A (Dev)"
+                                        self.estado_jogo = ESTADO_JOGO_FIM
+                                        
+                                    elif nome == 'teste_dialogo':
+                                        self.dialogo.iniciar_dialogo([
+                                            ("Dev", "Testando sistema de diálogo completo.", None),
+                                            ("Heroi", "Tudo parece operacional, comandante.", "guerreiro"),
+                                            ("Vilão", "Não por muito tempo...", "lich"),
+                                            ("Sistema", "Fim do teste.", None)
+                                        ])
+                                        self.estado_jogo = ESTADO_JOGO_NARRATIVA
+                                    elif nome == 'teste_levelup':
+                                        # Cria um personagem dummy Nível 5 para testar árvore
+                                        dummy = Guerreiro("Teste", "A")
+                                        dummy.nivel = 5
+                                        dummy.xp = 0
+                                        self.personagem_level_up = dummy
+                                        self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                                        self.modo_level_up = 'stat'
+                                        self.verificar_opcoes_level_up()
+                                    
+                                    # Handlers de Debug Skill Tree
+                                    elif nome == 'tree_warrior':
+                                        dummy = Novak("Novak Debug", "A")
+                                        dummy.nivel = 10
+                                        self.personagem_level_up = dummy
+                                        self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                                        self.modo_level_up = 'perk'
+                                        self.verificar_opcoes_level_up()
+                                    elif nome == 'tree_mage':
+                                        dummy = Yukito("Yukito Debug", "A")
+                                        dummy.nivel = 10
+                                        self.personagem_level_up = dummy
+                                        self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                                        self.modo_level_up = 'perk'
+                                        self.verificar_opcoes_level_up()
+                                    elif nome == 'tree_rogue':
+                                        dummy = Rilem("Rilem Debug", "A")
+                                        dummy.nivel = 10
+                                        self.personagem_level_up = dummy
+                                        self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                                        self.modo_level_up = 'perk'
+                                        self.verificar_opcoes_level_up()
+                                    elif nome == 'tree_cleric':
+                                        dummy = Koema("Koema Debug", "A")
+                                        dummy.nivel = 10
+                                        self.personagem_level_up = dummy
+                                        self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                                        self.modo_level_up = 'perk'
+                                        self.verificar_opcoes_level_up()
+
+                    elif self.estado_jogo == ESTADO_JOGO_LEVEL_UP:
+                        # Handle clicks on level up buttons (Stat or Perk)
+                        if event.button == 1:
+                            clicked_btn_name = None
+                            for nome, botao in self.botoes_level_up.items():
+                                if botao.rect.collidepoint(mouse_pos):
+                                    self.play_sound('button_click')
+                                    clicked_btn_name = nome
+                                    break
+                            
+                            if clicked_btn_name:
+                                personagem = self.personagem_level_up
+                                
+                                if self.modo_level_up == 'stat':
+                                    if clicked_btn_name == 'forca': personagem._forca += 1
+                                    elif clicked_btn_name == 'destreza': personagem._destreza += 1
+                                    elif clicked_btn_name == 'constituicao': personagem._constituicao += 1
+                                    elif clicked_btn_name == 'inteligencia': personagem._inteligencia += 1
+                                    elif clicked_btn_name == 'sabedoria': personagem._sabedoria += 1
+                                    elif clicked_btn_name == 'carisma': personagem._carisma += 1
+                                    print(f"Stat aumentado: {clicked_btn_name}")
+                                    
+                                    # Após escolher um stat, o próximo passo é escolher um perk se disponível
+                                    self.modo_level_up = 'perk'
+                                    self.verificar_opcoes_level_up() # Tenta mudar para perk mode
+                                    
+                                    # Se não houver perks (verificar_opcoes setaria modo='perk', senao mantem 'stat' mas sem botoes?)
+                                    # A lógica de verificar_opcoes vai limpar botoes se não houver perk?
+                                    # Preciso ajustar isso. Se verificar retornar false/empty, sai.
+                                    if self.modo_level_up == 'stat': # Significa que não achou perks
+                                        self.estado_jogo = self.previous_state if self.previous_state else ESTADO_JOGO_COMBATE
+                                        self.personagem_level_up = None
+
+                                elif self.modo_level_up == 'perk':
+                                    if clicked_btn_name == 'concluir':
+                                         self.estado_jogo = self.previous_state if self.previous_state else ESTADO_JOGO_COMBATE
+                                         self.personagem_level_up = None
+                                    
+                                    elif clicked_btn_name.startswith("perk_"):
+                                        perk_id = clicked_btn_name.replace("perk_", "")
+                                        
+                                        # Encontrar dados do perk para validação
+                                        classe = personagem.classe_nome
+                                        perk_data = next((p for p in PERKS.get(classe, []) if p['id'] == perk_id), None)
+                                        
+                                        if perk_data:
+                                            if personagem.pode_desbloquear_perk(perk_data):
+                                                personagem.adquirir_perk(perk_id)
+                                                self.play_sound('level_up') # Confirm sound
+                                                print(f"Perk escolhido: {perk_id}")
+                                                
+                                                # Sai da tela após escolher (Assumindo 1 perk por level)
+                                                self.estado_jogo = self.previous_state if self.previous_state else ESTADO_JOGO_COMBATE
+                                                self.personagem_level_up = None
+                                            else:
+                                                print("Requisitos não atendidos ou já possui.")
+                                                # Opcional: Tocar som de erro
+                                                pass
+                        
+                        # Hack to exit level up screen in dev mode (Right click)
+                        if event.button == 3: 
+                            self.estado_jogo = ESTADO_JOGO_DEV
+
+
 
                     elif self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
                         if event.button == 1:
@@ -497,7 +739,7 @@ class Game:
                                     else:
                                         visible = False # Hide other buttons in times tab? No, wait.
                                 elif self.active_tab_id == "configuracoes":
-                                    if nome in ['sfx_vol_down', 'sfx_vol_up']:
+                                    if nome in ['sfx_vol_down', 'sfx_vol_up'] or nome.startswith('res_'):
                                         visible = True
                                     else:
                                         visible = False # Hide setup buttons in config tab
@@ -601,6 +843,30 @@ class Game:
                                     elif nome == 'sfx_vol_up':
                                         self.volume_sfx = min(1.0, self.volume_sfx + 0.1)
                                         pygame.mixer.music.set_volume(self.volume_sfx)
+                                    
+                                    # Lógica de Resolução
+                                    elif nome.startswith('res_'):
+                                        import json
+                                        w, h = 1024, 768
+                                        if nome == 'res_800': w, h = 800, 600
+                                        elif nome == 'res_1024': w, h = 1024, 768
+                                        elif nome == 'res_1280': w, h = 1280, 720
+                                        
+                                        settings = {"width": w, "height": h}
+                                        try:
+                                            with open("settings.json", "w") as f:
+                                                json.dump(settings, f)
+                                            print(f"Resolução salva: {w}x{h}. Reinicie o jogo.")
+                                            # Feedback visual simples (pode ser melhorado)
+                                            if nome != 'res_fullscreen': # O "Salvar & Sair" fecha o jogo
+                                                 pass 
+                                            else:
+                                                 self.rodando = False
+                                        except Exception as e:
+                                            print(f"Erro ao salvar settings: {e}")
+                                            
+                                        if nome == 'res_fullscreen':
+                                             self.rodando = False # Sair para reiniciar
 
                         # Handle clicks on unit lists for adding/removing units (Left click to add, Right click to remove)
                         if self.active_tab_id == "times" and event.type == pygame.MOUSEBUTTONDOWN:
@@ -740,7 +1006,7 @@ class Game:
                             grid_x = mouse_pos[0] // TAMANHO_CELULA
                             grid_y = (mouse_pos[1] - ALTURA_BARRA_INICIATIVA) // TAMANHO_CELULA
                             
-                            if 0 <= grid_x < 20 and 0 <= grid_y < 20:
+                            if 0 <= grid_x < 20 and 0 <= grid_y < 20 and self.motor:
                                 # Select unit on click (optional, for info panel)
                                 clicked_unit = self.motor.tabuleiro.get_personagem_em(grid_x, grid_y)
                                 if clicked_unit:
@@ -882,11 +1148,52 @@ class Game:
 
         if self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
             self.campaign_manager.atualizar_movimento()
+            self.campaign_manager.update(agora)
+            if self.campaign_manager.evento_mapa:
+                evento = self.campaign_manager.evento_mapa.popleft()
+                if evento.tipo == 'batalha':
+                    self.iniciar_proxima_batalha_campanha()
+                elif evento.tipo == 'cutscene':
+                    self.cutscene_manager.iniciar_cutscene(evento.cutscene_id)
+                    self.estado_jogo = ESTADO_JOGO_CUTSCENE
+                elif evento.tipo == 'dialogo':
+                    self.dialogo.iniciar_dialogo(evento.dialogo_data)
+                    self.estado_jogo = ESTADO_JOGO_NARRATIVA
+                elif evento.tipo == 'level_up':
+                    self.personagem_level_up = evento.personagem
+                    self.previous_state = self.estado_jogo
+                    self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                    self.modo_level_up = 'stat'
+                    self.play_sound('level_up')
+                    self.verificar_opcoes_level_up()
 
         if self.estado_jogo == ESTADO_JOGO_CUTSCENE:
             self.cutscene_manager.update()
 
         if self.estado_jogo == ESTADO_JOGO_COMBATE:
+            # Check for Battle End
+            if self.motor and self.motor.vencedor and not self.game_over_processed:
+                self.game_over_processed = True
+                
+                if self.motor.vencedor == "Time A":
+                    # Check if it was Sienna Boss Fight
+                    # Heuristic: Check if Time B had Sienna
+                    boss_fight = any(p.classe_nome == "Sienna" for p in self.motor.time_b)
+                    
+                    if boss_fight or self.checkbox_campanha.checked: # Assuming boss test sets this too or we just detect boss
+                         if boss_fight:
+                             self.iniciar_sequencia_final()
+                             return
+
+                    # Regular Campaign Logic
+                    if self.checkbox_campanha.checked:
+                        self.campaign_manager.avancar_nivel()
+                        self.campaign_manager.salvar_progresso_personagens(self.motor.time_a)
+                        if self.campaign_manager.salvar_campanha():
+                            self.log_combate.append(("Progresso da Campanha Salvo!", COR_CRITICO))
+                        else:
+                            self.log_combate.append(("Erro ao salvar campanha!", COR_DANO))
+
             # Animation Handling
             if self.animacao_atual:
                 # Check if animation finished (this logic depends on how animations are implemented in drawing)
@@ -916,7 +1223,13 @@ class Game:
                 elif self.animacao_atual['tipo'] == 'dano': self.play_sound('hit')
                 elif self.animacao_atual['tipo'] == 'dialogo':
                      self.dialogo.iniciar_dialogo(self.animacao_atual['mensagens'])
-                     self.animacao_atual = None # Ends animation step immediately, dialogue takes over via self.dialogo
+                     self.animacao_atual = None # Ends animation step immediately
+                elif self.animacao_atual['tipo'] == 'escolha_atributo':
+                     self.personagem_level_up = self.animacao_atual['personagem']
+                     self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                     self.verificar_opcoes_level_up(self.personagem_level_up)
+                     self.animacao_atual = None
+
             
             # AI Turn Logic
             elif self.motor and not self.motor.vencedor:
@@ -987,28 +1300,17 @@ class Game:
                     self.botoes_combate[f'habilidade_{key}'] = btn
                     i += 1
         
-        # Check for Battle End (Victory/Defeat) to Trigger Campaign Save
         if self.motor and self.motor.vencedor and not self.game_over_processed:
             self.game_over_processed = True
-            print(f"Batalha terminada. Vencedor: {self.motor.vencedor}")
             
             if self.motor.vencedor == "Time A":
-                # Check for Boss Victory (Sienna Phoenix Defeated)
-                # We can check if any enemy left is SiennaPhoenix (already removed from motor list on death?)
-                # Or check a flag. Assuming victory means all enemies dead.
-                # If specific campaign battle:
-                
-                # TRIGGER POST-COMBAT SEQUENCE
-                if self.checkbox_campanha.checked: # Assuming this flag is true for the custom battle
-                     self.iniciar_sequencia_final()
-                     return
-
-                self.campaign_manager.avancar_nivel()
-                self.campaign_manager.salvar_progresso_personagens(self.motor.time_a)
-                if self.campaign_manager.salvar_campanha():
-                     self.log_combate.append(("Progresso da Campanha Salvo!", COR_CRITICO))
-                else:
-                     self.log_combate.append(("Erro ao salvar campanha!", COR_DANO))
+                # Check for Boss Kill (Sienna)
+                # We assume if we played specific campaign or boss test, this is triggered.
+                # Let's check update_game_logic instead for cleaner flow.
+                pass
+            
+            if self.motor.vencedor == "Time B" and self.checkbox_campanha.checked:
+                 self.log_combate.append(("A campanha falhou...", COR_DANO))
 
     def draw_elements(self, tick, mouse_pos, personagem_ativo=None):
         self.tela.fill(COR_FUNDO)
@@ -1033,37 +1335,8 @@ class Game:
             # 2. Cenário (Tabuleiro) - Tabuleiro começa em (0,0)
             if self.motor:
                 visibilidade = self.motor.visibilidade_map
-                desenhar_cenario(self.tela, self.motor, self.imagens, 0, visibilidade)
+                desenhar_cenario(self.tela, self.motor, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 
-                # Itens e Personagens
-                desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, 0, visibilidade)
-                desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, 0, visibilidade)
-                
-                # Visualize Movement or Ability Range
-                if self.habilidade_selecionada:
-                    desenhar_alcance_habilidade(self.tela, self.motor, personagem_ativo, self.habilidade_selecionada, 0, mouse_pos)
-                else:
-                    desenhar_alcance_movimento(self.tela, self.motor, personagem_ativo, 0)
-                    desenhar_pre_visualizacao_ataque(self.tela, self.motor, self.motor.tabuleiro.get_personagem_em(mouse_pos[0] // TAMANHO_CELULA, mouse_pos[1] // TAMANHO_CELULA) if mouse_pos[0] < LARGURA_TABULEIRO and mouse_pos[1] < 600 else None, self.imagens, 0)
-
-                desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual, 0, self.imagens)
-                
-                # 4. UI Direita (Log, Info)
-                desenhar_log(self.tela, self.fonte_log, self.log_combate, ALTURA_TELA, 0)
-                
-                if self.unidade_selecionada:
-                    desenhar_info_personagem(self.tela, self.fonte_info, self.unidade_selecionada, 0)
-                elif personagem_ativo:
-                    desenhar_info_personagem(self.tela, self.fonte_info, personagem_ativo, 0)
-                
-                # 5. UI Baixo (Comandos)
-                desenhar_comandos(self.tela, self.fonte_info, 0, self.botoes_combate, mouse_pos, personagem_ativo)
-                
-                desenhar_floating_texts(self.tela, self.floating_texts)
-                desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
-                
-                if self.motor.vencedor:
-                   desenhar_tela_fim(self.tela, self.fonte_titulo, self.fonte_menu, self.motor.vencedor, self.botoes_fim, mouse_pos)
                 desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade)
                 desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 
@@ -1087,23 +1360,24 @@ class Game:
                 desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
 
                 if self.motor.vencedor:
-                    desenhar_tela_fim(self.tela, self.fonte_titulo, self.motor.vencedor, ALTURA_BARRA_INICIATIVA, self.botoes_fim, mouse_pos)
+                    desenhar_tela_fim(self.tela, self.fonte_titulo, self.fonte_menu, self.motor.vencedor, self.botoes_fim, mouse_pos)
         
         elif self.estado_jogo == ESTADO_JOGO_CUTSCENE:
              self.cutscene_manager.desenhar(self.tela)
+        
+        elif self.estado_jogo == ESTADO_JOGO_LEVEL_UP:
+             self.tela.fill((0, 0, 0)) # Limpa a tela para remover UI de combate anterior
+             if self.personagem_level_up:
+                 desenhar_tela_level_up(self.tela, self.fonte_titulo, self.fonte_menu, self.personagem_level_up, self.botoes_level_up, mouse_pos)
 
-        elif self.estado_jogo == ESTADO_JOGO_NARRATIVA:
-             # Draw Background (Ornallus / Space / Void)
-             self.tela.fill((10, 5, 20)) # Dark Purple/Black background
-             if "world" in self.imagens:
-                  bg = pygame.transform.scale(self.imagens["world"], (LARGURA_TELA, ALTURA_TELA)) # Reuse Intro World image or Placeholder
-                  bg.set_alpha(100)
-                  self.tela.blit(bg, (0,0))
-             
-             # Draw Portraits or Characters if needed (Visual Novel Style)
-             # For now, relying on Dialogue Box overlay
-             
-             desenhar_dialogo(self.tela, self.fonte_menu, self.dialogo, self.imagens)
+        
+        elif self.estado_jogo == ESTADO_JOGO_DEV:
+            self.tela.fill((10, 0, 0)) # Fundo avermelhado escuro
+            texto_dev = self.fonte_titulo.render("MENU DO DESENVOLVEDOR", True, (255, 50, 50))
+            self.tela.blit(texto_dev, (LARGURA_TELA // 2 - texto_dev.get_width() // 2, 80))
+            
+            for botao in self.botoes_dev.values():
+                botao.desenhar(self.tela, self.fonte_menu, mouse_pos)
 
         elif self.estado_jogo == ESTADO_JOGO_EDITOR:
             # Draw Grid Lines
@@ -1188,3 +1462,62 @@ class Game:
     def fim_cutscene(self):
         self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
         self.tocar_musica('menu') # Ou outra música de mapa
+
+    def verificar_opcoes_level_up(self, personagem=None):
+        if personagem:
+            self.personagem_level_up = personagem
+            
+        if not self.personagem_level_up:
+             return
+
+        # Limpa os botões de level up existentes
+        self.botoes_level_up.clear()
+        
+        # 1. Modo Stat (Default)
+        if self.modo_level_up == 'stat':
+            self.botoes_level_up = {
+                'forca': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 60, 200, 40, "+1 Força", self.fonte_menu),
+                'destreza': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 10, 200, 40, "+1 Destreza", self.fonte_menu),
+                'constituicao': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 40, 200, 40, "+1 Constituição", self.fonte_menu),
+                'inteligencia': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 90, 200, 40, "+1 Inteligência", self.fonte_menu),
+                'sabedoria': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 140, 200, 40, "+1 Sabedoria", self.fonte_menu),
+                'carisma': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 190, 200, 40, "+1 Carisma", self.fonte_menu),
+            }
+            
+        # 2. Modo Perk (Check availability)
+        # 2. Modo Perk (Check availability)
+        elif self.modo_level_up == 'perk':
+            classe = self.personagem_level_up.classe_nome
+            
+            if classe in PERKS:
+                # Dimensões da Grade
+                # Centraliza horizontalmente baseado no maior col? Por enquanto fixo.
+                # Considerando 2 colunas x 3 linhas aprox.
+                start_x = LARGURA_TELA // 2 - 150
+                start_y = ALTURA_TELA // 2 - 150
+                cell_w = 220
+                cell_h = 100
+
+                for perk in PERKS[classe]:
+                    # Calcula posição baseada na grade (pos[0]=col, pos[1]=row)
+                    px, py = perk.get('pos', (0, 0))
+                    
+                    x = start_x + (px * cell_w)
+                    y = start_y + (py * cell_h)
+                    
+                    # Define estado visual (apenas texto aqui, cor desenhada depois)
+                    pode = self.personagem_level_up.pode_desbloquear_perk(perk)
+                    tem = self.personagem_level_up.tem_perk(perk['id'])
+                    
+                    texto = f"{perk['nome']}"
+                    
+                    # Cria botão
+                    btn_id = f"perk_{perk['id']}"
+                    
+                    # Adiciona botao
+                    self.botoes_level_up[btn_id] = Botao(x, y, 200, 60, texto, self.fonte_menu)
+            
+            # Botão de Concluir (caso não queira pegar nada ou só visualizar)
+            self.botoes_level_up['concluir'] = Botao(LARGURA_TELA - 160, ALTURA_TELA - 80, 140, 50, "Concluir", self.fonte_menu)
+
+

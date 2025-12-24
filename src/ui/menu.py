@@ -50,29 +50,35 @@ def setup_menu_principal_ui():
     fonte_menu = pygame.font.Font(None, 48) # Fonte maior
     botoes = {}
     
-    largura_btn = 300
-    altura_btn = 60
+    # Layout Principal em Grid (2 Colunas x 3 Linhas)
+    # Total botoes: 6
+    # Col 1: JOGAR, CONTINUAR, DEV
+    # Col 2: NOVA CAMPANHA, OPÇÕES, SAIR
     
-    # Posicionamento à esquerda (conforme referência)
-    x_pos = 100
-    y_start = 350
-    espacamento = 80
+    w_btn = 300
+    h_btn = 60
+    gap_x = 40
+    gap_y = 30
     
-    botoes['nova_batalha'] = Botao(x_pos, y_start, largura_btn, altura_btn, "JOGAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    botoes['nova_campanha'] = Botao(x_pos, y_start + espacamento, largura_btn, altura_btn, "NOVA CAMPANHA", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    y_start = 380 # Um pouco mais baixo por causa do logotipo
     
-    botoes['continuar'] = Botao(x_pos, y_start + espacamento * 2, largura_btn, altura_btn, "CONTINUAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    col1_x = LARGURA_TELA // 2 - w_btn - gap_x // 2
+    col2_x = LARGURA_TELA // 2 + gap_x // 2
+    
+    # Linha 1
+    botoes['nova_batalha'] = Botao(col1_x, y_start, w_btn, h_btn, "JOGAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['nova_campanha'] = Botao(col2_x, y_start, w_btn, h_btn, "NOVA CAMPANHA", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    
+    # Linha 2
+    botoes['continuar'] = Botao(col1_x, y_start + h_btn + gap_y, w_btn, h_btn, "CONTINUAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
     if not os.path.exists("campaign_save.json"):
         botoes['continuar'].desabilitado = True
         
-    botoes['opcoes'] = Botao(x_pos, y_start + espacamento * 3, largura_btn, altura_btn, "OPÇÕES", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    botoes['sair'] = Botao(x_pos, y_start + espacamento * 4, largura_btn, altura_btn, "SAIR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
-    
-    # Botões extras (Gerenciar/Bestiário) podem ser acessados via "JOGAR" ou "OPÇÕES" futuramente, 
-    # ou podemos mantê-los menores se o usuário quiser. 
-    # Por enquanto, vou seguir estritamente a referência visual que tem 3 botões principais.
-    # Mas para não perder funcionalidade, vou adicionar "Gerenciar" e "Bestiário" como botões menores abaixo ou remover se não forem essenciais agora.
-    # Vou comentar os antigos para focar no visual da referência.
+    botoes['opcoes'] = Botao(col2_x, y_start + h_btn + gap_y, w_btn, h_btn, "OPÇÕES", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+
+    # Linha 3
+    botoes['dev'] = Botao(col1_x, y_start + (h_btn + gap_y)*2, w_btn, h_btn, "DEV TOOLS", fonte_menu, cor_fundo=(80, 20, 20))
+    botoes['sair'] = Botao(col2_x, y_start + (h_btn + gap_y)*2, w_btn, h_btn, "SAIR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
     
     return botoes
 
@@ -155,6 +161,14 @@ def setup_menu_ui():
     # Volume Controls
     botoes_ui['sfx_vol_down'] = Botao(0, 0, 40, 40, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
     botoes_ui['sfx_vol_up'] = Botao(0, 0, 40, 40, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    
+    # Resolução (Abaixo dos checkboxes)
+    y_res = y_check + 280
+    botoes_ui['res_800'] = Botao(check_x, y_res, 100, 30, "800x600", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['res_1024'] = Botao(check_x + 110, y_res, 100, 30, "1024x768", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['res_1280'] = Botao(check_x + 220, y_res, 100, 30, "1280x720", fonte_menu, cor_fundo=COR_BOTAO_MENU)
+    botoes_ui['res_fullscreen'] = Botao(check_x, y_res + 40, 320, 30, "Salvar Resolução & Sair", fonte_menu, cor_fundo=COR_BOTAO_MENU) # Botão para aplicar? Não, melhor aplicar ao clicar.
+
     
     bosses = [
         {"classe": ReiGoblin, "nome": "Rei Goblin"},

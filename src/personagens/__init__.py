@@ -15,3 +15,29 @@ from .bruxo import Bruxo
 from .minions import Goblin, Esqueleto, Kobold
 from .protagonistas import Novak, Koema, Rilem, Yukito
 from .sienna import Sienna, SiennaPhoenix
+
+def get_class_by_name(name):
+    cls_map = {
+        "Guerreiro": Guerreiro,
+        "Mago": Mago,
+        "Ladino": Ladino,
+        "Arqueiro": Arqueiro,
+        "Bárbaro": Barbaro,
+        "Clérigo": Clerigo,
+        "Paladino": Paladino,
+        "Druida": Druida,
+        "Bruxo": Bruxo,
+        "ReiGoblin": ReiGoblin,
+        "LordeLich": LordeLich,
+        "DragaoAnciao": DragaoAnciao,
+        "Goblin": Goblin,
+        "Esqueleto": Esqueleto,
+        "Kobold": Kobold,
+        "Novak": Novak,
+        "Koema": Koema,
+        "Rilem": Rilem,
+        "Yukito": Yukito,
+        "Sienna": Sienna,
+        "SiennaPhoenix": SiennaPhoenix
+    }
+    return cls_map.get(name)

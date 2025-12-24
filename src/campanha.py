@@ -44,12 +44,23 @@ CAMPAIGN_DATA = [
     },
 ]
 
+from .chapter_loader import ChapterLoader
+
 class CampaignManager:
     def __init__(self):
         self.nivel_atual = 0
         self.progresso_personagens = {} 
         self.posicao_jogador = [100, 400] # Posição inicial (x, y)
         self.destino_movimento = None # Para movimento suave
+        
+        # Load Chapters dynamically
+        self.loader = ChapterLoader()
+        self.campaign_data = self.loader.get_campaign_data()
+        
+        # Fallback if no chapters found (keep hardcoded as backup? or empty?)
+        if not self.campaign_data:
+             print("Nenhum capítulo encontrado em dados/capitulos. Usando dados de fallback.")
+             self.campaign_data = CAMPAIGN_DATA
         
         # Definição dos Locais no Mapa Mundi (Coordenadas baseadas em 1024x768)
         self.locais = [
@@ -104,8 +115,8 @@ class CampaignManager:
                 self.posicao_jogador[1] += (dy / dist) * velocidade
 
     def get_battle_config(self):
-        if self.nivel_atual < len(CAMPAIGN_DATA):
-            return CAMPAIGN_DATA[self.nivel_atual]
+        if self.nivel_atual < len(self.campaign_data):
+            return self.campaign_data[self.nivel_atual]
         return None
 
     def avancar_nivel(self):

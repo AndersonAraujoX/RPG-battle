@@ -1,9 +1,31 @@
 import pygame
+import json
+import os
+
+# --- Carregar Configurações Persistentes ---
+SETTINGS_FILE = "settings.json"
+LARGURA_PADRAO = 1024
+ALTURA_PADRAO = 768
+
+LARGURA_TELA = LARGURA_PADRAO
+ALTURA_BASE_TELA = ALTURA_PADRAO
+
+if os.path.exists(SETTINGS_FILE):
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            data = json.load(f)
+            LARGURA_TELA = data.get('width', LARGURA_PADRAO)
+            ALTURA_BASE_TELA = data.get('height', ALTURA_PADRAO)
+            # Validar minimos
+            if LARGURA_TELA < 800: LARGURA_TELA = 800
+            if ALTURA_BASE_TELA < 600: ALTURA_BASE_TELA = 600
+    except Exception as e:
+        print(f"Erro ao carregar settings: {e}")
 
 # --- Constantes de Tela e Tabuleiro ---
-LARGURA_TELA = 1024
-ALTURA_BARRA_INICIATIVA = 80
-ALTURA_TELA = 768 + ALTURA_BARRA_INICIATIVA
+# Usa os valores carregados
+ALTURA_BARRA_INICIATIVA = 0 # Mantendo 0 conforme logic nova
+ALTURA_TELA = ALTURA_BASE_TELA + ALTURA_BARRA_INICIATIVA
 TAMANHO_CELULA = 30
 LARGURA_TABULEIRO = 20 * TAMANHO_CELULA
 ALTURA_TABULEIRO = 20 * TAMANHO_CELULA
@@ -90,8 +112,10 @@ ESTADO_JOGO_FIM = 3
 ESTADO_JOGO_COMBATE = 4
 ESTADO_JOGO_EDITOR = 5
 ESTADO_JOGO_CUTSCENE = 6
+ESTADO_JOGO_LEVEL_UP = 7
 ESTADO_JOGO_MAPA_MUNDO = 8
 ESTADO_JOGO_NARRATIVA = 9
+ESTADO_JOGO_DEV = 10
 
 # --- Cores do Novo Menu ---
 COR_FUNDO_MENU = (5, 5, 5) # Quase preto
@@ -183,23 +207,31 @@ PROPRIEDADES_STATUS_EFEITO = {
 
 
 # --- Constantes do Novo Layout (Retro UI) ---
-# Dimensões da Tela: 1024 x 768 (Fixa)
-LARGURA_TELA = 1024
-ALTURA_TELA = 768 # Sem barra extra, tudo contido
-ALTURA_BARRA_INICIATIVA = 0 # Integrada ou removida por enquanto? Vamos manter 0 e redesenhar se precisar.
+# Dimensões da Tela: Agora dinâmicas (definidas no topo)
+# LARGURA_TELA e ALTURA_TELA já foram definidos
+
 # Layout: Coluna Esquerda (Jogo + Ações), Coluna Direita (Info + Log)
 
-# Esquerda (Total 600px largura)
-RECT_TABULEIRO = pygame.Rect(0, 0, 600, 600) # 20x30 = 600
-RECT_BARRA_ACOES = pygame.Rect(0, 600, 600, 168) # 768 - 600 = 168
+# A proporção do tabuleiro deve ser mantida ou o tabuleiro deve centralizar?
+# Por simplicidade, mantemos o tabuleiro fixo 600x600 e ajustamos o resto.
+LARGURA_ESQUERDA = 600
+RECT_TABULEIRO = pygame.Rect(0, 0, LARGURA_ESQUERDA, 600)
+RECT_BARRA_ACOES = pygame.Rect(0, 600, LARGURA_ESQUERDA, ALTURA_TELA - 600)
 
-# Direita (Total 424px largura -> 1024 - 600)
-X_DIREITA = 600
-LARGURA_DIREITA = 424
-RECT_PAINEL_INFO = pygame.Rect(X_DIREITA, 0, LARGURA_DIREITA, 120)       # Cabecalho / Info Unidade
-RECT_LOG = pygame.Rect(X_DIREITA, 120, LARGURA_DIREITA, 300)             # Log de Combate
-RECT_INVENTARIO = pygame.Rect(X_DIREITA, 420, LARGURA_DIREITA, 150)      # Inventario
-RECT_TUTORIAL = pygame.Rect(X_DIREITA, 570, LARGURA_DIREITA, 198)        # Tutorial / Extra
+# Direita (Ocupa o restante da largura)
+X_DIREITA = LARGURA_ESQUERDA
+LARGURA_DIREITA = LARGURA_TELA - LARGURA_ESQUERDA
+
+# Ajustar alturas do painel direito proporcionalmente ou fixo?
+# Total Disp: ALTURA_TELA
+# Header: 120
+# Log: 300
+# Inventario: 150
+# Tutorial: Restante
+RECT_PAINEL_INFO = pygame.Rect(X_DIREITA, 0, LARGURA_DIREITA, 120)
+RECT_LOG = pygame.Rect(X_DIREITA, 120, LARGURA_DIREITA, 300)
+RECT_INVENTARIO = pygame.Rect(X_DIREITA, 420, LARGURA_DIREITA, 150)
+RECT_TUTORIAL = pygame.Rect(X_DIREITA, 570, LARGURA_DIREITA, ALTURA_TELA - 570)
 
 # Cores Retro
 COR_BORDA_DOURADA = (184, 134, 11)   # DarkGoldenrod

@@ -1,0 +1,31 @@
+{
+    "inicio": [
+        {
+            "nome": "Rei Goblin",
+            "texto": "Vocês ousam entrar no meu domínio?",
+            "retrato": "reigoblin"
+        },
+        {
+            "nome": "Guerreiro",
+            "texto": "Sua tirania acaba hoje, criatura!",
+            "retrato": "novak"
+        },
+        {
+            "nome": "Rei Goblin",
+            "texto": "Peguem eles, meus servos!",
+            "retrato": "reigoblin"
+        }
+    ],
+    "fim": [
+        {
+            "nome": "Guerreiro",
+            "texto": "A floresta está segura novamente.",
+            "retrato": "novak"
+        },
+        {
+            "nome": "Rei Goblin",
+            "texto": "Argh... o caos... prevalecerá...",
+            "retrato": "reigoblin"
+        }
+    ]
+}

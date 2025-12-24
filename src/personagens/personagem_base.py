@@ -110,6 +110,31 @@ class Personagem:
         
         self.habilidades = {}
         self.custo_habilidades = {}
+        self.perks_adquiridos = []
+
+    def adquirir_perk(self, perk_id):
+        if perk_id not in self.perks_adquiridos:
+            self.perks_adquiridos.append(perk_id)
+            print(f"{self.nome} adquiriu o perk: {perk_id}")
+
+    def tem_perk(self, perk_id):
+        return perk_id in self.perks_adquiridos
+
+    def pode_desbloquear_perk(self, perk_data):
+        """Verifica se o personagem atende aos requisitos para desbloquear um perk."""
+        # 1. Já possui?
+        if self.tem_perk(perk_data['id']):
+            return False
+        # 2. Nível suficiente?
+        if self.nivel < perk_data['nivel_req']:
+            return False
+        # 3. Pré-requisito atendido?
+        req = perk_data.get('req_perk')
+        if req and not self.tem_perk(req):
+            return False
+        
+        return True
+
 
     def iniciar_turno(self):
         self.movimento_realizado = False
@@ -248,9 +273,31 @@ class Personagem:
 
     @property
     def ac(self):
+        ac_final = self.ac_base
         if self.armadura_equipada:
-            return self.armadura_equipada.bonus_ac
-        return self.ac_base
+            ac_final = self.armadura_equipada.bonus_ac
+        
+        # Passive Perks that don't need context (or we assume standard context if strictly necessary, but better to use calculate_ac_dynamic)
+        return ac_final
+
+    def calcular_ac_dinamico(self, tabuleiro, aliados):
+        total_ac = self.ac
+        
+        # 1. Perk: Muralha de Escudos
+        # +2 AC se tiver 1+ aliado adjacente
+        if self.tem_perk("muralha_escudos") and aliados:
+            tem_aliado_perto = any(a for a in aliados if a.esta_vivo and a is not self and calcular_distancia(self, a) <= 1.5)
+            if tem_aliado_perto:
+                total_ac += 2
+        
+        # 2. Perk: Mimetismo
+        # +4 AC se em Terreno Floresta, Barril, Rocha ou Parede (Cobertura natural)
+        if self.tem_perk("mimetismo") and tabuleiro:
+            terreno = tabuleiro.get_terrain_em(self.pos_x, self.pos_y)
+            if terreno in [TERRENO_FLORESTA, TERRENO_ROCHA, TERRENO_BARRIL]:
+                 total_ac += 4
+                 
+        return total_ac
 
     @property
     def mod_for(self): return (self.forca - 10) // 2
@@ -474,7 +521,7 @@ class Personagem:
         if self.sound_player: self.sound_player('hit')
 
     def receber_dano(self, quantidade, atacante=None, tabuleiro=None, logger=print, tipo_dano=DANO_FISICO):
-        from src.config import COR_DANO, COR_TEXTO
+        from src.config import COR_DANO, COR_TEXTO, COR_CURA
         if tipo_dano in self.imunidades:
             logger((f"  {self.nome} é imune a dano do tipo '{tipo_dano}'!", COR_TEXTO))
             self.eventos_animacao.append({'tipo': 'dano', 'alvo': self, 'dano': 'IMUNE'})
@@ -512,6 +559,16 @@ class Personagem:
             if self.estado != "MORTO":
                 if self.estado != "INCONSCIENTE":
                     self.estado = "INCONSCIENTE"
+                     
+                    # 3. Perk: Última Linha (Last Stand)
+                    if self.tem_perk("ultima_linha") and not getattr(self, "_ultima_linha_usada", False):
+                        self.hp_atual = 1
+                        self.estado = "NORMAL" # Resiste!
+                        self._ultima_linha_usada = True
+                        logger((f"  PERK ATIVADO: {self.nome} usa ÚLTIMA LINHA e recusa a cair! (1 HP)", (255, 215, 0)))
+                        self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'LAST STAND!', 'cor': (255, 215, 0)})
+                        return dano_final, msg_eficacia # Retorna, não cai inconsciente
+                     
                     self.death_saves_successes = 0
                     self.death_saves_failures = 0
                     logger((f"  {self.nome} caiu INCONSCIENTE!", COR_DANO))
@@ -522,6 +579,19 @@ class Personagem:
                      logger((f"  {self.nome} (Inconsciente) recebe dano: 1 Falha no Teste de Morte. ({self.death_saves_failures}/3)", COR_DANO))
                      if self.death_saves_failures >= 3:
                          self.morrer(tabuleiro, logger, atacante)
+
+            # Lógica de Recompensa de Kill (Perks do Atacante)
+            if self.estado in ["MORTO", "INCONSCIENTE"] and atacante:
+                 if atacante.tem_perk("sede_sangue"):
+                     cura = 5 + atacante.nivel
+                     logger((f"  [Sede de Sangue] {atacante.nome} se revigora com a morte de {self.nome}!", COR_CURA))
+                     atacante.receber_cura(cura, logger)
+                 
+                 if atacante.tem_perk("ressonancia_arcana") and hasattr(atacante, 'mana_atual'):
+                     rec_mana = 5
+                     atacante.mana_atual = min(atacante.mana_max, atacante.mana_atual + rec_mana)
+                     logger((f"  [Ressonância Arcana] {atacante.nome} absorve energia! (+{rec_mana} Mana)", (150, 0, 200)))
+                     atacante.eventos_animacao.append({'tipo': 'floating_text', 'personagem': atacante, 'texto': f'+{rec_mana} MP', 'cor': (150, 0, 200)})
             
         else:
             logger((f"  {self.nome} está com {self.hp_atual}/{self.hp_max} HP.", COR_TEXTO))
@@ -637,10 +707,12 @@ class Personagem:
                 "_inteligencia": self._inteligencia,
                 "_sabedoria": self._sabedoria,
                 "_carisma": self._carisma,
-            }
+            },
+            "perks": self.perks_adquiridos
         }
 
     def from_dict(self, data):
+        self.perks_adquiridos = data.get("perks", [])
         self.nivel = data.get("nivel", self.nivel)
         self.xp = data.get("xp", self.xp)
         self.hp_atual = data.get("hp_atual", self.hp_atual)
