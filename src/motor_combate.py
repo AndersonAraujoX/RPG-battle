@@ -555,6 +555,11 @@ class MotorCombate:
                   # Dex save? Simplified: half damage if high dex? No, full damage for now.
                   logs.append((f"  {vitima.nome} é atingido pela explosão!", COR_TEXTO))
                   vitima.receber_dano(dano, atacante, self.tabuleiro, logs.append, tipo_dano="Fogo")
+             
+             # Interação com Terreno (Cria Fogo)
+             for y in range(cy - raio, cy + raio + 1):
+                 for x in range(cx - raio, cx + raio + 1):
+                     self.tabuleiro.aplicar_dano_terreno(x, y, "Fogo", logger=logs.append)
                   
         elif habilidade_key == 'raio_de_gelo':
              if alvo:
