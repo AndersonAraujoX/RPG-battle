@@ -18,10 +18,19 @@ class TestMecanicasJogo(unittest.TestCase):
         
     def teste_batalha_completa_5_vezes(self):
         """Executa 5 simulações de mecânicas variadas."""
-        for i in range(1, 6):
-            print(f"\n--- Início da Simulação {i}/5 ---")
-            self.executar_cenario_teste(i)
-            print(f"--- Fim da Simulação {i}/5 ---")
+        try:
+            with open("test_log_debug.txt", "w") as log_file:
+                for i in range(1, 6):
+                    log_file.write(f"--- Início da Simulação {i}/5 ---\n")
+                    self.executar_cenario_teste(i)
+                    log_file.write(f"--- Fim da Simulação {i}/5 ---\n")
+            
+            with open("test_result.txt", "w") as f:
+                f.write("SUCCESS")
+        except Exception as e:
+            with open("test_result.txt", "w") as f:
+                f.write(f"FAIL: {str(e)}")
+            raise e
 
     def executar_cenario_teste(self, seed):
         # Setup fixo para reprodutibilidade se necessário, mas queremos variar
@@ -60,6 +69,8 @@ class TestMecanicasJogo(unittest.TestCase):
         guerreiro = next(p for p in motor.time_a if isinstance(p, Guerreiro))
         mago = next(p for p in motor.time_a if isinstance(p, Mago))
         goblin = next(p for p in motor.time_b if isinstance(p, Goblin))
+        goblin.hp_max = 100
+        goblin.hp_atual = 100
         esqueleto = next(p for p in motor.time_b if isinstance(p, Esqueleto))
         
         # Teste 1: Iniciativa
