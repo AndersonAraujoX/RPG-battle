@@ -64,6 +64,8 @@ class Game:
         self.unidade_selecionada = None
         self.habilidade_selecionada = None # Estado para guardar qual habilidade está selecionada para uso
         self.skill_menu_open = False # [NEW] Controls visibility of skill buttons vs main actions
+        self.actions_menu_open = False # [NEW] Controls visibility of generic actions menu
+        self.acao_action_selecionada = None # [NEW] Stores selected generic action (Help, Grapple, Shove)
         self.personagem_info_painel = None
         self.checkbox_campanha = None # Will be initialized in setup_ui
         self.painel_modo = PAINEL_MODO_LOG
@@ -206,7 +208,8 @@ class Game:
         self.botoes_combate['habilidade'] = Botao(start_x + btn_width + margin_x, start_y, btn_width, btn_height, "Habilidade", self.fonte_menu)
         
         self.botoes_combate['item'] = Botao(start_x, start_y + btn_height + margin_y, btn_width, btn_height, "Item", self.fonte_menu)
-        self.botoes_combate['proxima_acao'] = Botao(start_x + btn_width + margin_x, start_y + btn_height + margin_y, btn_width, btn_height, "Defender", self.fonte_menu)
+        self.botoes_combate['acoes'] = Botao(start_x + btn_width + margin_x, start_y + btn_height + margin_y, btn_width, btn_height, "Ações", self.fonte_menu)
+        self.botoes_combate['proxima_acao'] = Botao(start_x + (btn_width//2) + margin_x, start_y + (btn_height*2) + margin_y*2, btn_width, btn_height, "Passar Vez", self.fonte_menu)
         
         # System Buttons (Painel Direito) - [600-1024] Center ~812
         x_sys_center = 600 + (LARGURA_LOG // 2) 
@@ -1047,33 +1050,47 @@ class Game:
 
                         # Handle Combat Buttons
                         for nome, botao in list(self.botoes_combate.items()):
-                            # Visibility check based on skill_menu_open
+                            # Visibility check based on menus
                             is_skill_btn = nome.startswith('habilidade_') or nome == 'voltar_skills'
-                            is_main_btn = nome in ['atacar', 'habilidade', 'item', 'proxima_acao']
+                            is_action_btn = nome.startswith('acao_') or nome == 'voltar_acoes'
+                            is_main_btn = nome in ['atacar', 'habilidade', 'item', 'acoes', 'proxima_acao']
                             
                             if self.skill_menu_open:
-                                if is_main_btn: continue
+                                if is_main_btn or is_action_btn: continue
+                            elif self.actions_menu_open:
+                                if is_main_btn or is_skill_btn: continue
                             else:
-                                if is_skill_btn: continue
+                                if is_skill_btn or is_action_btn: continue
 
                             if botao.rect.collidepoint(mouse_pos):
-                                print(f"DEBUG: Clicked button '{nome}' | MenuOpen: {self.skill_menu_open} | Active: {personagem_ativo}")
+                                print(f"DEBUG: Clicked button '{nome}'")
                                 self.play_sound('button_click')
                                 
                                 if nome == 'proxima_acao':
                                         self.log_combate.append((f"{personagem_ativo.nome} passou a vez.", COR_TEXTO))
                                         self.habilidade_selecionada = None
+                                        self.acao_action_selecionada = None
                                         self.skill_menu_open = False
-                                        
+                                        self.actions_menu_open = False
+                                        self.motor.avancar_turno()
+
+                                elif nome == 'acoes': # Open Actions Menu
+                                     if personagem_ativo and personagem_ativo.time == TIME_A:
+                                         self.actions_menu_open = True
+                                         self.play_sound('button_click')
+                                         self.atualizar_botoes_acoes(personagem_ativo)
+
+                                elif nome == 'voltar_acoes':
+                                     self.actions_menu_open = False
+                                     self.acao_action_selecionada = None
+                                     
                                 elif nome == 'habilidade': # Open Skill Menu
                                      if personagem_ativo and personagem_ativo.time == TIME_A:
                                          self.skill_menu_open = True
                                          self.play_sound('button_click')
-                                         # (Re)Generate buttons for safety/update
                                          self.atualizar_botoes_habilidade(personagem_ativo)
 
                                 elif nome == 'voltar_skills': # Close Skill Menu
-                                     print("DEBUG: Voltar Skills Clicked")
                                      self.skill_menu_open = False
                                      self.habilidade_selecionada = None
                                      self.play_sound('button_click')
@@ -1081,11 +1098,35 @@ class Game:
                                 elif nome.startswith('habilidade_'):
                                     hab_key = nome.split('habilidade_')[1]
                                     if self.habilidade_selecionada == hab_key:
-                                        self.habilidade_selecionada = None # Toggle off
+                                        self.habilidade_selecionada = None
                                     else:
                                         self.habilidade_selecionada = hab_key
                                         self.log_combate.append((f"Habilidade selecionada: {personagem_ativo.habilidades[hab_key]['nome']}", COR_TEXTO))
                                 
+                                # --- Action Handlers ---
+                                elif nome == 'acao_dash':
+                                    if personagem_ativo.usar_dash(self.log_combate):
+                                        self.motor.avancar_turno() # Dash is an action? Or just Bonus? 5e: Action.
+                                        self.actions_menu_open = False
+
+                                elif nome == 'acao_disengage':
+                                    if personagem_ativo.usar_disengage(self.log_combate):
+                                        self.motor.avancar_turno()
+                                        self.actions_menu_open = False
+
+                                elif nome == 'acao_dodge':
+                                    if personagem_ativo.usar_dodge(self.log_combate):
+                                        self.motor.avancar_turno()
+                                        self.actions_menu_open = False
+                                        
+                                elif nome in ['acao_help', 'acao_grapple', 'acao_shove']:
+                                    action = nome.replace('acao_', '')
+                                    if self.acao_action_selecionada == action:
+                                        self.acao_action_selecionada = None
+                                    else:
+                                        self.acao_action_selecionada = action
+                                        self.log_combate.append((f"Ação selecionada: {action.title()}. Clique no alvo.", COR_TEXTO))
+
                                 elif nome == 'salvar':
                                     self.motor.salvar_jogo()
                                     self.log_combate.append(("Jogo salvo!", COR_XP))
@@ -1096,7 +1137,6 @@ class Game:
                                 elif nome == 'voltar_menu':
                                     self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
                                 elif nome == 'reiniciar':
-                                    # Logic to restart would go here, maybe just go back to setup
                                     self.estado_jogo = ESTADO_JOGO_SETUP
                                 elif nome == 'cancelar':
                                     self.estado_jogo = ESTADO_JOGO_SETUP
@@ -1118,8 +1158,48 @@ class Game:
                                 # Player Action Logic
                                 if personagem_ativo and personagem_ativo.time == TIME_A and not self.animacao_atual and not self.fila_animacoes:
                                     
+                                    # 0. Ação Genérica Selecionada (Grapple, Shove, Help)
+                                    if self.acao_action_selecionada:
+                                        if not clicked_unit: 
+                                            self.log_combate.append(("Selecione um alvo válido.", COR_DANO))
+                                        else:
+                                            # Check adjacency for Grapple/Shove? usually yes. Help too (mostly).
+                                            dist = calcular_distancia(personagem_ativo, clicked_unit)
+                                            success = False
+                                            
+                                            if self.acao_action_selecionada == 'help':
+                                                if clicked_unit.time == TIME_A: # Help ally? Or distract enemy? D&D Help grants adv to ally attack.
+                                                    # Usually you "Help an ally" OR "Distract an enemy".
+                                                    # Let's support both or just distraction (common in combat sims).
+                                                    # My implementation in Personagem: `usar_help(alvo)` grants "Alvo de Ajuda" status to ALVO.
+                                                    # If ALVO is enemy -> Next attack against it has advantage. Correct.
+                                                    if dist <= 1.5: # Help range 5ft usually
+                                                        success = personagem_ativo.usar_help(clicked_unit, self.log_combate)
+                                                    else:
+                                                        self.log_combate.append(("Alvo muito longe para Ajudar/Distrair!", COR_DANO))
+                                                else:
+                                                     if dist <= 1.5:
+                                                        success = personagem_ativo.usar_help(clicked_unit, self.log_combate)
+                                            
+                                            elif self.acao_action_selecionada == 'grapple':
+                                                if dist <= 1.5:
+                                                    success = personagem_ativo.usar_grapple(clicked_unit, self.log_combate)
+                                                else:
+                                                    self.log_combate.append(("Alvo fora de alcance (Melee)!", COR_DANO))
+                                            
+                                            elif self.acao_action_selecionada == 'shove':
+                                                if dist <= 1.5:
+                                                    success = personagem_ativo.usar_shove(clicked_unit, self.log_combate)
+                                                else:
+                                                    self.log_combate.append(("Alvo fora de alcance (Melee)!", COR_DANO))
+                                                    
+                                            if success:
+                                                self.motor.avancar_turno()
+                                                self.acao_action_selecionada = None
+                                                self.actions_menu_open = False
+                                    
                                     # 1. Habilidade Selecionada
-                                    if self.habilidade_selecionada:
+                                    elif self.habilidade_selecionada:
                                         # Verifica se o tile clicado é válido
                                         valid_tiles, tipo = self.motor.get_alcance_habilidade(personagem_ativo, self.habilidade_selecionada)
                                         if (grid_x, grid_y) in valid_tiles:
@@ -1351,18 +1431,62 @@ class Game:
             
             # Update Ability Buttons (Optimized)
             current_char_id = id(personagem_ativo) if personagem_ativo else None
-            state_changed = (current_char_id != self.last_char_id) or (self.skill_menu_open != self.last_menu_open)
+            state_changed = (current_char_id != self.last_char_id) or (self.skill_menu_open != self.last_menu_open) or (self.actions_menu_open != self.last_menu_open) # [MODIFIED]
             
             if state_changed:
                  self.atualizar_botoes_habilidade(personagem_ativo)
+                 self.atualizar_botoes_acoes(personagem_ativo) # [NEW]
                  self.last_char_id = current_char_id
-                 self.last_menu_open = self.skill_menu_open
+                 self.last_menu_open = self.skill_menu_open or self.actions_menu_open # [MODIFIED]
             
             # Fallback: if not player turn, ensure menu is closed (handled in atualizar_botoes_habilidade, but we must call it if turn changed)
-            if personagem_ativo and personagem_ativo.time != TIME_A and self.skill_menu_open:
+            if personagem_ativo and personagem_ativo.time != TIME_A and (self.skill_menu_open or self.actions_menu_open):
                  self.skill_menu_open = False
+                 self.actions_menu_open = False
                  self.atualizar_botoes_habilidade(personagem_ativo)
+                 self.atualizar_botoes_acoes(personagem_ativo)
                  self.last_menu_open = False
+
+    def atualizar_botoes_acoes(self, personagem_ativo):
+        """Atualiza botões de ações genéricas (Dash, Dodge, etc)"""
+        # Remove old action buttons
+        keys_to_remove = [k for k in self.botoes_combate if k.startswith('acao_') or k == 'voltar_acoes']
+        for k in keys_to_remove:
+            del self.botoes_combate[k]
+            
+        if not personagem_ativo or personagem_ativo.time != TIME_A:
+            self.actions_menu_open = False
+            return
+
+        if self.actions_menu_open:
+            # Layout similar to skills
+            btn_width = 150
+            btn_height = 45
+            margin_x = 10
+            margin_y = 10
+            start_x = 30
+            start_y = 620
+            
+            # Add Back Button
+            self.botoes_combate['voltar_acoes'] = Botao(start_x + 3*(btn_width + margin_x), 650, 80, 45, "Voltar", self.fonte_menu)
+
+            actions = [
+                ('acao_dash', 'Dash (Mv x2)'),
+                ('acao_disengage', 'Disengage'),
+                ('acao_dodge', 'Dodge (Def)'),
+                ('acao_help', 'Help (Adv)'),
+                ('acao_grapple', 'Grapple'),
+                ('acao_shove', 'Shove')
+            ]
+            
+            for i, (key, label) in enumerate(actions):
+                col = i % 3
+                row = i // 3
+                
+                x = start_x + col * (btn_width + margin_x)
+                y = start_y + row * (btn_height + margin_y)
+                
+                self.botoes_combate[key] = Botao(x, y, btn_width, btn_height, label, self.fonte_info)
 
     def atualizar_botoes_habilidade(self, personagem_ativo):
         # Remove old ability buttons
@@ -1385,7 +1509,7 @@ class Game:
             start_y = 620
             
             # LIGHTWEIGHT FIX: Always add Back button first
-            self.botoes_combate['voltar_skills'] = Botao(start_x + 2*(btn_width + margin_x), 550, 100, 50, "Voltar", self.fonte_menu)
+            self.botoes_combate['voltar_skills'] = Botao(start_x + 2*(btn_width + margin_x), 650, 100, 50, "Voltar", self.fonte_menu)
 
             if hasattr(personagem_ativo, 'habilidades') and personagem_ativo.habilidades:
                 i = 0

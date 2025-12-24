@@ -508,18 +508,22 @@ def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
 
 def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos, personagem_ativo=None):
     skill_menu_open = any(k == 'voltar_skills' for k in botoes.keys())
+    actions_menu_open = any(k == 'voltar_acoes' for k in botoes.keys())
     fonte_retro = pygame.font.SysFont("Courier New", 16, bold=True)
 
     for nome, botao in botoes.items():
         is_skill_btn = nome.startswith('habilidade_') or nome == 'voltar_skills'
-        is_main_btn = nome in ['atacar', 'habilidade', 'item', 'proxima_acao']
+        is_action_btn = nome.startswith('acao_') or nome == 'voltar_acoes'
+        is_main_btn = nome in ['atacar', 'habilidade', 'item', 'acoes', 'proxima_acao']
         
         if skill_menu_open:
-            if is_main_btn: continue
+            if is_main_btn or is_action_btn: continue
+        elif actions_menu_open:
+            if is_main_btn or is_skill_btn: continue
         else:
-            if is_skill_btn: continue
+            if is_skill_btn or is_action_btn: continue
             
-        if is_main_btn or is_skill_btn:
+        if is_main_btn or is_skill_btn or is_action_btn:
             rect = botao.rect
             hover = rect.collidepoint(mouse_pos)
             

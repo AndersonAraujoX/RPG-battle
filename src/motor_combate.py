@@ -243,6 +243,9 @@ class MotorCombate:
         if self.combatente_atual_idx == 0: self.turno += 1
 
     def _verificar_ataques_de_oportunidade(self, personagem_movendo, novo_x, novo_y, logs_turno):
+        if personagem_movendo.tem_status("Desengajar"):
+            return True # Imune
+
         time_inimigo = self.time_b if personagem_movendo.time == "A" else self.time_a
         for inimigo in time_inimigo:
             if inimigo.esta_vivo and inimigo.alcance == 1 and calcular_distancia(personagem_movendo, inimigo) <= 1:

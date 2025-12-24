@@ -259,6 +259,107 @@ class Personagem:
         if self.xp >= self.xp_para_upar:
             self.subir_de_nivel(logger)
 
+    def usar_dash(self, logs_turno):
+        from src.config import COR_STATUS
+        if self.acao_realizada:
+            logs_turno.append((f"  {self.nome} já realizou uma ação neste turno.", (200, 200, 200)))
+            return False
+            
+        self.acao_realizada = True
+        # Dash doubles movement for the turn. 
+        # Since we don't have a rigid movement counter decrementing, 
+        # we can just apply a temporary speed buff or handle it in logic.
+        # But 'Movimento' is usually handled by `movimento_realizado` flag.
+        # If Dash is used, maybe we allow `movimento_realizado` to be reset?
+        # Or simplistic: Apply "Dash" status which affects movement logic.
+        
+        self.aplicar_status_efeito("Dash", 1, logs_turno.append)
+        logs_turno.append((f"  {self.nome} usa Ação de Disparada (Dash)! (Movimento Dobrado)", COR_STATUS))
+        self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'DASH', 'cor': (255, 255, 0)})
+        return True
+
+    def usar_disengage(self, logs_turno):
+        from src.config import COR_STATUS
+        if self.acao_realizada:
+            return False
+        
+        self.acao_realizada = True
+        self.aplicar_status_efeito("Desengajar", 1, logs_turno.append)
+        logs_turno.append((f"  {self.nome} usa Desengajar! (Imune a Ataques de Oportunidade)", COR_STATUS))
+        self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'DISENGAGE', 'cor': (100, 255, 100)})
+        return True
+        
+    def usar_dodge(self, logs_turno):
+        from src.config import COR_STATUS
+        if self.acao_realizada:
+            return False
+            
+        self.acao_realizada = True
+        self.aplicar_status_efeito("Esquiva", 1, logs_turno.append)
+        logs_turno.append((f"  {self.nome} entra em Esquiva (Dodge)! (Desvantagem para atacantes)", COR_STATUS))
+        self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'DODGE', 'cor': (100, 100, 255)})
+        return True
+        
+    def usar_help(self, alvo, logs_turno):
+        from src.config import COR_STATUS
+        if self.acao_realizada:
+            return False
+            
+        self.acao_realizada = True
+        # Grant Advantage to next attack against target
+        alvo.aplicar_status_efeito("Alvo de Ajuda", 1, logs_turno.append) # 1 turn or until hit?
+        logs_turno.append((f"  {self.nome} Ajuda contra {alvo.nome}! (Vantagem no próximo ataque)", COR_STATUS))
+        self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': self, 'texto': 'HELP', 'cor': (255, 255, 255)})
+        return True
+
+    def usar_grapple(self, alvo, logs_turno):
+        """Agarrar (Grapple): Athletics (For) vs Athletics/Acrobatics (For/Des)"""
+        from src.config import COR_STATUS
+        if self.acao_realizada: return False
+        
+        self.acao_realizada = True
+        
+        # Roll Contest
+        roll_atk = random.randint(1, 20) + self.mod_for
+        # Target resists with better of Str or Dex
+        mod_def = max(alvo.mod_for, alvo.mod_des)
+        roll_def = random.randint(1, 20) + mod_def
+        
+        logs_turno.append((f"  {self.nome} tenta AGARRAR (Grapple) {alvo.nome}...", COR_STATUS))
+        logs_turno.append((f"  Rolagem: {roll_atk} (For) vs {roll_def} (For/Des)", COR_STATUS))
+        
+        if roll_atk >= roll_def:
+            logs_turno.append((f"  SUCESSO! {alvo.nome} está Agarrado!", COR_STATUS))
+            alvo.aplicar_status_efeito("Agarrado", 100, logs_turno.append) # Until escaped
+            self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': alvo, 'texto': 'GRAPPLED', 'cor': (255, 165, 0)})
+        else:
+            logs_turno.append((f"  FALHA! {alvo.nome} escapou do agarrao.", COR_STATUS))
+            self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': alvo, 'texto': 'ESCAPED', 'cor': (200, 200, 200)})
+        return True
+
+    def usar_shove(self, alvo, logs_turno):
+        """Empurrar (Shove): Knock Prone. Athletics vs Athletics/Acrobatics"""
+        from src.config import COR_STATUS
+        if self.acao_realizada: return False
+        
+        self.acao_realizada = True
+        
+        # Roll Contest
+        roll_atk = random.randint(1, 20) + self.mod_for
+        mod_def = max(alvo.mod_for, alvo.mod_des)
+        roll_def = random.randint(1, 20) + mod_def
+        
+        logs_turno.append((f"  {self.nome} tenta DERRUBAR (Shove) {alvo.nome}...", COR_STATUS))
+        logs_turno.append((f"  Rolagem: {roll_atk} (For) vs {roll_def} (For/Des)", COR_STATUS))
+        
+        if roll_atk >= roll_def:
+            logs_turno.append((f"  SUCESSO! {alvo.nome} foi derrubado (Caído)!", COR_STATUS))
+            alvo.aplicar_status_efeito("Caído", 100, logs_turno.append) # Until stands up
+            self.eventos_animacao.append({'tipo': 'floating_text', 'personagem': alvo, 'texto': 'PRONE', 'cor': (255, 165, 0)})
+        else:
+            logs_turno.append((f"  FALHA! {alvo.nome} se manteve de pé.", COR_STATUS))
+        return True
+
     def subir_de_nivel(self, logger=print):
         from src.config import COR_LEVEL_UP
         self.nivel += 1
@@ -407,7 +508,20 @@ class Personagem:
                     return {'acao': 'usar_item', 'item': item} # Item use counts as Action for now
 
         # 2. Main Action: Attack
-        inimigos_em_range = [p for p in inimigos if calcular_distancia(self, p) <= self.alcance]
+        inimigos_possiveis = []
+        for p in inimigos:
+            dist = calcular_distancia(self, p)
+            if dist <= self.alcance:
+                # Check Charmed
+                status_charmed = next((e for e in self.status_efeitos if e.nome == "Enfeitiçado"), None)
+                if status_charmed:
+                    encantador = status_charmed.dados_extra.get("encantador")
+                    if encantador and p == encantador:
+                         # Cannot attack charmer
+                         continue
+                inimigos_possiveis.append(p)
+
+        inimigos_em_range = inimigos_possiveis
         
         if not self.acao_realizada:
             if inimigos_em_range:
@@ -425,25 +539,49 @@ class Personagem:
 
         # 3. Movement
         if not self.movimento_realizado:
+            # Check Grappled / Restrained (Speed 0)
+            if self.tem_status("Agarrado") or self.tem_status("Contido"):
+                logs_turno.append((f"  {self.nome} não pode se mover (Agarrado/Contido).", COR_TEXTO))
+                return {'acao': 'passar'} # Can still attack, but logic below returns move. Stop here if moving.
+                # Actually, if we can attack, we should have already returned 'atacar' above. 
+                # This block only runs if we need to move. So we return pass.
+
             # If we haven't attacked yet (because out of range), move to closest enemy
             if not self.acao_realizada and not inimigos_em_range:
                 alvo = min(inimigos, key=lambda p: calcular_distancia(self, p))
+                
+                # Check Frightened (Can't move closer to source)
+                status_assustado = next((e for e in self.status_efeitos if e.nome == "Assustado"), None)
+                if status_assustado:
+                    fonte_medo = status_assustado.dados_extra.get("fonte")
+                    # If target is the source of fear, we cannot move closer.
+                    # Or generic: Can't move closer to source.
+                    # Simplification: If targeting the source, skip move or flee?
+                    if fonte_medo and alvo == fonte_medo:
+                         logs_turno.append((f"  {self.nome} está com MEDO de {alvo.nome} e não pode se aproximar!", COR_TEXTO))
+                         return {'acao': 'passar'} # Or pick another target? For now, pass.
+
                 # Only return move if we actually are far
                 if calcular_distancia(self, alvo) > self.alcance:
                      return {'acao': 'mover', 'alvo': alvo}
             
             # If we already attacked, maybe move away (Kiting)? 
-            # Complex AI for later. for now, melee stick, ranged keep distance.
             # Ranged Kiting logic:
             if self.alcance > 1 and inimigos_em_range and self.acao_realizada:
                  # Try to move away from closest enemy if adjacent
                  closest = min(inimigos_em_range, key=lambda p: calcular_distancia(self, p))
                  if calcular_distancia(self, closest) <= 1:
+                     # Check Grappled again just in case Kiting relies on move
+                     if self.tem_status("Agarrado") or self.tem_status("Contido"):
+                         return {'acao': 'passar'}
                      return {'acao': 'fugir'} # Using Standard Move to run away
 
         return {'acao': 'passar'}
         
         return {'acao': 'passar'}
+
+    def tem_status(self, nome):
+        return any(e.nome == nome for e in self.status_efeitos)
 
     def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print, tipo_dano_override=None, habilidade=None, vantagem=False, desvantagem=False, bonus_dano_extra=0):
         from src.config import COR_TEXTO, COR_CRITICO
@@ -452,14 +590,19 @@ class Personagem:
         self.eventos_animacao.append({'tipo': 'ataque', 'atacante': self, 'alvo': alvo, 'habilidade': habilidade})
         if self.sound_player: self.sound_player('attack')
 
-        if self.sound_player: self.sound_player('attack')
-
         msg_modificadores = []
-        if vantagem: msg_modificadores.append("Vantagem (Habilidade)")
-        if desvantagem: msg_modificadores.append("Desvantagem (Habilidade)")
+        if vantagem: msg_modificadores.append("Bin (Hab.)")
+        if desvantagem: msg_modificadores.append("Mal (Hab.)")
 
-        # 1. Flanking (Grants Advantage)
-        if self.alcance == 1 and time_aliado:
+        # --- D&D 5e CONDITIONS (Refactored) ---
+        from src.condicoes import verificar_condicoes_ataque, verificar_critico_automatico
+        distancia = calcular_distancia(self, alvo)
+        
+        vantagem, desvantagem, mods_condicoes = verificar_condicoes_ataque(self, alvo, distancia, vantagem, desvantagem)
+        msg_modificadores.extend(mods_condicoes)
+
+        # 6. Flanking (Grants Advantage)
+        if self.alcance == 1 and time_aliado and not desvantagem: # Flanking is optional rule, kept here.
             for aliado in time_aliado:
                 if aliado is not self and aliado.esta_vivo and aliado.alcance == 1 and calcular_distancia(aliado, alvo) <= 1:
                      dx_self = self.pos_x - alvo.pos_x
@@ -469,10 +612,10 @@ class Personagem:
                      
                      if dx_self == -dx_ally and dy_self == -dy_ally:
                          vantagem = True
-                         msg_modificadores.append(f"Flanqueando com {aliado.nome}")
+                         msg_modificadores.append(f"Flanqueando ({aliado.nome})")
                          break
 
-        # 2. Elevation (Higher Ground grants Advantage)
+        # 7. Elevation (Higher Ground grants Advantage)
         if self.elevacao > alvo.elevacao and self.alcance > 1:
             vantagem = True
             msg_modificadores.append("Terreno Alto")
@@ -493,18 +636,7 @@ class Personagem:
                 logger((f"  Alvo tem +5 AC por Cobertura 3/4!", (200, 200, 255)))
             else:
                  logger((f"  Alvo tem +2 AC por Meia Cobertura!", (200, 200, 255)))
-            
-        terreno_alvo = tabuleiro.get_terrain_em(alvo.pos_x, alvo.pos_y)
-        if terreno_alvo == TERRENO_FLORESTA:
-            if self.alcance > 1: # Ranged attack
-                # Forest grants cover against ranged -> Disadvantage? Or keep Miss Chance?
-                # 5e Rules: Cover grants +AC. Obscurement grants Disadvantage.
-                # Let's simple use Cover (+2 AC) for now as implemented, or swap to Disadvantage?
-                # Let's keep Cover +2 AC for consistency with "Cover" system task.
-                # But user asked for Mechanics. Let's make it Disadvantage to test the system?
-                # No, Cover is typically AC. Let's stick to AC for terrain.
-                pass 
-                
+        
         # Execute Attack Roll
         rolagem_ataque, msg_dado = rolar_d20(vantagem=vantagem, desvantagem=desvantagem)
         
@@ -512,8 +644,13 @@ class Personagem:
         
         mod_str = f" ({', '.join(msg_modificadores)})" if msg_modificadores else ""
         log_ataque = f"  Ataque: {rolagem_ataque}{msg_dado} + {self.bonus_ataque} = {total_ataque}{mod_str} vs AC {ac_alvo}."
+        
+        # Auto Crit for Paralyzed/Unconscious within 5ft (Refactored)
+        is_critico, msg_critico = verificar_critico_automatico(self, alvo, distancia, rolagem_ataque, total_ataque, ac_alvo)
+        if msg_critico:
+             msg_modificadores.append(msg_critico)
 
-        if rolagem_ataque == 20: # Critical Hit
+        if is_critico: # Critical Hit
             logger((f"{log_ataque} Acerto CRÍTICO!", COR_CRITICO))
             if self.sound_player: self.sound_player('critical_hit')
             self.causar_dano(alvo, tabuleiro, logger, is_critico=True, tipo_dano_override=tipo_dano_override, bonus_dano_extra=bonus_dano_extra)
