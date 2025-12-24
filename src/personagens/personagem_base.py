@@ -106,7 +106,10 @@ class Personagem:
         # Turn State (Action Economy)
         self.movimento_realizado = False
         self.acao_realizada = False
+        self.movimento_realizado = False
+        self.acao_realizada = False
         self.acao_bonus_realizada = False
+        self.invulneravel = False # God Mode support
         
         self.habilidades = {}
         self.custo_habilidades = {}
@@ -218,8 +221,35 @@ class Personagem:
         for efeito in self.status_efeitos:
             if efeito.nome == "Fuga Garantida": return True
             if not efeito.propriedades.get("pode_fugir", True):
-                return False
+                 return False
         return True
+
+    def receber_dano(self, dano, atacante, tabuleiro, logger=print, tipo_dano="Fisico"):
+        from src.config import COR_DANO, COR_TEXTO
+        
+        if self.invulneravel:
+            logger((f"  {self.nome} é invulnerável!", COR_TEXTO))
+            return
+
+        if not self.esta_vivo: return
+
+        self.hp_atual -= dano
+        if self.hp_atual < 0: self.hp_atual = 0
+        
+        logger((f"  {self.nome} sofreu {dano} de dano ({tipo_dano})! [HP: {self.hp_atual}/{self.hp_max}]", COR_DANO))
+        
+        if self.sound_player: self.sound_player('hit')
+        self.eventos_animacao.append({'tipo': 'dano', 'alvo': self, 'valor': dano})
+
+        if self.hp_atual == 0:
+            self.morrer(logger)
+
+    def morrer(self, logger=print):
+        from src.config import COR_CRITICO
+        if self.estado != "MORTO":
+            self.estado = "MORTO"
+            logger((f"  {self.nome} foi derrotado!", COR_CRITICO))
+            self.eventos_animacao.append({'tipo': 'morte', 'alvo': self})
 
     def ganhar_xp(self, quantidade, logger=print):
         from src.config import COR_XP

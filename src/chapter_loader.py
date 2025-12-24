@@ -4,14 +4,14 @@ import logging
 from .utils import resource_path
 
 class ChapterLoader:
-    def __init__(self, base_dir="dados/capitulos"):
+    def __init__(self, base_dir="dados/fases"):
         self.base_dir = resource_path(base_dir)
-        self.capitulos = []
-        self._carregar_capitulos()
+        self.fases = []
+        self._carregar_fases()
 
-    def _carregar_capitulos(self):
+    def _carregar_fases(self):
         if not os.path.exists(self.base_dir):
-            logging.warning(f"Diretório de capítulos não encontrado: {self.base_dir}")
+            logging.warning(f"Diretório de fases não encontrado: {self.base_dir}")
             return
 
         # Listar subpastas
@@ -20,17 +20,17 @@ class ChapterLoader:
         for pasta in subpastas:
             caminho = os.path.join(self.base_dir, pasta)
             try:
-                capitulo = self._carregar_capitulo(caminho)
-                if capitulo:
-                    self.capitulos.append(capitulo)
-                    print(f"Capítulo carregado: {capitulo['info'].get('titulo')} ({pasta})")
+                fase = self._carregar_fase(caminho) # Renamed capitulo to fase, _carregar_capitulo to _carregar_fase
+                if fase:
+                    self.fases.append(fase) # Renamed capitulos to fases
+                    print(f"Fase carregada: {fase['info'].get('titulo')} ({pasta})") # Renamed "Capítulo" to "Fase"
             except Exception as e:
-                logging.error(f"Erro ao carregar capítulo {pasta}: {e}")
+                logging.error(f"Erro ao carregar fase {pasta}: {e}") # Renamed "capítulo" to "fase"
 
         # Ordenar por 'ordem' definida no info.json
-        self.capitulos.sort(key=lambda c: c.get('info', {}).get('ordem', 999))
+        self.fases.sort(key=lambda c: c.get('info', {}).get('ordem', 999)) # Renamed capitulos to fases
 
-    def _carregar_capitulo(self, caminho_pasta):
+    def _carregar_fase(self, caminho_pasta): # Renamed _carregar_capitulo to _carregar_fase
         # Carregar arquivos essenciais
         info_path = os.path.join(caminho_pasta, "info.json")
         batalha_path = os.path.join(caminho_pasta, "batalha.json")
@@ -75,7 +75,7 @@ class ChapterLoader:
         
         from .personagens import get_class_by_name # Helper necessario
 
-        for cap in self.capitulos:
+        for cap in self.fases:
             batalha = cap.get('batalha', {})
             inimigos_data = batalha.get('inimigos', [])
             

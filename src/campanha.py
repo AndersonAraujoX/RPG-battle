@@ -53,6 +53,10 @@ class CampaignManager:
         self.posicao_jogador = [100, 400] # Posição inicial (x, y)
         self.destino_movimento = None # Para movimento suave
         
+        self.gold = 0
+        self.perks_desbloqueados = []
+        self.items_desbloqueados = []
+        
         # Load Chapters dynamically
         self.loader = ChapterLoader()
         self.campaign_data = self.loader.get_campaign_data()
@@ -133,13 +137,36 @@ class CampaignManager:
     def reset(self):
         self.nivel_atual = 0
         self.progresso_personagens = {}
-        self.posicao_jogador = [100, 400] # Reset position when starting over
+        self.posicao_jogador = [100, 400]
+        self.locais = [
+            {"nome": "Vila Inicial", "completado": True},
+            {"nome": "Floresta Sombria", "completado": False},
+            {"nome": "Montanhas Geladas", "completado": False},
+            {"nome": "Caverna do Dragão", "completado": False},
+            {"nome": "Torre do Mago", "completado": False},
+            {"nome": "Ruínas Antigas", "completado": False},
+        ]
+        self.gold = 0
+        self.perks_desbloqueados = []
+        self.items_desbloqueados = []
+        
+    def ganhar_xp(self, quantidade):
+        # Distribui XP para todos os personagens salvos
+        # Se personagens não estão instanciados, atualiza o dict
+        for nome, dados in self.progresso_personagens.items():
+            if 'xp' in dados:
+                dados['xp'] += quantidade
+                # Handle Level Up in dict? Complex. 
+                # Simpler: just add XP. Level up happens when they are instantiated and check XP.
+        print(f"Campanha: {quantidade} XP distribuído.")
 
     def salvar_campanha(self):
         data = {
             "nivel_atual": self.nivel_atual,
+            "gold": self.gold, # Save Gold
             "progresso_personagens": self.progresso_personagens,
             "posicao_jogador": self.posicao_jogador,
+            "perks_desbloqueados": self.perks_desbloqueados, # Save Perks
             # Salvar estado dos locais? Sim, pra saber quais completou
             "locais": [
                 {"nome": l["nome"], "completado": l["completado"]} for l in self.locais

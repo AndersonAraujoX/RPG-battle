@@ -301,14 +301,56 @@ class Game:
             'tree_rogue': Botao(col2_x + w_btn + gap_x, y_dev + (h_btn + gap_y)*2, w_btn, h_btn, "Tree: Rogue", self.fonte_menu),
             'tree_cleric': Botao(col2_x + w_btn + gap_x, y_dev + (h_btn + gap_y)*3, w_btn, h_btn, "Tree: Cleric", self.fonte_menu),
 
+            # Coluna 4 (Misc) - Linha 5 (Actually Row 4 idx)
+            'selecao_capitulos': Botao(col1_x, y_dev + (h_btn + gap_y)*4, w_btn, h_btn, "Seleção de Fases", self.fonte_menu),
+            'jogar_campanha': Botao(col2_x, y_dev + (h_btn + gap_y)*4, w_btn, h_btn, "Jogar Campanha", self.fonte_menu, cor_fundo=(60, 100, 60)),
+            'toggle_god_mode': Botao(col2_x + w_btn + gap_x, y_dev + (h_btn + gap_y)*4, w_btn, h_btn, "God Mode: OFF", self.fonte_menu, cor_fundo=(100, 50, 50)),
             
+            # Linha 6 (Extras)
+            'add_resources': Botao(col1_x, y_dev + (h_btn + gap_y)*5, w_btn, h_btn, "+1000 XP/Ouro", self.fonte_menu, cor_fundo=(218, 165, 32), cor_texto=(0,0,0)),
+            'unlock_all': Botao(col2_x, y_dev + (h_btn + gap_y)*5, w_btn, h_btn, "Desbloquear Tudo", self.fonte_menu, cor_fundo=(100, 200, 200), cor_texto=(0,0,0)),
+            'teste_particulas': Botao(col2_x + w_btn + gap_x, y_dev + (h_btn + gap_y)*5, w_btn, h_btn, "Teste Partículas", self.fonte_menu),
+
             # Voltar
-            'voltar': Botao(LARGURA_TELA // 2 - 100, y_dev + (h_btn + gap_y)*4 + 20, 200, 50, "Voltar", self.fonte_menu, cor_fundo=(80, 20, 20))
+            'voltar': Botao(LARGURA_TELA // 2 - 100, y_dev + (h_btn + gap_y)*6 + 10, 200, 50, "Voltar", self.fonte_menu, cor_fundo=(80, 20, 20))
         }
-        # self.botoes_dev['teste_particulas'].desabilitado = True # Removido Particles por enquanto para limpar
+        
+        self.god_mode = False # Inicializa estado
+        
+        # --- Botões de Seleção de Capítulos (Dynamically Generated) ---
+        self.botoes_capitulos = {}
+        y_cap = 100
+        x_cap = 50
+        cols = 3
+        w_cap = 300
+        h_cap = 60
+        gap_cap_x = 20
+        gap_cap_y = 20
+        
+        if hasattr(self.campaign_manager, 'campaign_data') and self.campaign_manager.campaign_data:
+            for i, fase_data in enumerate(self.campaign_manager.campaign_data):
+                col = i % cols
+                row = i // cols
+                x = x_cap + col * (w_cap + gap_cap_x)
+                y = y_cap + row * (h_cap + gap_cap_y)
+                
+                titulo = f"{fase_data.get('titulo', f'Fase {i+1}')}"
+                key = f"fase_{i}"
+                self.botoes_capitulos[key] = Botao(x, y, w_cap, h_cap, titulo, self.fonte_menu)
+
+        self.botoes_capitulos['voltar_dev'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA - 80, 200, 50, "Voltar", self.fonte_menu, cor_fundo=(80, 20, 20))
+
         self.modo_level_up = 'stat' # 'stat' or 'perk'
         self.previous_state = ESTADO_JOGO_MENU_PRINCIPAL # To store state before level up or menus
 
+    def iniciar_capitulo_dev(self, idx):
+        """Método auxiliar para iniciar um capítulo específico via Menu Dev"""
+        if idx < 0 or idx >= len(self.campaign_manager.campaign_data):
+            print(f"Fase inválida: {idx}")
+            return
+            
+        self.campaign_manager.nivel_atual = idx
+        self.iniciar_proxima_batalha_campanha()
 
     def iniciar_proxima_batalha_campanha(self):
         self.tocar_musica('batalha')
@@ -345,6 +387,12 @@ class Game:
             # Carrega o progresso dos personagens do jogador
             self.campaign_manager.carregar_progresso_personagens(self.motor.time_a)
 
+            # God Mode Check
+            if self.god_mode:
+                for p in self.motor.personagens:
+                     if p.time == TIME_A:
+                         p.invulneravel = True
+                         
             for p in self.motor.combatentes: p.dano_timer = 0
             self.game_over_processed = False
             self.log_combate.clear()
@@ -573,7 +621,12 @@ class Game:
                                     elif nome == 'teste_fim':
                                         self.motor.vencedor = "Time A (Dev)"
                                         self.estado_jogo = ESTADO_JOGO_FIM
-                                        
+                                    elif nome == 'selecao_capitulos':
+                                        self.estado_jogo = ESTADO_JOGO_DEV_CHAPTERS
+                                    elif nome == 'jogar_campanha':
+                                        self.checkbox_campanha.checked = True
+                                        self.campaign_manager.reset()
+                                        self.iniciar_proxima_batalha_campanha()
                                     elif nome == 'teste_dialogo':
                                         self.dialogo.iniciar_dialogo([
                                             ("Dev", "Testando sistema de diálogo completo.", None),
@@ -582,6 +635,45 @@ class Game:
                                             ("Sistema", "Fim do teste.", None)
                                         ])
                                         self.estado_jogo = ESTADO_JOGO_NARRATIVA
+                                        
+                                    elif nome == 'toggle_god_mode':
+                                        self.god_mode = not self.god_mode
+                                        status = "ON" if self.god_mode else "OFF"
+                                        bg = (50, 200, 50) if self.god_mode else (100, 50, 50)
+                                        self.botoes_dev['toggle_god_mode'].texto = f"God Mode: {status}"
+                                        self.botoes_dev['toggle_god_mode'].cor_fundo = bg
+                                        
+                                        # Apply immediately if in battle (unlikely from menu, but safe to check)
+                                        if self.motor:
+                                            for p in self.motor.personagens:
+                                                if p.time == TIME_A:
+                                                    p.invulneravel = self.god_mode
+
+                                    elif nome == 'add_resources':
+                                        self.campaign_manager.ganhar_xp(1000)
+                                        self.campaign_manager.gold += 1000
+                                        print("Dev: +1000 XP/Gold added.")
+
+                                    elif nome == 'unlock_all':
+                                        for pid in PERKS.keys():
+                                            if pid not in self.campaign_manager.perks_desbloqueados:
+                                                self.campaign_manager.perks_desbloqueados.append(pid)
+                                        print("Dev: All Perks unlocked.")
+                                        
+                                    elif nome == 'teste_particulas':
+                                        # Create some random explosions for visual test
+                                        for _ in range(5):
+                                            import random
+                                            x = random.randint(100, LARGURA_TELA-100)
+                                            y = random.randint(100, ALTURA_TELA-100)
+                                            # Assuming direct animation access or using a dummy event
+                                            # self.eventos_animacao.append(...) - handled in render loop usually?
+                                            # Let's create a dummy combat just for effects if needed, 
+                                            # or just spawn effects if renderer supports it.
+                                            # renderer_combate supports 'explosao'.
+                                            # self.animacao_atual is global animation list.
+                                            pass # TODO: Hook into particle system properly
+
                                     elif nome == 'teste_levelup':
                                         # Cria um personagem dummy Nível 5 para testar árvore
                                         dummy = Guerreiro("Teste", "A")
@@ -621,6 +713,17 @@ class Game:
                                         self.estado_jogo = ESTADO_JOGO_LEVEL_UP
                                         self.modo_level_up = 'perk'
                                         self.verificar_opcoes_level_up()
+
+                    elif self.estado_jogo == ESTADO_JOGO_DEV_CHAPTERS:
+                         if event.button == 1:
+                            for key, botao in self.botoes_capitulos.items():
+                                if botao.rect.collidepoint(mouse_pos):
+                                    self.play_sound('button_click')
+                                    if key == 'voltar_dev':
+                                        self.estado_jogo = ESTADO_JOGO_DEV
+                                    elif key.startswith('cap_'):
+                                        idx = int(key.split('_')[1])
+                                        self.iniciar_capitulo_dev(idx)
 
                     elif self.estado_jogo == ESTADO_JOGO_LEVEL_UP:
                         # Handle clicks on level up buttons (Stat or Perk)
@@ -1377,6 +1480,14 @@ class Game:
             self.tela.blit(texto_dev, (LARGURA_TELA // 2 - texto_dev.get_width() // 2, 80))
             
             for botao in self.botoes_dev.values():
+                botao.desenhar(self.tela, self.fonte_menu, mouse_pos)
+
+        elif self.estado_jogo == ESTADO_JOGO_DEV_CHAPTERS:
+            self.tela.fill((10, 0, 20)) # Fundo roxo escuro
+            texto_cap = self.fonte_titulo.render("SELEÇÃO DE FASES - DEV MODE", True, (150, 100, 255))
+            self.tela.blit(texto_cap, (LARGURA_TELA // 2 - texto_cap.get_width() // 2, 40))
+            
+            for botao in self.botoes_capitulos.values():
                 botao.desenhar(self.tela, self.fonte_menu, mouse_pos)
 
         elif self.estado_jogo == ESTADO_JOGO_EDITOR:

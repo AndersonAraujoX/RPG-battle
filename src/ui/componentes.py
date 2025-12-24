@@ -2,7 +2,7 @@ import pygame
 from ..config import COR_BOTAO, COR_BOTAO_HOVER, COR_BOTAO_DESABILITADO, COR_TEXTO
 
 class Botao:
-    def __init__(self, x, y, largura, altura, texto, fonte, subtitulo="", icone=None, cor_fundo=COR_BOTAO):
+    def __init__(self, x, y, largura, altura, texto, fonte, subtitulo="", icone=None, cor_fundo=COR_BOTAO, cor_texto=COR_TEXTO):
         self.rect = pygame.Rect(x, y, largura, altura)
         self.texto = texto
         self.subtitulo = subtitulo
@@ -10,6 +10,7 @@ class Botao:
         self.fonte = fonte
         self.fonte_sub = pygame.font.Font(None, 20) # Fonte menor para subtítulo
         self.cor_base = cor_fundo
+        self.cor_texto = cor_texto
         self.cor_hover = COR_BOTAO_HOVER
         if cor_fundo == COR_BOTAO: # Se for a cor padrão antiga, usa a nova se disponível ou mantém
              # Lógica para compatibilidade: se for botão de menu principal, usa cores novas
@@ -70,7 +71,7 @@ class Botao:
         pygame.draw.rect(tela, cor_borda, self.rect, 2, border_radius=2)
 
         # Texto Principal (Centralizado com Sombra)
-        cor_texto = (255, 255, 240) # Ivory
+        cor_texto = self.cor_texto # (255, 255, 240) # Ivory default passed in init if needed
         texto_surface = self.fonte.render(self.texto, True, cor_texto)
         texto_rect = texto_surface.get_rect(center=self.rect.center)
         

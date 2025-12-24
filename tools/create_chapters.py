@@ -1,8 +1,8 @@
-import os
 import json
 import random
+import os
 
-BASE_DIR = "dados/capitulos"
+BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dados", "fases")
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # Map templates (just using chapter 1's map as base and varying slightly would be ideal, 
@@ -13,14 +13,14 @@ DEFAULT_MAP = [
 ]
 
 def create_chapter(chapter_num):
-    folder_name = f"capitulo_{chapter_num:02d}"
+    folder_name = f"fase_{chapter_num:02d}"
     folder_path = os.path.join(BASE_DIR, folder_name)
     os.makedirs(folder_path, exist_ok=True)
     
     # Info
     info_data = {
-        "id": f"cap_{chapter_num:02d}",
-        "titulo": f"Capítulo {chapter_num}: O Desafio",
+        "id": f"fase_{chapter_num:02d}",
+        "titulo": f"Fase {chapter_num}: O Desafio",
         "descricao": f"Os heróis avançam para a fase {chapter_num}.",
         "ordem": chapter_num
     }
@@ -58,10 +58,10 @@ def create_chapter(chapter_num):
     # Dialogue
     dialogue_data = {
         "inicio": [
-            {"nome": "Narrador", "texto": f"Capítulo {chapter_num} inicia.", "retrato": None}
+            {"nome": "Narrador", "texto": f"Fase {chapter_num} inicia.", "retrato": None}
         ],
         "fim": [
-             {"nome": "Narrador", "texto": f"Vitória no Capítulo {chapter_num}!", "retrato": None}
+             {"nome": "Narrador", "texto": f"Vitória na Fase {chapter_num}!", "retrato": None}
         ]
     }
     with open(os.path.join(folder_path, "dialogo.json"), 'w', encoding='utf-8') as f:
