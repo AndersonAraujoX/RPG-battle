@@ -54,7 +54,7 @@ class ChapterLoader:
                 dialogo = json.load(f)
 
         # Mapa: pode ser um arquivo local ou referência global
-        mapa_arquivo = "mapa_padrao.json" # Default
+        mapa_arquivo = None # Default
         if os.path.exists(mapa_path):
              # Se existe mapa.json na pasta do capítulo, usamos o caminho relativo ou carrega o conteudo?
              # Para simplificar, vamos ler o conteudo se for json
