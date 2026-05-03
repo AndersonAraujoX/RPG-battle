@@ -20,3 +20,26 @@ def carregar_jogo(nome_arquivo="savegame.pkl"):
     except Exception as e:
         print(f"Erro ao carregar o jogo: {e}")
         return None
+        return None
+
+import json
+import os
+
+def salvar_mapa_json(mapa_grid, nome_arquivo="custom_map.json"):
+    try:
+        with open(nome_arquivo, 'w') as f:
+            json.dump(mapa_grid, f)
+        print(f"Mapa salvo em {nome_arquivo}")
+        return True
+    except Exception as e:
+        print(f"Erro ao salvar mapa JSON: {e}")
+        return False
+
+def carregar_mapa_json(nome_arquivo="custom_map.json"):
+    try:
+        if not os.path.exists(nome_arquivo): return None
+        with open(nome_arquivo, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Erro ao carregar mapa JSON: {e}")
+        return None

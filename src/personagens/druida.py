@@ -11,7 +11,31 @@ class Druida(Personagem):
         # Nature's Fury resource system
         self.furia_max = 2 + nivel // 2
         self.furia_atual = self.furia_max
-        self.custo_habilidades = {'forma_de_urso': 1}
+        self.em_forma_de_urso = False
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['forma_de_urso'] = {
+            "nome": "Forma de Urso",
+            "descricao": "Transforma-se em Urso (Vida e Dano aumentados).",
+            "custo": 1, # Furia
+            "tipo": "bonus",
+            "alvo": "si_mesmo",
+            "alcance": 0
+        }
+        self.habilidades['vinhas'] = {
+            "nome": "Vinhas Esmagadoras",
+            "descricao": "Causa dano e pode prender o alvo.",
+            "custo": 1,
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 6,
+            "dano": "1d6",
+            "tipo_dano": "Fisico" #"Magico"?
+        }
+        
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
         
         self.em_forma_de_urso = False
         self.stats_originais = {}

@@ -8,16 +8,78 @@ class Mago(Personagem):
         super().__init__(nome, time, nivel, sound_player)
         self.threat_level = 1.5
         
+        from ..itens.armas_comuns import Adaga
+        self.equipar_arma(Adaga()) # Mago com adaga? Ou Cajado?
+
         # Mana system
         self.mana_max = 20 + (nivel * 2)
         self.mana_atual = self.mana_max
-        self.custo_habilidades = {'bola_de_fogo': 8, 'raio_de_gelo': 4}
+        self.habilidades = {
+            'bola_de_fogo': {
+                'nome': "Bola de Fogo",
+                'custo': 8,
+                'alcance': self.velocidade + 5, # Alcance de conjuração
+                'area': 1, # Raio (1 = 3x3)
+                'descricao': "Explosão de fogo em área (3x3).",
+                'tipo': 'area',
+                'dano': "3d6",
+                'tipo_dano': "Fogo"
+            },
+            'raio_de_gelo': {
+                'nome': "Raio de Gelo",
+                'custo': 4,
+                'alcance': self.alcance,
+                'area': 0,
+                'descricao': "Raio congelante em alvo único.",
+                'tipo': 'alvo',
+                'dano': "1d10",
+                'tipo_dano': "Gelo"
+            }
+        }
+        self.habilidades = {} # Initialize empty, will be filled by inicializar_habilidades
+        self.custo_habilidades = {} # Initialize empty
+        self.inicializar_habilidades() # Call during initialization
+
+    def inicializar_habilidades(self):
+        self.habilidades['bola_de_fogo'] = {
+            "nome": "Bola de Fogo",
+            "descricao": "Explosão de fogo em área (3x3).",
+            "custo": 10,
+            "tipo": "area",
+            "alcance": 8,
+            "area": 1,
+            "dano": "4d6",
+            "tipo_dano": "Fogo"
+        }
+        self.habilidades['raio_de_gelo'] = {
+            "nome": "Raio de Gelo",
+            "descricao": "Ataque que causa dano e pode congelar o chão.",
+            "custo": 3,
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 6,
+            "dano": "1d10",
+            "tipo_dano": "Gelo"
+        }
+        self.habilidades['missil_magico'] = {
+            "nome": "Míssil Mágico",
+            "descricao": "3 Dardos de energia que acertam automaticamente.",
+            "custo": 5, # Mana
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 8,
+            "dano": "3d4+3",
+            "tipo_dano": "Magico"
+        }
+        
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
 
     @property
     def bonus_ataque(self): return self.mod_int + self.bonus_proficiencia
 
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         from src.config import COR_TEXTO
+        
         # 1. Tentar usar Bola de Fogo
         if 'bola_de_fogo' in self.custo_habilidades and self.mana_atual >= self.custo_habilidades['bola_de_fogo'] and inimigos:
             melhor_oportunidade = {'alvos_atingidos': 0, 'aliados_atingidos': 999, 'pos_final': None, 'alvo_central': None}

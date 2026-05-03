@@ -18,6 +18,34 @@ class Barbaro(Personagem):
         from ..itens.acessorios_comuns import AmuletoDeVitalidade
         self.equipar_arma(MachadoGrande())
         self.equipar_acessorio(AmuletoDeVitalidade())
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['furia'] = {
+            "nome": "Entrar em Fúria",
+            "descricao": "Aumenta dano e resistência, mas impede magias.",
+            "custo": 0,
+            "cooldown": 5,
+            "tipo": "bonus",
+            "alvo": "si_mesmo",
+            "alcance": 0
+        }
+        self.habilidades['ataque_descuidado'] = {
+            "nome": "Ataque Descuidado",
+            "descricao": "Ataque com vantagem, mas inimigos têm vantagem contra você.",
+            "custo": 0,
+            "cooldown": 0, # Always avail? Or limited? Logic says cooldown in original code.
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 1
+        }
+        # Sync cooldowns from legacy if needed, or overwrite logic
+        # Original code had 'ataque_descuidado' cooldown. Let's keep it.
+        self.habilidades['ataque_descuidado']['cooldown'] = 3
+        
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia

@@ -1,15 +1,21 @@
-from .personagens import ReiGoblin, LordeLich, DragaoAnciao, Goblin, Esqueleto, Kobold
+import json
+import os
+from .personagens import ReiGoblin, LordeLich, DragaoAnciao, Goblin, Esqueleto, Kobold, Sienna, SiennaPhoenix
 
 # Exemplo de estrutura de campanha
 # Cada entrada é uma batalha, com a configuração de inimigos
 CAMPAIGN_DATA = [
     {
         "inimigos": [
-            (Goblin, 2),
-            (Kobold, 1),
+            (Sienna, 1),
         ],
-        "mapa": "mapa_floresta.json", # Futuramente, usar mapas específicos
-        "mensagem_inicio": "Uma pequena horda de goblins bloqueia o caminho!",
+        "mapa": "mapa_torre.json", 
+        "mensagem_inicio": "O topo da Torre do Relógio. Sienna aguarda.",
+        "dialogo_inicio": [
+            ("Sienna", "Vocês demoraram. Achei que teriam desistido.", "sienna"),
+            ("Novak", "Acabou, Sienna. Entregue o artefato.", "novak"),
+            ("Sienna", "Tolos. Vocês não fazem ideia do poder que ele contém.", "sienna"),
+        ]
     },
     {
         "inimigos": [
@@ -18,6 +24,11 @@ CAMPAIGN_DATA = [
         ],
         "mapa": "mapa_cemiterio.json",
         "mensagem_inicio": "Um cemitério amaldiçoado! Um Lorde Lich e seus lacaios se erguem!",
+        "dialogo_inicio": [
+            ("Clérigo", "Sinto uma presença profana aqui...", "clerigo"),
+            ("Lorde Lich", "Mortais tolos... Vocês se juntarão ao meu exército!", "lordelich"),
+            ("Paladino", "Pela luz, nós vamos purificar este lugar!", "paladino"),
+        ]
     },
     {
         "inimigos": [
@@ -25,17 +36,91 @@ CAMPAIGN_DATA = [
         ],
         "mapa": "mapa_montanha.json",
         "mensagem_inicio": "A Batalha Final! Um Dragão Ancião protege o pico da montanha.",
+        "dialogo_inicio": [
+            ("Dragão Ancião", "QUEM OUSA PERTURBAR MEU SONO?", "dragaoanciao"),
+            ("Guerreiro", "Viemos pôr um fim ao seu reinado de terror!", "guerreiro"),
+            ("Dragão Ancião", "Então queimem!", "dragaoanciao"),
+        ]
     },
 ]
+
+from .chapter_loader import ChapterLoader
 
 class CampaignManager:
     def __init__(self):
         self.nivel_atual = 0
-        self.progresso_personagens = {} # Salvará o estado dos personagens do jogador
+        self.progresso_personagens = {} 
+        self.posicao_jogador = [100, 400] # Posição inicial (x, y)
+        self.destino_movimento = None # Para movimento suave
+        
+        self.gold = 0
+        self.perks_desbloqueados = []
+        self.items_desbloqueados = []
+        
+        # Load Chapters dynamically
+        self.loader = ChapterLoader()
+        self.campaign_data = self.loader.get_campaign_data()
+        
+        # Fallback if no chapters found (keep hardcoded as backup? or empty?)
+        if not self.campaign_data:
+             print("Nenhum capítulo encontrado em dados/capitulos. Usando dados de fallback.")
+             self.campaign_data = CAMPAIGN_DATA
+        
+        # Definição dos Locais no Mapa Mundi (Coordenadas baseadas em 1024x768)
+        self.locais = [
+            {
+                "nome": "Floresta do Caos",
+                "pos": (150, 400),
+                "raio": 40,
+                "evento_id": 0, # Index em CAMPAIGN_DATA
+                "completado": False,
+                "cor": (34, 139, 34) # Forest Green
+            },
+            {
+                "nome": "Pântano de Vendala",
+                "pos": (500, 350),
+                "raio": 40,
+                "evento_id": 1,
+                "completado": False,
+                "cor": (47, 79, 79) # Dark Slate Gray
+            },
+            {
+                "nome": "Picos Cinzentos",
+                "pos": (600, 650),
+                "raio": 40,
+                "evento_id": 2,
+                "completado": False,
+                "cor": (105, 105, 105) # Dim Gray
+            },
+             {
+                "nome": "Bosque Nebuloso",
+                "pos": (800, 200),
+                "raio": 40,
+                "evento_id": 0, # Reutilizando evento 0 como placeholder
+                "completado": False,
+                "cor": (100, 200, 150)
+            },
+        ]
+
+    def atualizar_movimento(self):
+        if self.destino_movimento:
+            # Movimento simples linear
+            dx = self.destino_movimento[0] - self.posicao_jogador[0]
+            dy = self.destino_movimento[1] - self.posicao_jogador[1]
+            dist = (dx**2 + dy**2)**0.5
+            
+            velocidade = 5 # Pixels por frame
+            
+            if dist < velocidade:
+                self.posicao_jogador = list(self.destino_movimento)
+                self.destino_movimento = None
+            else:
+                self.posicao_jogador[0] += (dx / dist) * velocidade
+                self.posicao_jogador[1] += (dy / dist) * velocidade
 
     def get_battle_config(self):
-        if self.nivel_atual < len(CAMPAIGN_DATA):
-            return CAMPAIGN_DATA[self.nivel_atual]
+        if self.nivel_atual < len(self.campaign_data):
+            return self.campaign_data[self.nivel_atual]
         return None
 
     def avancar_nivel(self):
@@ -52,3 +137,70 @@ class CampaignManager:
     def reset(self):
         self.nivel_atual = 0
         self.progresso_personagens = {}
+        self.posicao_jogador = [100, 400]
+        self.locais = [
+            {"nome": "Vila Inicial", "completado": True},
+            {"nome": "Floresta Sombria", "completado": False},
+            {"nome": "Montanhas Geladas", "completado": False},
+            {"nome": "Caverna do Dragão", "completado": False},
+            {"nome": "Torre do Mago", "completado": False},
+            {"nome": "Ruínas Antigas", "completado": False},
+        ]
+        self.gold = 0
+        self.perks_desbloqueados = []
+        self.items_desbloqueados = []
+        
+    def ganhar_xp(self, quantidade):
+        # Distribui XP para todos os personagens salvos
+        # Se personagens não estão instanciados, atualiza o dict
+        for nome, dados in self.progresso_personagens.items():
+            if 'xp' in dados:
+                dados['xp'] += quantidade
+                # Handle Level Up in dict? Complex. 
+                # Simpler: just add XP. Level up happens when they are instantiated and check XP.
+        print(f"Campanha: {quantidade} XP distribuído.")
+
+    def salvar_campanha(self):
+        data = {
+            "nivel_atual": self.nivel_atual,
+            "gold": self.gold, # Save Gold
+            "progresso_personagens": self.progresso_personagens,
+            "posicao_jogador": self.posicao_jogador,
+            "perks_desbloqueados": self.perks_desbloqueados, # Save Perks
+            # Salvar estado dos locais? Sim, pra saber quais completou
+            "locais": [
+                {"nome": l["nome"], "completado": l["completado"]} for l in self.locais
+            ]
+        }
+        try:
+            with open("campaign_save.json", "w") as f:
+                json.dump(data, f, indent=4)
+            print("Jogo salvo com sucesso!")
+            return True
+        except Exception as e:
+            print(f"Erro ao salvar jogo: {e}")
+            return False
+
+    def carregar_campanha(self):
+        if not os.path.exists("campaign_save.json"):
+            return False
+        
+        try:
+            with open("campaign_save.json", "r") as f:
+                data = json.load(f)
+            
+            self.nivel_atual = data.get("nivel_atual", 0)
+            self.progresso_personagens = data.get("progresso_personagens", {})
+            self.posicao_jogador = data.get("posicao_jogador", [100, 400])
+            
+            locais_salvos = data.get("locais", [])
+            for l_salvo in locais_salvos:
+                for l in self.locais:
+                    if l["nome"] == l_salvo["nome"]:
+                        l["completado"] = l_salvo["completado"]
+            
+            print("Jogo carregado com sucesso!")
+            return True
+        except Exception as e:
+            print(f"Erro ao carregar jogo: {e}")
+            return False

@@ -10,7 +10,31 @@ class Bruxo(Personagem):
         # Mana system
         self.mana_max = 15 + (nivel * 2)
         self.mana_atual = self.mana_max
-        self.custo_habilidades = {'maldicao_de_agonia': 6}
+        self.custo_habilidades = {} # Handled below
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['rajada_mistica'] = {
+            "nome": "Rajada Mística",
+            "descricao": "Disparo de energia pura.",
+            "custo": 0, # Cantrip
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 12,
+            "dano": "1d10",
+            "tipo_dano": "Energia"
+        }
+        self.habilidades['maldicao_de_agonia'] = {
+            "nome": "Maldição de Agonia",
+            "descricao": "Causa dano periódico e reduz atributos.",
+            "custo": 6, # Mana
+            "tipo": "acao", # Or bonus?
+            "alvo": "inimigo",
+            "alcance": 8,
+            "efeito": "maldicao"
+        }
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
 
     @property
     def bonus_ataque(self): return self.mod_car + self.bonus_proficiencia

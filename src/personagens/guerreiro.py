@@ -15,6 +15,32 @@ class Guerreiro(Personagem):
         self.equipar_arma(EspadaLonga())
         self.equipar_armadura(CotaDeMalha())
         self.equipar_acessorio(AnelDeForca())
+        
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['surto_acao'] = {
+            "nome": "Surto de Ação",
+            "descricao": "Ganha uma ação extra neste turno.",
+            "custo": 0,
+            "cooldown": 4,
+            "tipo": "livre", # Special
+            "alvo": "si_mesmo",
+            "alcance": 0
+        }
+        self.habilidades['ataque_giratorio'] = {
+            "nome": "Ataque Giratório",
+            "descricao": "Ataca todos inimigos adjacentes.",
+            "custo": 0,
+            "cooldown": 3,
+            "tipo": "acao",
+            "alvo": "area_pessoal", # Radius 1 self
+            "alcance": 1,
+            "dano": "arma",
+            "efeito": "ataque_area"
+        }
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
 
     @property
     def bonus_ataque(self): return self.mod_for + self.bonus_proficiencia

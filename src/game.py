@@ -1,22 +1,41 @@
 import pygame
 import sys
 from collections import deque
-from .config import *
+from src.config import *
+from src.perks import PERKS
 from .motor_combate import MotorCombate
+from .map_generator import MapGenerator
+from .campanha import CampaignManager
+from .cutscene import CutsceneManager
 from .personagens import *
-from .ui.menu import setup_menu_ui, desenhar_setup_batalha, desenhar_menu_principal, setup_menu_principal_ui
+from .states.event_handler import EventHandler
+from .states.game_setup import GameSetup
+from .states.renderer import GameRenderer
+from .ui.menu import setup_menu_ui, setup_menu_principal_ui
 from .ui.desenho import (
-    desenhar_barra_iniciativa, desenhar_cenario, desenhar_itens_no_chao,
-    desenhar_personagens, desenhar_pre_visualizacao_ataque,
-    desenhar_projeteis_e_efeitos, desenhar_floating_texts, desenhar_log,
-    desenhar_info_personagem, desenhar_inventario, desenhar_comandos,
-    desenhar_tela_fim, desenhar_tela_level_up, desenhar_tela_salvando,
-    desenhar_tela_carregando, desenhar_editor
+    desenhar_menu_principal, desenhar_setup_batalha, desenhar_cenario,
+    desenhar_personagens, desenhar_barra_iniciativa, desenhar_comandos,
+    desenhar_log, desenhar_info_personagem, desenhar_projeteis_e_efeitos,
+    desenhar_itens_no_chao, desenhar_mapa_mundo, desenhar_floating_texts,
+    desenhar_dialogo, desenhar_tela_fim, desenhar_inventario, desenhar_pre_visualizacao_ataque,
+    desenhar_tela_level_up, desenhar_tela_salvando, desenhar_tela_carregando, desenhar_editor,
+    desenhar_alcance_movimento, desenhar_alcance_habilidade, desenhar_interface_retro
 )
-from .salvar_carregar import salvar_jogo, carregar_jogo
+from .config import (
+    LARGURA_TELA, ALTURA_TELA, COR_FUNDO, COR_TEXTO, COR_GRID, COR_CRITICO, COR_XP, COR_DANO,
+    TAMANHO_CELULA, ALTURA_BARRA_INICIATIVA, LARGURA_TABULEIRO, LARGURA_LOG,
+    ESTADO_JOGO_SETUP, ESTADO_JOGO_COMBATE, ESTADO_JOGO_FIM,
+    ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_MAPA_MUNDO, ESTADO_JOGO_EDITOR, ESTADO_JOGO_CUTSCENE, ESTADO_JOGO_NARRATIVA,
+    ESTADO_JOGO_DEV, ESTADO_JOGO_LEVEL_UP,
+    TIME_A, TIME_B, CORES_TERRENO,
+    TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL, TERRENO_FOGO, TERRENO_AGUA,
+    IMAGE_PERSONAGENS, IMAGE_TERRENOS, PAINEL_MODO_LOG, PAINEL_MODO_INFO,
+    COR_BOTAO_DESABILITADO
+)
+from .sistema_dialogo import Dialogo
+from .salvar_carregar import salvar_jogo, carregar_jogo, salvar_mapa_json, carregar_mapa_json
 from .utils import calcular_distancia, resource_path
 from .ui.componentes import Botao, FloatingText, Checkbox, Tab
-from .campanha import CampaignManager
 from .personagens.rei_goblin import ReiGoblin
 from .personagens.lorde_lich import LordeLich
 from .personagens.dragao_anciao import DragaoAnciao
@@ -35,8 +54,11 @@ class Game:
         self.fonte_titulo = pygame.font.Font(None, 48)
         self.clock = pygame.time.Clock()
 
-        self.sounds = self.carregar_sons()
-        self.imagens = self.carregar_imagens()
+        self.sounds = GameSetup.carregar_sons()
+        self.imagens = GameSetup.carregar_imagens()
+        
+        self.event_handler = EventHandler(self)
+        self.renderer = GameRenderer(self)
         
         self.rodando = True
         self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
@@ -44,8 +66,14 @@ class Game:
         self.estado_combate = None
         self.motor = None
         self.campaign_manager = CampaignManager()
+        self.cutscene_manager = CutsceneManager(self.fim_cutscene)
         self.unidade_selecionada = None
+        self.habilidade_selecionada = None # Estado para guardar qual habilidade está selecionada para uso
+        self.skill_menu_open = False # [NEW] Controls visibility of skill buttons vs main actions
+        self.actions_menu_open = False # [NEW] Controls visibility of generic actions menu
+        self.acao_action_selecionada = None # [NEW] Stores selected generic action (Help, Grapple, Shove)
         self.personagem_info_painel = None
+        self.checkbox_campanha = None # Will be initialized in setup_ui
         self.painel_modo = PAINEL_MODO_LOG
         self.fila_animacoes = deque()
         self.animacao_atual = None
@@ -75,142 +103,37 @@ class Game:
         self.floating_texts = []
         self.editor_mapa = [[TERRENO_NORMAL for _ in range(20)] for _ in range(20)]
         self.editor_terreno_selecionado = TERRENO_NORMAL
+        self.dialogo = Dialogo()
+        self.game_over_processed = False
 
-        self.setup_ui()
+        GameSetup.setup_ui(self)
         self.tocar_musica('menu')
+        
+        # Optimization Trackers
+        self.last_char_id = None
+        self.last_menu_open = False
 
     def tocar_musica(self, tipo):
-        try:
-            if tipo == 'menu':
-                pygame.mixer.music.load(resource_path('assets/sounds/menu.wav'))
-                pygame.mixer.music.set_volume(0.5)
-                pygame.mixer.music.play(-1) # Loop infinito
-            elif tipo == 'batalha':
-                pygame.mixer.music.load(resource_path('assets/sounds/battle1.wav'))
-                pygame.mixer.music.set_volume(0.5)
-                pygame.mixer.music.play(-1)
-        except pygame.error as e:
-            print(f"Erro ao tocar música ({tipo}): {e}")
+        GameSetup.tocar_musica(tipo)
 
-    def atualizar_visibilidade(self):
-        # Fog of War removido: Tudo sempre visível (2)
-        for y in range(20):
-            for x in range(20):
-                self.visibilidade_map[y][x] = 2
+    def play_sound(self, nome, volume=1.0):
+        GameSetup.play_sound(self.sounds, nome, volume)
 
-    def carregar_sons(self):
-        sounds = {}
-        sound_paths = {
-            'attack': 'assets/sounds/attack.wav',
-            'button_click': 'assets/sounds/button_click.wav',
-            'heal': 'assets/sounds/heal.wav',
-            'hit': 'assets/sounds/hit.wav',
-            'level_up': 'assets/sounds/level_up.wav',
-            'miss': 'assets/sounds/miss.wav',
-            'critical_hit': 'assets/sounds/critical_hit.wav',
-            'invalid_action': 'assets/sounds/miss.wav',
-        }
-
-        for name, path in sound_paths.items():
-            try:
-                sounds[name] = pygame.mixer.Sound(resource_path(path))
-            except pygame.error as e:
-                print(f"Não foi possível carregar o som {path}: {e}")
-                sounds[name] = None 
-
-        return sounds
-
-
-
-    def play_sound(self, nome):
-        if nome in self.sounds and self.sounds[nome]:
-            sound = self.sounds[nome]
-            sound.set_volume(self.volume_sfx)
-            sound.play()
-
-    def carregar_imagens(self):
-        imagens = {}
-        # Carregar imagens de personagens
-        for nome_personagem, caminho in IMAGE_PERSONAGENS.items():
-            try:
-                imagens[f"personagem_{nome_personagem.lower()}"] = pygame.image.load(resource_path(caminho)).convert_alpha()
-            except pygame.error as e:
-                print(f"Não foi possível carregar a imagem do personagem {nome_personagem} em {caminho}: {e}")
-                imagens[f"personagem_{nome_personagem.lower()}"] = None
-
-        # Carregar imagens de terreno
-        for tipo_terreno, caminho in IMAGE_TERRENOS.items():
-            try:
-                imagens[f"terreno_{tipo_terreno.lower()}"] = pygame.image.load(resource_path(caminho)).convert()
-            except pygame.error as e:
-                print(f"Não foi possível carregar a imagem do terreno {tipo_terreno} em {caminho}: {e}")
-                imagens[f"terreno_{tipo_terreno.lower()}"] = None
-        return imagens
-
-    def setup_ui(self):
-        config_times_init, config_chefe_init, botoes_ui_init, checkbox_terreno_init, checkbox_auto_init, checkbox_chefe_init, checkbox_autoplay_init, checkbox_mapa_custom_init, checkbox_campanha_init, checkbox_limitadores_init, bosses_init = setup_menu_ui()
-    
-        self.config_times.update(config_times_init)
-        self.config_chefe.update(config_chefe_init)
-        self.botoes_ui.update(botoes_ui_init)
-        self.botoes_ui['editor_mapas'] = Botao(LARGURA_TELA // 2 - 100, 460, 200, 50, "Editor de Mapas", self.fonte_menu)
-        self.checkbox_terreno = checkbox_terreno_init
-        self.checkbox_auto = checkbox_auto_init
-        self.checkbox_chefe = checkbox_chefe_init
-        self.checkbox_autoplay = checkbox_autoplay_init
-        self.checkbox_mapa_custom = checkbox_mapa_custom_init
-        self.checkbox_campanha = checkbox_campanha_init
-        self.checkbox_limitadores = checkbox_limitadores_init
-        self.bosses = bosses_init
-        self.botoes_combate['proxima_acao'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 70, LARGURA_LOG - 40, 50, "Próxima Ação", self.fonte_menu)
-        self.botoes_combate['salvar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 130, 100, 30, "Salvar", self.fonte_menu)
-        self.botoes_combate['carregar'] = Botao(LARGURA_TABULEIRO + 140, ALTURA_TELA - 130, 100, 30, "Carregar", self.fonte_menu)
-        
-        # Botões de aba do painel
-        self.botoes_combate['aba_log'] = Botao(LARGURA_TABULEIRO, 60, 80, 30, "Log", self.fonte_menu)
-        self.botoes_combate['aba_info'] = Botao(LARGURA_TABULEIRO + 80, 60, 80, 30, "Info", self.fonte_menu)
-        self.botoes_combate['aba_inventario'] = Botao(LARGURA_TABULEIRO + 160, 60, 100, 30, "Inventário", self.fonte_menu)
-        self.botoes_combate['reiniciar'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 50, 200, 50, "Reiniciar Batalha", self.fonte_menu)
-        self.botoes_combate['voltar_menu'] = Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 120, 200, 50, "Voltar ao Menu", self.fonte_menu)
-        self.botoes_combate['cancelar'] = Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 190, 100, 30, "Cancelar", self.fonte_menu)
-
-        # Botões da tela de Level Up
-        self.botoes_level_up = {
-            'forca': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 60, 200, 40, "+1 Força", self.fonte_menu),
-            'destreza': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 10, 200, 40, "+1 Destreza", self.fonte_menu),
-            'constituicao': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 40, 200, 40, "+1 Constituição", self.fonte_menu),
-            'inteligencia': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 90, 200, 40, "+1 Inteligência", self.fonte_menu),
-            'sabedoria': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 140, 200, 40, "+1 Sabedoria", self.fonte_menu),
-            'carisma': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 190, 200, 40, "+1 Carisma", self.fonte_menu),
-        }
-
-        # Botões do Editor de Mapas
-        self.botoes_editor = {
-            'salvar': Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 70, 120, 50, "Salvar Mapa", self.fonte_menu),
-            'carregar': Botao(LARGURA_TABULEIRO + 160, ALTURA_TELA - 70, 140, 50, "Carregar Mapa", self.fonte_menu),
-            'voltar': Botao(LARGURA_TABULEIRO + 20, ALTURA_TELA - 130, LARGURA_LOG - 40, 50, "Voltar ao Menu", self.fonte_menu),
-        }
-        terrenos = [TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO]
-        for i, terreno in enumerate(terrenos):
-            self.botoes_editor[terreno] = Botao(LARGURA_TABULEIRO + 20, 100 + i * 60, LARGURA_LOG - 40, 50, terreno.title(), self.fonte_menu)
-
-        # Inicializa abas do menu
-        self.menu_tabs = {
-            "times": Tab(LARGURA_TELA // 2 - 110, 100, 100, 40, "Times", self.fonte_menu, "times"),
-            "configuracoes": Tab(LARGURA_TELA // 2 + 10, 100, 150, 40, "Configurações", self.fonte_menu, "configuracoes")
-        }
-        self.active_tab_id = "times"
-        self.menu_tabs["times"].selected = True
-
-
-
+    def iniciar_capitulo_dev(self, idx):
+        """Método auxiliar para iniciar um capítulo específico via Menu Dev"""
+        if idx < 0 or idx >= len(self.campaign_manager.campaign_data):
+            print(f"Fase inválida: {idx}")
+            return
+            
+        self.campaign_manager.nivel_atual = idx
+        self.iniciar_proxima_batalha_campanha()
 
     def iniciar_proxima_batalha_campanha(self):
         self.tocar_musica('batalha')
         battle_config = self.campaign_manager.get_battle_config()
         if not battle_config:
             self.log_combate.append(("CAMPANHA CONCLUÍDA!", COR_CRITICO))
-            self.estado_jogo = ESTADO_JOGO_MENU
+            self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
             return
 
         self.estado_jogo = ESTADO_JOGO_COMBATE
@@ -227,22 +150,106 @@ class Game:
 
         args = time_a_config + time_b_config
 
+        mapa_arquivo = battle_config.get("mapa")
+        # Se tiver mapa definido, não gera terreno aleatório
+        gerar_terreno = True if not mapa_arquivo else False
+
         try:
             self.motor = MotorCombate(args, 
                                       sound_player=self.play_sound, 
-                                      gerar_terreno=True) # Terreno aleatório para cada batalha da campanha
+                                      gerar_terreno=gerar_terreno,
+                                      custom_mapa_arquivo=mapa_arquivo) 
             
             # Carrega o progresso dos personagens do jogador
             self.campaign_manager.carregar_progresso_personagens(self.motor.time_a)
 
+            # God Mode Check
+            if self.god_mode:
+                for p in self.motor.personagens:
+                     if p.time == TIME_A:
+                         p.invulneravel = True
+                         
             for p in self.motor.combatentes: p.dano_timer = 0
+            self.game_over_processed = False
             self.log_combate.clear()
             self.log_combate.append((f"--- Campanha: Nível {self.campaign_manager.nivel_atual + 1} ---", COR_CRITICO))
             self.log_combate.append((battle_config["mensagem_inicio"], COR_TEXTO))
 
+            # Iniciar Diálogo da Campanha
+            if "dialogo_inicio" in battle_config:
+                self.dialogo.iniciar_dialogo(battle_config["dialogo_inicio"])
+
         except ValueError as e:
             print(f"Erro ao iniciar batalha da campanha: {e}")
-            self.estado_jogo = ESTADO_JOGO_MENU
+            self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+
+    def iniciar_batalha_campanha_custom(self):
+        self.tocar_musica('batalha')
+        battle_config = self.campaign_manager.get_battle_config()
+        if not battle_config:
+            return
+
+        self.estado_jogo = ESTADO_JOGO_COMBATE
+        
+        # Create Protagonists explicitly
+        time_a_instances = [
+            Novak("Novak", "A", sound_player=self.play_sound),
+            Koema("Koema", "A", sound_player=self.play_sound),
+            Rilem("Rilem", "A", sound_player=self.play_sound),
+            Yukito("Yukito", "A", sound_player=self.play_sound)
+        ]
+        
+        # Time B (Sienna) comes from config, but let's handle specifically to ensure boss flag?
+        # Actually MotorCombate handles list of classes or instances?
+        # Standard MotorCombate takes counts. We need to pass instances or modify MotorCombate to accept instances in args.
+        # Let's check MotorCombate.
+        pass # Placeholder for thought
+        
+        # MotorCombate constructor:
+        # def __init__(self, args_times, ...)
+        # It expects args_times to be a list of COUNTS corresponding to classes.
+        # This is bad for custom instances.
+        
+        # Force Custom Instances requires a change in MotorCombate or a Hack.
+        # Let's Modify MotorCombate to accept `custom_time_a` and `custom_time_b` kwargs.
+        
+        try:
+            self.motor = MotorCombate(
+                [],  # Empty args
+                gerar_terreno=False, 
+                mapa_custom=None, # Will load from file
+                sound_player=self.play_sound,
+                custom_time_a=time_a_instances,
+                custom_mapa_arquivo=battle_config.get("mapa")
+            )
+            
+            # Setup Enemies from Config
+            enemies_config = battle_config["inimigos"]
+            # enemies_config is [(Class, count), ...]
+            # We want to instantiate them.
+            time_b_instances = []
+            for cls, count in enemies_config:
+                for i in range(count):
+                    nome = f"{cls.__name__}" if count == 1 else f"{cls.__name__}_{i+1}"
+                    # Check if it's Sienna to pass stats? Sienna class handles itself default.
+                    inst = cls(nome, "B", sound_player=self.play_sound)
+                    time_b_instances.append(inst)
+            
+            self.motor.set_time_b_custom(time_b_instances) # Helper we will add
+            self.motor.start_battle_custom() # Helper to init positions/initiative
+            
+            self.game_over_processed = False
+            self.log_combate.clear()
+            self.log_combate.append((f"--- O Confronto Final ---", COR_CRITICO))
+            self.log_combate.append((battle_config["mensagem_inicio"], COR_TEXTO))
+
+            # Iniciar Diálogo da Campanha
+            if "dialogo_inicio" in battle_config:
+                self.dialogo.iniciar_dialogo(battle_config["dialogo_inicio"])
+
+        except ValueError as e:
+            print(f"Erro ao iniciar batalha custom: {e}")
+            self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
 
     def run(self):
         while self.rodando:
@@ -265,213 +272,93 @@ class Game:
         pygame.quit()
 
 
-    def handle_events(self, mouse_pos, personagem_ativo):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.rodando = False
+    def verificar_opcoes_level_up(self):
+        # Limpa os botões de level up existentes
+        self.botoes_level_up.clear()
+
+        if not self.personagem_level_up:
+            return
+
+        if self.modo_level_up == 'stat':
+            # Botões de atributos
+            self.botoes_level_up = {
+                'forca': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 60, 200, 40, "+1 Força", self.fonte_menu),
+                'destreza': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 10, 200, 40, "+1 Destreza", self.fonte_menu),
+                'constituicao': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 40, 200, 40, "+1 Constituição", self.fonte_menu),
+                'inteligencia': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 90, 200, 40, "+1 Inteligência", self.fonte_menu),
+                'sabedoria': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 140, 200, 40, "+1 Sabedoria", self.fonte_menu),
+                'carisma': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 190, 200, 40, "+1 Carisma", self.fonte_menu),
+            }
+        elif self.modo_level_up == 'perk':
+            # Botões de perks
+            perks_disponiveis = self.personagem_level_up.get_perks_disponiveis()
             
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1: # Left click
-                    if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
-                        for nome, botao in self.botoes_menu_principal.items():
-                            if botao.rect.collidepoint(mouse_pos):
-                                self.play_sound('button_click')
-                                if nome == 'nova_batalha':
-                                    self.estado_jogo = ESTADO_JOGO_SETUP
-                                elif nome == 'sair':
-                                    self.rodando = False
+            # Posições para os botões de perk
+            y_start = ALTURA_TELA // 2 - (len(perks_disponiveis) * 50) // 2
+            for i, perk_id in enumerate(perks_disponiveis):
+                perk_info = PERKS.get(perk_id, {"nome": "Perk Desconhecido"})
+                self.botoes_level_up[f"perk_{perk_id}"] = Botao(
+                    LARGURA_TELA // 2 - 150, y_start + i * 60, 300, 50,
+                    perk_info["nome"], self.fonte_menu
+                )
 
-                    elif self.estado_jogo == ESTADO_JOGO_SETUP:
-                        # Handle tabs
-                        for tab_id, tab in self.menu_tabs.items():
-                            if tab.rect.collidepoint(mouse_pos):
-                                self.active_tab_id = tab_id
-                                for t in self.menu_tabs.values(): t.selected = False
-                                tab.selected = True
-                                self.play_sound('button_click')
-                                return
 
-                        # Handle buttons
-                        for nome, botao in self.botoes_ui.items():
-                            # Check visibility logic (same as drawing)
-                            is_botao_chefe_attr = nome.startswith('chefe_')
-                            is_botao_time_b = nome.startswith('B_')
-                            is_boss_nav = nome in ['next_boss', 'prev_boss']
-                            
-                            visible = True
-                            if self.active_tab_id == "times":
-                                if is_botao_chefe_attr or is_boss_nav or is_botao_time_b or nome.startswith('A_'):
-                                    if self.checkbox_chefe.checked:
-                                        if is_botao_time_b: visible = False
-                                    else:
-                                        if is_boss_nav or is_botao_chefe_attr: visible = False
-                                else:
-                                    visible = False # Hide other buttons in times tab? No, wait.
-                            elif self.active_tab_id == "configuracoes":
-                                if nome in ['sfx_vol_down', 'sfx_vol_up']:
-                                    visible = True
-                                else:
-                                    visible = False # Hide setup buttons in config tab
-
-                            # Always visible buttons
-                            if nome in ['iniciar', 'editor_mapas', 'voltar_menu']:
-                                visible = True
-
-                            if visible and botao.rect.collidepoint(mouse_pos):
-                                self.play_sound('button_click')
-                                
-                                if nome == 'iniciar':
-                                    # Lógica para iniciar a batalha
-                                    if self.checkbox_campanha.checked:
-                                        self.iniciar_proxima_batalha_campanha()
-                                    else:
-                                        try:
-                                            args = []
-                                            # Time A
-                                            for cls, _ in self.config_times['classes']:
-                                                args.append(self.config_times[TIME_A].get(cls, 0))
-
-                                            # Time B
-                                            if not self.checkbox_chefe.checked:
-                                                for cls, _ in self.config_times['classes']:
-                                                    args.append(self.config_times[TIME_B].get(cls, 0))
-                                            
-                                            self.motor = MotorCombate(
-                                                args,
-                                                gerar_terreno=self.checkbox_terreno.checked,
-                                                mapa_custom=self.editor_mapa if self.checkbox_mapa_custom.checked else None,
-                                                sound_player=self.play_sound,
-                                                modo_chefe=self.checkbox_chefe.checked,
-                                                stats_chefe=self.config_chefe if self.checkbox_chefe.checked else None,
-                                                boss_class=self.bosses[self.selected_boss_index]["classe"] if self.checkbox_chefe.checked else None
-                                            )
-                                            
-                                            self.estado_jogo = ESTADO_JOGO_COMBATE
-                                            self.tocar_musica('batalha')
-                                            self.log_combate.clear()
-                                            self.log_combate.append(("A batalha começou!", COR_TEXTO))
-                                            
-                                            if self.checkbox_limitadores.checked:
-                                                self.motor.tabuleiro.adicionar_limitadores()
-                                                
-                                            self.atualizar_visibilidade() 
-
-                                        except ValueError as e:
-                                            print(f"Erro ao iniciar batalha: {e}")
-                                            self.log_combate.append((f"Erro: {e}", COR_DANO))
-                                elif nome == 'voltar_menu':
-                                    self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
-                                elif nome == 'editor_mapas':
-                                    self.estado_jogo = ESTADO_JOGO_EDITOR
-                                elif nome.startswith('A_add_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    self.config_times[TIME_A][classe] += 1
-                                elif nome.startswith('A_sub_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    if self.config_times[TIME_A][classe] > 0:
-                                        self.config_times[TIME_A][classe] -= 1
-                                elif nome.startswith('B_add_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    self.config_times[TIME_B][classe] += 1
-                                elif nome.startswith('B_sub_'):
-                                    idx = int(nome.split('_')[-1])
-                                    classe = self.config_times['classes'][idx][0]
-                                    if self.config_times[TIME_B][classe] > 0:
-                                        self.config_times[TIME_B][classe] -= 1
-                                elif nome == 'chefe_add_hp':
-                                    self.config_chefe['hp'] += 10
-                                elif nome == 'chefe_sub_hp':
-                                    if self.config_chefe['hp'] > 10: self.config_chefe['hp'] -= 10
-                                elif nome == 'chefe_add_ataque':
-                                    self.config_chefe['ataque'] += 1
-                                elif nome == 'chefe_sub_ataque':
-                                    if self.config_chefe['ataque'] > 0: self.config_chefe['ataque'] -= 1
-                                elif nome == 'chefe_add_ac':
-                                    self.config_chefe['ac'] += 1
-                                elif nome == 'chefe_sub_ac':
-                                    if self.config_chefe['ac'] > 0: self.config_chefe['ac'] -= 1
-                                elif nome == 'next_boss':
-                                    self.selected_boss_index = (self.selected_boss_index + 1) % len(self.bosses)
-                                elif nome == 'prev_boss':
-                                    self.selected_boss_index = (self.selected_boss_index - 1) % len(self.bosses)
-
-                        # Handle checkboxes
-                        if self.active_tab_id == "configuracoes":
-                            if self.checkbox_terreno.rect.collidepoint(mouse_pos): self.checkbox_terreno.toggle()
-                            if self.checkbox_auto.rect.collidepoint(mouse_pos): self.checkbox_auto.toggle()
-                            if self.checkbox_chefe.rect.collidepoint(mouse_pos): self.checkbox_chefe.toggle()
-                            if self.checkbox_autoplay.rect.collidepoint(mouse_pos): self.checkbox_autoplay.toggle()
-                            if self.checkbox_mapa_custom.rect.collidepoint(mouse_pos): self.checkbox_mapa_custom.toggle()
-                            if self.checkbox_campanha.rect.collidepoint(mouse_pos): self.checkbox_campanha.toggle()
-                            if self.checkbox_limitadores.rect.collidepoint(mouse_pos): self.checkbox_limitadores.toggle()
-
-                    elif self.estado_jogo == ESTADO_JOGO_COMBATE:
-                        # Handle Combat Buttons
-                        for nome, botao in self.botoes_combate.items():
-                            if botao.rect.collidepoint(mouse_pos):
-                                self.play_sound('button_click')
-                                if nome == 'proxima_acao':
-                                    if personagem_ativo and personagem_ativo.time == TIME_A:
-                                        self.motor.avancar_turno()
-                                        self.log_combate.append((f"{personagem_ativo.nome} passou a vez.", COR_TEXTO))
-                                elif nome == 'salvar':
-                                    self.motor.salvar_jogo()
-                                    self.log_combate.append(("Jogo salvo!", COR_XP))
-                                elif nome == 'carregar':
-                                    if self.motor.carregar_jogo():
-                                        self.log_combate.append(("Jogo carregado!", COR_XP))
-                                        self.atualizar_visibilidade()
-                                elif nome == 'voltar_menu':
-                                    self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
-                                elif nome == 'reiniciar':
-                                    # Logic to restart would go here, maybe just go back to setup
-                                    self.estado_jogo = ESTADO_JOGO_SETUP
-                                elif nome == 'cancelar':
-                                    self.estado_jogo = ESTADO_JOGO_SETUP
-                                    self.tocar_musica('menu')
-
-                        # Handle Grid Interaction (Movement/Attack)
-                        if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO:
-                            grid_x = mouse_pos[0] // TAMANHO_CELULA
-                            grid_y = (mouse_pos[1] - ALTURA_BARRA_INICIATIVA) // TAMANHO_CELULA
-                            
-                            if 0 <= grid_x < 20 and 0 <= grid_y < 20:
-                                # Select unit on click (optional, for info panel)
-                                clicked_unit = self.motor.tabuleiro.get_personagem_em(grid_x, grid_y)
-                                if clicked_unit:
-                                    self.unidade_selecionada = clicked_unit
-
-                                # Player Action Logic
-                                if personagem_ativo and personagem_ativo.time == TIME_A and not self.animacao_atual and not self.fila_animacoes:
-                                    if clicked_unit and clicked_unit.time == TIME_B:
-                                        # Attack Enemy
-                                        dist = calcular_distancia(personagem_ativo, clicked_unit)
-                                        if dist <= personagem_ativo.alcance:
-                                            eventos, logs = self.motor.jogador_ataca_personagem(personagem_ativo, clicked_unit)
-                                            self.fila_animacoes.extend(eventos)
-                                            self.log_combate.extend(logs)
-                                            self.motor.avancar_turno()
-                                        else:
-                                            self.log_combate.append(("Alvo fora de alcance!", COR_DANO))
-                                            self.play_sound('invalid_action')
-                                    elif not clicked_unit:
-                                        # Move to empty tile
-                                        eventos, logs = self.motor.jogador_move_personagem(personagem_ativo, grid_x, grid_y)
-                                        if eventos: # If move was successful (valid path)
-                                            self.fila_animacoes.extend(eventos)
-                                            self.log_combate.extend(logs)
-                                            self.motor.avancar_turno()
-                                            self.atualizar_visibilidade()
-                                        else:
-                                            # Invalid move (blocked or too far) - logs usually handled inside but let's check
-                                            if not logs: self.play_sound('invalid_action')
-                                            self.log_combate.extend(logs)
+    def handle_events(self, mouse_pos, personagem_ativo):
+        self.event_handler.handle_events(mouse_pos, personagem_ativo)
 
     def update_game_logic(self, agora, personagem_ativo):
+        if self.dialogo.ativo:
+            self.dialogo.atualizar()
+            return # Pausa o jogo atrás do diálogo
+
+        if self.estado_jogo == ESTADO_JOGO_MAPA_MUNDO:
+            self.campaign_manager.atualizar_movimento()
+            self.campaign_manager.update(agora)
+            if self.campaign_manager.evento_mapa:
+                evento = self.campaign_manager.evento_mapa.popleft()
+                if evento.tipo == 'batalha':
+                    self.iniciar_proxima_batalha_campanha()
+                elif evento.tipo == 'cutscene':
+                    self.cutscene_manager.iniciar_cutscene(evento.cutscene_id)
+                    self.estado_jogo = ESTADO_JOGO_CUTSCENE
+                elif evento.tipo == 'dialogo':
+                    self.dialogo.iniciar_dialogo(evento.dialogo_data)
+                    self.estado_jogo = ESTADO_JOGO_NARRATIVA
+                elif evento.tipo == 'level_up':
+                    self.personagem_level_up = evento.personagem
+                    self.previous_state = self.estado_jogo
+                    self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                    self.modo_level_up = 'stat'
+                    self.play_sound('level_up')
+                    self.verificar_opcoes_level_up()
+
+        if self.estado_jogo == ESTADO_JOGO_CUTSCENE:
+            self.cutscene_manager.update()
+
         if self.estado_jogo == ESTADO_JOGO_COMBATE:
+            # Check for Battle End
+            if self.motor and self.motor.vencedor and not self.game_over_processed:
+                self.game_over_processed = True
+                
+                if self.motor.vencedor == "Time A":
+                    # Check if it was Sienna Boss Fight
+                    # Heuristic: Check if Time B had Sienna
+                    boss_fight = any(p.classe_nome == "Sienna" for p in self.motor.time_b)
+                    
+                    if boss_fight or self.checkbox_campanha.checked: # Assuming boss test sets this too or we just detect boss
+                         if boss_fight:
+                             self.iniciar_sequencia_final()
+                             return
+
+                    # Regular Campaign Logic
+                    if self.checkbox_campanha.checked:
+                        self.campaign_manager.avancar_nivel()
+                        self.campaign_manager.salvar_progresso_personagens(self.motor.time_a)
+                        if self.campaign_manager.salvar_campanha():
+                            self.log_combate.append(("Progresso da Campanha Salvo!", COR_CRITICO))
+                        else:
+                            self.log_combate.append(("Erro ao salvar campanha!", COR_DANO))
+
             # Animation Handling
             if self.animacao_atual:
                 # Check if animation finished (this logic depends on how animations are implemented in drawing)
@@ -499,6 +386,15 @@ class Game:
                 
                 if self.animacao_atual['tipo'] == 'ataque': self.play_sound('attack')
                 elif self.animacao_atual['tipo'] == 'dano': self.play_sound('hit')
+                elif self.animacao_atual['tipo'] == 'dialogo':
+                     self.dialogo.iniciar_dialogo(self.animacao_atual['mensagens'])
+                     self.animacao_atual = None # Ends animation step immediately
+                elif self.animacao_atual['tipo'] == 'escolha_atributo':
+                     self.personagem_level_up = self.animacao_atual['personagem']
+                     self.estado_jogo = ESTADO_JOGO_LEVEL_UP
+                     self.verificar_opcoes_level_up(self.personagem_level_up)
+                     self.animacao_atual = None
+
             
             # AI Turn Logic
             elif self.motor and not self.motor.vencedor:
@@ -511,35 +407,212 @@ class Game:
                         self.log_combate.extend(resultado['logs'])
                         self.fila_animacoes.extend(resultado['eventos'])
                         self.tempo_proxima_acao_auto = 0 # Reset
+                        self.tempo_proxima_acao_auto = 0 # Reset
+                        self.tempo_proxima_acao_auto = 0 # Reset
                         self.atualizar_visibilidade()
+            
+            # Update Ability Buttons (Optimized)
+            current_char_id = id(personagem_ativo) if personagem_ativo else None
+            state_changed = (current_char_id != self.last_char_id) or (self.skill_menu_open != self.last_menu_open) or (self.actions_menu_open != self.last_menu_open) # [MODIFIED]
+            
+            if state_changed:
+                 self.atualizar_botoes_habilidade(personagem_ativo)
+                 self.atualizar_botoes_acoes(personagem_ativo) # [NEW]
+                 self.last_char_id = current_char_id
+                 self.last_menu_open = self.skill_menu_open or self.actions_menu_open # [MODIFIED]
+            
+            # Fallback: if not player turn, ensure menu is closed (handled in atualizar_botoes_habilidade, but we must call it if turn changed)
+            if personagem_ativo and personagem_ativo.time != TIME_A and (self.skill_menu_open or self.actions_menu_open):
+                 self.skill_menu_open = False
+                 self.actions_menu_open = False
+                 self.atualizar_botoes_habilidade(personagem_ativo)
+                 self.atualizar_botoes_acoes(personagem_ativo)
+                 self.last_menu_open = False
+
+    def atualizar_botoes_acoes(self, personagem_ativo):
+        """Atualiza botões de ações genéricas (Dash, Dodge, etc)"""
+        # Remove old action buttons
+        keys_to_remove = [k for k in self.botoes_combate if k.startswith('acao_') or k == 'voltar_acoes']
+        for k in keys_to_remove:
+            del self.botoes_combate[k]
+            
+        if not personagem_ativo or personagem_ativo.time != TIME_A:
+            self.actions_menu_open = False
+            return
+
+        if self.actions_menu_open:
+            # Layout similar to skills
+            btn_width = 150
+            btn_height = 45
+            margin_x = 10
+            margin_y = 10
+            start_x = 30
+            start_y = 620
+            
+            # Add Back Button
+            self.botoes_combate['voltar_acoes'] = Botao(start_x + 3*(btn_width + margin_x), 650, 80, 45, "Voltar", self.fonte_menu)
+
+            actions = [
+                ('acao_dash', 'Dash (Mv x2)'),
+                ('acao_disengage', 'Disengage'),
+                ('acao_dodge', 'Dodge (Def)'),
+                ('acao_help', 'Help (Adv)'),
+                ('acao_grapple', 'Grapple'),
+                ('acao_shove', 'Shove')
+            ]
+            
+            for i, (key, label) in enumerate(actions):
+                col = i % 3
+                row = i // 3
+                
+                x = start_x + col * (btn_width + margin_x)
+                y = start_y + row * (btn_height + margin_y)
+                
+                self.botoes_combate[key] = Botao(x, y, btn_width, btn_height, label, self.fonte_info)
+
+    def atualizar_botoes_habilidade(self, personagem_ativo):
+        # Remove old ability buttons
+        keys_to_remove = [k for k in self.botoes_combate if k.startswith('habilidade_') or k == 'voltar_skills']
+        for k in keys_to_remove:
+            del self.botoes_combate[k]
+            
+        if not personagem_ativo or personagem_ativo.time != TIME_A:
+            self.skill_menu_open = False
+            return
+
+        if self.skill_menu_open:
+            # Layout: Display skills in 2 columns within the Action Bar area
+            
+            btn_width = 180
+            btn_height = 50
+            margin_x = 20
+            margin_y = 10
+            start_x = 30
+            start_y = 620
+            
+            # LIGHTWEIGHT FIX: Always add Back button first
+            self.botoes_combate['voltar_skills'] = Botao(start_x + 2*(btn_width + margin_x), 650, 100, 50, "Voltar", self.fonte_menu)
+
+            if hasattr(personagem_ativo, 'habilidades') and personagem_ativo.habilidades:
+                i = 0
+                for key, dados in personagem_ativo.habilidades.items():
+                    col = i % 2
+                    row = i // 2
+                    
+                    x = start_x + col * (btn_width + margin_x)
+                    y = start_y + row * (btn_height + margin_y)
+                    
+                    # Check bounds
+                    if row > 2: break # Limit to 6 skills for now
+                    
+                    btn = Botao(x, y, btn_width, btn_height, dados['nome'], self.fonte_info)
+                    self.botoes_combate[f'habilidade_{key}'] = btn
+                    i += 1
+        
+        if self.motor and self.motor.vencedor and not self.game_over_processed:
+            self.game_over_processed = True
+            
+            if self.motor.vencedor == "Time A":
+                # Check for Boss Kill (Sienna)
+                # We assume if we played specific campaign or boss test, this is triggered.
+                # Let's check update_game_logic instead for cleaner flow.
+                pass
+            
+            if self.motor.vencedor == "Time B" and self.checkbox_campanha.checked:
+                 self.log_combate.append(("A campanha falhou...", COR_DANO))
 
     def draw_elements(self, tick, mouse_pos, personagem_ativo=None):
-        self.tela.fill(COR_FUNDO)
-        
-        if self.estado_jogo == ESTADO_JOGO_MENU_PRINCIPAL:
-            desenhar_menu_principal(self.tela, self.fonte_menu, self.botoes_menu_principal)
-        
-        elif self.estado_jogo == ESTADO_JOGO_SETUP:
-            desenhar_setup_batalha(self.tela, self.fonte_menu, self.config_times, self.config_chefe, self.botoes_ui, 
-                                   self.checkbox_terreno, self.checkbox_auto, self.checkbox_chefe, self.checkbox_autoplay, 
-                                   self.checkbox_mapa_custom, self.checkbox_campanha, self.checkbox_limitadores, self.bosses, self.selected_boss_index, 
-                                   self.imagens, self.volume_sfx, self.menu_tabs, self.active_tab_id)
-        
-        elif self.estado_jogo == ESTADO_JOGO_COMBATE:
-            if self.motor:
-                desenhar_cenario(self.tela, self.motor, self.imagens, ALTURA_BARRA_INICIATIVA, self.visibilidade_map)
-                desenhar_itens_no_chao(self.tela, self.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, self.visibilidade_map)
-                desenhar_personagens(self.tela, self.motor, self.fonte_personagem, personagem_ativo, tick, self.animacao_atual, self.imagens, ALTURA_BARRA_INICIATIVA, self.visibilidade_map)
-                desenhar_projeteis_e_efeitos(self.tela, self.animacao_atual, ALTURA_BARRA_INICIATIVA, self.imagens)
-                desenhar_barra_iniciativa(self.tela, self.motor.ordem_de_combate, personagem_ativo, self.imagens)
-                desenhar_log(self.tela, self.fonte_log, self.log_combate, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
-                
-                if self.unidade_selecionada:
-                    desenhar_info_personagem(self.tela, self.fonte_info, self.unidade_selecionada, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
-                
-                desenhar_comandos(self.tela, self.fonte_info, 0)
-                desenhar_floating_texts(self.tela, self.floating_texts)
+        self.renderer.draw_elements(tick, mouse_pos, personagem_ativo)
 
-        elif self.estado_jogo == ESTADO_JOGO_EDITOR:
-             desenhar_editor(self.tela, self.fonte_menu, self.editor_mapa, self.botoes_editor, self.editor_terreno_selecionado, self.imagens, mouse_pos)
+    def iniciar_sequencia_final(self):
+        # 1. Start "History" Cutscene
+        slides_history = [
+            {"imagem": "world", "texto": "A batalha terminou. O silêncio retornou ao vazio.", "duracao": 180},
+            {"imagem": "destruction", "texto": "A Fênix, outrora símbolo de renascimento, agora repousa em cinzas.", "duracao": 180},
+            {"imagem": "heroes", "texto": "Mas a vitória teve seu preço. E o destino de Ornallus ainda é incerto.", "duracao": 200},
+            {"imagem": "gathering", "texto": "FINAL DE KAPITULO 1", "duracao": 240} # Title Card
+        ]
+        
+        self.estado_jogo = ESTADO_JOGO_CUTSCENE
+        self.cutscene_manager.iniciar(slides=slides_history, callback_fim=self.iniciar_cena_ornallus)
+
+    def iniciar_cena_ornallus(self):
+        # 2. Start Narrative Scene
+        self.estado_jogo = ESTADO_JOGO_NARRATIVA
+        
+        # Setup Dialogue
+        dialogo_ornallus = [
+            ("Mestre Kayron", "Vocês retornaram... Eu senti a perturbação no éter.", "kayron"),
+            ("Koema", "Ela se transformou, Mestre. O poder dela era... instável.", "koema"),
+            ("Eryn", "Instável? Ou corrompido? As leituras que tivemos aqui foram caóticas.", "eryn"),
+            ("Novak", "Não importa agora. Ela caiu. Mas disse algo sobre o 'Vazio' antes do fim.", "novak"),
+            ("Mestre Kayron", "O Vazio... Se ela tocou o Vazio, então isso é apenas o começo.", "kayron"),
+            ("Rilem", "Ótimo. Mais problemas. Eu preciso de um aumento.", "rilem"),
+            ("Yukito", "A luz nos guiará, não importa a escuridão.", "yukito"),
+            ("Mestre Kayron", "Descansem agora. Amanhã, discutiremos o que isso significa para Ornallus.", "kayron")
+        ]
+        
+        self.dialogo.iniciar_dialogo(dialogo_ornallus)
+
+    def fim_cutscene(self):
+        self.estado_jogo = ESTADO_JOGO_MAPA_MUNDO
+        self.tocar_musica('menu') # Ou outra música de mapa
+
+    def verificar_opcoes_level_up(self, personagem=None):
+        if personagem:
+            self.personagem_level_up = personagem
+            
+        if not self.personagem_level_up:
+             return
+
+        # Limpa os botões de level up existentes
+        self.botoes_level_up.clear()
+        
+        # 1. Modo Stat (Default)
+        if self.modo_level_up == 'stat':
+            self.botoes_level_up = {
+                'forca': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 60, 200, 40, "+1 Força", self.fonte_menu),
+                'destreza': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 - 10, 200, 40, "+1 Destreza", self.fonte_menu),
+                'constituicao': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 40, 200, 40, "+1 Constituição", self.fonte_menu),
+                'inteligencia': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 90, 200, 40, "+1 Inteligência", self.fonte_menu),
+                'sabedoria': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 140, 200, 40, "+1 Sabedoria", self.fonte_menu),
+                'carisma': Botao(LARGURA_TELA // 2 - 100, ALTURA_TELA // 2 + 190, 200, 40, "+1 Carisma", self.fonte_menu),
+            }
+            
+        # 2. Modo Perk (Check availability)
+        # 2. Modo Perk (Check availability)
+        elif self.modo_level_up == 'perk':
+            classe = self.personagem_level_up.classe_nome
+            
+            if classe in PERKS:
+                # Dimensões da Grade
+                # Centraliza horizontalmente baseado no maior col? Por enquanto fixo.
+                # Considerando 2 colunas x 3 linhas aprox.
+                start_x = LARGURA_TELA // 2 - 150
+                start_y = ALTURA_TELA // 2 - 150
+                cell_w = 220
+                cell_h = 100
+
+                for perk in PERKS[classe]:
+                    # Calcula posição baseada na grade (pos[0]=col, pos[1]=row)
+                    px, py = perk.get('pos', (0, 0))
+                    
+                    x = start_x + (px * cell_w)
+                    y = start_y + (py * cell_h)
+                    
+                    # Define estado visual (apenas texto aqui, cor desenhada depois)
+                    pode = self.personagem_level_up.pode_desbloquear_perk(perk)
+                    tem = self.personagem_level_up.tem_perk(perk['id'])
+                    
+                    texto = f"{perk['nome']}"
+                    
+                    # Cria botão
+                    btn_id = f"perk_{perk['id']}"
+                    
+                    # Adiciona botao
+                    self.botoes_level_up[btn_id] = Botao(x, y, 200, 60, texto, self.fonte_menu)
+            
+            # Botão de Concluir (caso não queira pegar nada ou só visualizar)
+            self.botoes_level_up['concluir'] = Botao(LARGURA_TELA - 160, ALTURA_TELA - 80, 140, 50, "Concluir", self.fonte_menu)
+
 
