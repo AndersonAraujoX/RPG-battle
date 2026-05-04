@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Battle Simulator - Tactical Edition</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <header class="game-header">
+            <div class="logo">
+                <span class="accent">RPG</span> BATTLE
+            </div>
+            <div id="turn-indicator" class="turn-indicator">
+                RODADA <span id="round-number">1</span>
+            </div>
+            <div id="turn-order" class="turn-order">
+                <!-- Portraid list will be injected here -->
+            </div>
+        </header>
+
+        <main class="game-container">
+            <section class="board-area">
+                <div id="board" class="board">
+                    <!-- 20x20 grid will be injected here -->
+                </div>
+            </section>
+
+            <aside class="side-panel">
+                <div class="panel-section log-section">
+                    <h3>Log de Combate</h3>
+                    <div id="combat-log" class="combat-log">
+                        <p class="log-entry system">Bem-vindo ao Simulador de Batalha!</p>
+                    </div>
+                </div>
+
+                <div class="panel-section info-section">
+                    <div id="character-info" class="character-info glass">
+                        <p class="empty-msg">Selecione um personagem</p>
+                    </div>
+                </div>
+
+                <div class="panel-section controls-section">
+                    <div id="controls" class="controls glass">
+                        <button id="btn-move" class="game-btn" disabled>Mover</button>
+                        <button id="btn-attack" class="game-btn" disabled>Atacar</button>
+                        <div id="skill-buttons" class="skill-buttons"></div>
+                        <button id="btn-pass" class="game-btn secondary" disabled>Passar Turno</button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="game-footer">
+            <div class="status-bar">
+                <span id="coord-info">X: 0, Y: 0</span>
+                <span id="terrain-info">Terreno: Normal</span>
+            </div>
+        </footer>
+
+        <div id="overlay" class="overlay hidden">
+            <div class="modal glass">
+                <h2 id="modal-title">Configurar Batalha</h2>
+                <div id="modal-content">
+                    <!-- Setup UI -->
+                </div>
+                <button id="btn-start" class="game-btn primary">Iniciar Combate</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
