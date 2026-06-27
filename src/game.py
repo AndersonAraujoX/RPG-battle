@@ -1,5 +1,6 @@
 import pygame
 import sys
+import math
 from collections import deque
 from src.config import *
 from src.perks import PERKS
@@ -105,6 +106,7 @@ class Game:
         self.editor_terreno_selecionado = TERRENO_NORMAL
         self.dialogo = Dialogo()
         self.game_over_processed = False
+        self.angulo_rotacao = 0.0
 
         GameSetup.setup_ui(self)
         self.tocar_musica('menu')
@@ -307,6 +309,16 @@ class Game:
         self.event_handler.handle_events(mouse_pos, personagem_ativo)
 
     def update_game_logic(self, agora, personagem_ativo):
+        # Keyboard rotation control (Q/E)
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_q]:
+            self.angulo_rotacao = (self.angulo_rotacao - 0.04) % (2 * math.pi)
+        if keys[pygame.K_e]:
+            self.angulo_rotacao = (self.angulo_rotacao + 0.04) % (2 * math.pi)
+            
+        if self.motor:
+            self.motor.angulo_rotacao = self.angulo_rotacao
+
         if self.dialogo.ativo:
             self.dialogo.atualizar()
             return # Pausa o jogo atrás do diálogo
@@ -540,16 +552,27 @@ class Game:
         elev_scale = 8
         offset_x = 300
         offset_y = 200 + ALTURA_BARRA_INICIATIVA
+        theta = self.angulo_rotacao
         
-        for x_plus_y in range(w + h - 2, -1, -1):
+        cells = []
+        for y in range(h):
             for x in range(w):
-                y = x_plus_y - x
-                if 0 <= y < h:
-                    el = elev_grid[y][x]
-                    cx = (x - y) * (tile_w // 2) + offset_x
-                    cy = (x + y) * (tile_h // 2) - el * elev_scale + offset_y
-                    if (abs(mx - cx) * 2 / tile_w) + (abs(my - cy) * 2 / tile_h) <= 1.0:
-                        return x, y
+                el = elev_grid[y][x]
+                rx = x - 9.5
+                ry = y - 9.5
+                rot_x = rx * math.cos(theta) - ry * math.sin(theta) + 9.5
+                rot_y = rx * math.sin(theta) + ry * math.cos(theta) + 9.5
+                cx = (rot_x - rot_y) * (tile_w // 2) + offset_x
+                cy = (rot_x + rot_y) * (tile_h // 2) - el * elev_scale + offset_y
+                proj_y = (rot_x + rot_y) * (tile_h // 2)
+                cells.append((proj_y, x, y, cx, cy))
+                
+        # Sort by screen Y descending to check front cells first
+        cells.sort(key=lambda item: item[0], reverse=True)
+        
+        for _, x, y, cx, cy in cells:
+            if (abs(mx - cx) * 2 / tile_w) + (abs(my - cy) * 2 / tile_h) <= 1.0:
+                return x, y
         return None
 
     def draw_elements(self, tick, mouse_pos, personagem_ativo=None):

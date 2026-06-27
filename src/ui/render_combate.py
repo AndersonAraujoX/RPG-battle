@@ -20,25 +20,40 @@ ELEVATION_SCALE = 8
 OFFSET_X = 300
 OFFSET_Y = 200
 
-def get_iso_coords(x, y, elevation=0, y_offset=0):
-    iso_x = (x - y) * (TILE_WIDTH // 2) + OFFSET_X
-    iso_y = (x + y) * (TILE_HEIGHT // 2) - elevation * ELEVATION_SCALE + OFFSET_Y + y_offset
+def get_iso_coords(x, y, elevation=0, y_offset=0, theta=0.0):
+    rx = x - 9.5
+    ry = y - 9.5
+    rot_x = rx * math.cos(theta) - ry * math.sin(theta) + 9.5
+    rot_y = rx * math.sin(theta) + ry * math.cos(theta) + 9.5
+    
+    iso_x = (rot_x - rot_y) * (TILE_WIDTH // 2) + OFFSET_X
+    iso_y = (rot_x + rot_y) * (TILE_HEIGHT // 2) - elevation * ELEVATION_SCALE + OFFSET_Y + y_offset
     return int(iso_x), int(iso_y)
 
 def screen_to_grid(mx, my, motor):
     w = motor.tabuleiro.largura
     h = motor.tabuleiro.altura
     elev_grid = motor.tabuleiro.elevation_grid
+    theta = getattr(motor, 'angulo_rotacao', 0.0)
     
-    for x_plus_y in range(w + h - 2, -1, -1):
+    cells = []
+    for y in range(h):
         for x in range(w):
-            y = x_plus_y - x
-            if 0 <= y < h:
-                el = elev_grid[y][x]
-                cx = (x - y) * (TILE_WIDTH // 2) + OFFSET_X
-                cy = (x + y) * (TILE_HEIGHT // 2) - el * ELEVATION_SCALE + OFFSET_Y + ALTURA_BARRA_INICIATIVA
-                if (abs(mx - cx) * 2 / TILE_WIDTH) + (abs(my - cy) * 2 / TILE_HEIGHT) <= 1.0:
-                    return x, y
+            el = elev_grid[y][x]
+            rx = x - 9.5
+            ry = y - 9.5
+            rot_x = rx * math.cos(theta) - ry * math.sin(theta) + 9.5
+            rot_y = rx * math.sin(theta) + ry * math.cos(theta) + 9.5
+            cx = (rot_x - rot_y) * (TILE_WIDTH // 2) + OFFSET_X
+            cy = (rot_x + rot_y) * (TILE_HEIGHT // 2) - el * ELEVATION_SCALE + OFFSET_Y + ALTURA_BARRA_INICIATIVA
+            proj_y = (rot_x + rot_y) * (TILE_HEIGHT // 2)
+            cells.append((proj_y, x, y, cx, cy))
+            
+    cells.sort(key=lambda item: item[0], reverse=True)
+    
+    for _, x, y, cx, cy in cells:
+        if (abs(mx - cx) * 2 / TILE_WIDTH) + (abs(my - cy) * 2 / TILE_HEIGHT) <= 1.0:
+            return x, y
     return None
 
 def draw_alpha_polygon(tela, color, points):
@@ -57,71 +72,80 @@ def draw_alpha_polygon(tela, color, points):
 def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
     w = motor.tabuleiro.largura
     h = motor.tabuleiro.altura
+    theta = getattr(motor, 'angulo_rotacao', 0.0)
     
-    # Painter's Algorithm: draw back-to-front
-    for x_plus_y in range(w + h - 1):
+    cells = []
+    for y in range(h):
         for x in range(w):
-            y = x_plus_y - x
-            if 0 <= y < h:
-                visibilidade = visibilidade_map[y][x]
-                if visibilidade == 0:
-                    cx, cy = get_iso_coords(x, y, 0, y_offset)
-                    points = [
-                        (cx, cy - TILE_HEIGHT // 2),
-                        (cx + TILE_WIDTH // 2, cy),
-                        (cx, cy + TILE_HEIGHT // 2),
-                        (cx - TILE_WIDTH // 2, cy)
-                    ]
-                    pygame.draw.polygon(tela, (10, 10, 10), points)
-                    pygame.draw.polygon(tela, (25, 25, 25), points, 1)
-                    continue
+            rx = x - 9.5
+            ry = y - 9.5
+            rot_x = rx * math.cos(theta) - ry * math.sin(theta) + 9.5
+            rot_y = rx * math.sin(theta) + ry * math.cos(theta) + 9.5
+            proj_y = (rot_x + rot_y) * (TILE_HEIGHT / 2)
+            cells.append((proj_y, x, y))
+            
+    cells.sort(key=lambda item: item[0])
 
-                terreno = motor.tabuleiro.get_terrain_em(x, y)
-                el = motor.tabuleiro.get_elevation_em(x, y)
-                cor_base = CORES_TERRENO.get(terreno, COR_FUNDO)
-                
-                if visibilidade == 1:
-                    r, g, b = cor_base
-                    cor_base = (int(r * 0.45), int(g * 0.45), int(b * 0.45))
-                
-                cx, cy = get_iso_coords(x, y, el, y_offset)
-                thickness = el * ELEVATION_SCALE
-                
-                if terreno == TERRENO_PAREDE:
-                    thickness += 12
-                    cy -= 12
-                
-                top_points = [
-                    (cx, cy - TILE_HEIGHT // 2),
-                    (cx + TILE_WIDTH // 2, cy),
-                    (cx, cy + TILE_HEIGHT // 2),
-                    (cx - TILE_WIDTH // 2, cy)
-                ]
-                
-                if thickness > 0:
-                    r, g, b = cor_base
-                    cor_left = (int(r * 0.7), int(g * 0.7), int(b * 0.7))
-                    cor_right = (int(r * 0.5), int(g * 0.5), int(b * 0.5))
-                    
-                    left_points = [
-                        (cx - TILE_WIDTH // 2, cy),
-                        (cx, cy + TILE_HEIGHT // 2),
-                        (cx, cy + TILE_HEIGHT // 2 + thickness),
-                        (cx - TILE_WIDTH // 2, cy + thickness)
-                    ]
-                    right_points = [
-                        (cx, cy + TILE_HEIGHT // 2),
-                        (cx + TILE_WIDTH // 2, cy),
-                        (cx + TILE_WIDTH // 2, cy + thickness),
-                        (cx, cy + TILE_HEIGHT // 2 + thickness)
-                    ]
-                    pygame.draw.polygon(tela, cor_left, left_points)
-                    pygame.draw.polygon(tela, cor_right, right_points)
-                    pygame.draw.polygon(tela, (20, 20, 20), left_points, 1)
-                    pygame.draw.polygon(tela, (20, 20, 20), right_points, 1)
+    for _, x, y in cells:
+        visibilidade = visibilidade_map[y][x]
+        if visibilidade == 0:
+            cx, cy = get_iso_coords(x, y, 0, y_offset, theta)
+            points = [
+                (cx, cy - TILE_HEIGHT // 2),
+                (cx + TILE_WIDTH // 2, cy),
+                (cx, cy + TILE_HEIGHT // 2),
+                (cx - TILE_WIDTH // 2, cy)
+            ]
+            pygame.draw.polygon(tela, (10, 10, 10), points)
+            pygame.draw.polygon(tela, (25, 25, 25), points, 1)
+            continue
 
-                pygame.draw.polygon(tela, cor_base, top_points)
-                pygame.draw.polygon(tela, (60, 60, 60) if visibilidade == 2 else (35, 35, 35), top_points, 1)
+        terreno = motor.tabuleiro.get_terrain_em(x, y)
+        el = motor.tabuleiro.get_elevation_em(x, y)
+        cor_base = CORES_TERRENO.get(terreno, COR_FUNDO)
+        
+        if visibilidade == 1:
+            r, g, b = cor_base
+            cor_base = (int(r * 0.45), int(g * 0.45), int(b * 0.45))
+        
+        cx, cy = get_iso_coords(x, y, el, y_offset, theta)
+        thickness = el * ELEVATION_SCALE
+        
+        if terreno == TERRENO_PAREDE:
+            thickness += 12
+            cy -= 12
+        
+        top_points = [
+            (cx, cy - TILE_HEIGHT // 2),
+            (cx + TILE_WIDTH // 2, cy),
+            (cx, cy + TILE_HEIGHT // 2),
+            (cx - TILE_WIDTH // 2, cy)
+        ]
+        
+        if thickness > 0:
+            r, g, b = cor_base
+            cor_left = (int(r * 0.7), int(g * 0.7), int(b * 0.7))
+            cor_right = (int(r * 0.5), int(g * 0.5), int(b * 0.5))
+            
+            left_points = [
+                (cx - TILE_WIDTH // 2, cy),
+                (cx, cy + TILE_HEIGHT // 2),
+                (cx, cy + TILE_HEIGHT // 2 + thickness),
+                (cx - TILE_WIDTH // 2, cy + thickness)
+            ]
+            right_points = [
+                (cx, cy + TILE_HEIGHT // 2),
+                (cx + TILE_WIDTH // 2, cy),
+                (cx + TILE_WIDTH // 2, cy + thickness),
+                (cx, cy + TILE_HEIGHT // 2 + thickness)
+            ]
+            pygame.draw.polygon(tela, cor_left, left_points)
+            pygame.draw.polygon(tela, cor_right, right_points)
+            pygame.draw.polygon(tela, (20, 20, 20), left_points, 1)
+            pygame.draw.polygon(tela, (20, 20, 20), right_points, 1)
+
+        pygame.draw.polygon(tela, cor_base, top_points)
+        pygame.draw.polygon(tela, (60, 60, 60) if visibilidade == 2 else (35, 35, 35), top_points, 1)
 
 def desenhar_sprite(tela, personagem, rect, cor, game_images):
     personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
@@ -170,40 +194,46 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images):
         else: pygame.draw.rect(tela, cor, rect)
 
 def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, imagens, offset_y, visibilidade_map=None):
-    # Painter's Order: Draw dead first, then alive sorted by x + y (isometric back-to-front)
+    theta = getattr(motor, 'angulo_rotacao', 0.0)
+    
+    # Dead characters first
     for p in motor.combatentes:
         if not p.esta_vivo:
             if visibilidade_map and visibilidade_map[p.pos_y][p.pos_x] != 2: continue
 
-            cx, cy = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, offset_y)
+            cx, cy = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, offset_y, theta)
             pygame.draw.line(tela, (100, 0, 0), (cx - 10, cy - 5), (cx + 10, cy + 5), 3)
             pygame.draw.line(tela, (100, 0, 0), (cx + 10, cy - 5), (cx - 10, cy + 5), 3)
             pygame.draw.circle(tela, (50, 50, 50), (cx, cy), 6)
 
-    atacante_animacao = animacao_atual['atacante'] if animacao_atual and 'atacante' in animacao_atual else None
-    
-    # Sort alive combatentes back-to-front (smaller x+y first)
-    combatentes_vivos = sorted([p for p in motor.combatentes if p.esta_vivo], key=lambda x: x.pos_x + x.pos_y)
-
-    for p in combatentes_vivos:
-        if visibilidade_map and visibilidade_map[p.pos_y][p.pos_x] != 2: continue
-
-        cx, cy = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, offset_y)
-        
-        if animacao_atual and animacao_atual['tipo'] == 'movimento' and animacao_atual['personagem'] == p:
-            progresso = animacao_atual['progresso']
-            start_el = motor.tabuleiro.get_elevation_em(animacao_atual['start_pos'][0], animacao_atual['start_pos'][1])
-            start_x, start_y = get_iso_coords(animacao_atual['start_pos'][0], animacao_atual['start_pos'][1], start_el, offset_y)
-            end_x, end_y = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, offset_y)
+    # Alive characters sorted by visual Y (back-to-front sorting)
+    alive_characters = []
+    for p in motor.combatentes:
+        if p.esta_vivo:
+            if visibilidade_map and visibilidade_map[p.pos_y][p.pos_x] != 2: continue
             
-            curr_x = start_x + (end_x - start_x) * progresso
-            curr_y = start_y + (end_y - start_y) * progresso
-            # Jump arc
-            curr_y -= math.sin(progresso * math.pi) * 15
-            rect = pygame.Rect(curr_x - 15, curr_y - 25, 30, 30)
-        else:
-            rect = pygame.Rect(cx - 15, cy - 25, 30, 30)
+            if animacao_atual and animacao_atual['tipo'] == 'movimento' and animacao_atual['personagem'] == p:
+                progresso = animacao_atual['progresso']
+                start_el = motor.tabuleiro.get_elevation_em(animacao_atual['start_pos'][0], animacao_atual['start_pos'][1])
+                start_x, start_y = get_iso_coords(animacao_atual['start_pos'][0], animacao_atual['start_pos'][1], start_el, offset_y, theta)
+                end_x, end_y = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, offset_y, theta)
+                
+                curr_x = start_x + (end_x - start_x) * progresso
+                curr_y = start_y + (end_y - start_y) * progresso
+                curr_y -= math.sin(progresso * math.pi) * 15
+                proj_y = curr_y
+                rect = pygame.Rect(curr_x - 15, curr_y - 25, 30, 30)
+            else:
+                cx, cy = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, offset_y, theta)
+                proj_y = cy
+                rect = pygame.Rect(cx - 15, cy - 25, 30, 30)
+                
+            alive_characters.append((proj_y, p, rect))
+            
+    alive_characters.sort(key=lambda item: item[0])
+    atacante_animacao = animacao_atual['atacante'] if animacao_atual and 'atacante' in animacao_atual else None
 
+    for _, p, rect in alive_characters:
         cor = CORES_TIME.get(p.time, (200, 200, 200))
         if hasattr(p, 'dano_timer') and p.dano_timer > 0:
             fator = p.dano_timer / 15.0
@@ -219,7 +249,6 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
             else:
                 desenhar_sprite(tela, p, rect, cor, imagens)
             
-            # Status effect icons
             if p.status_efeitos:
                 status_x_offset = 0
                 for efeito in p.status_efeitos:
@@ -230,18 +259,16 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
                         pygame.draw.rect(tela, cor_status, status_rect)
                         status_x_offset += 8
         else:
-            # Drawing attacker animation
             progresso = animacao_atual['progresso']
             alvo = animacao_atual.get('alvo')
             if animacao_atual['tipo'] == 'ataque' and p.alcance == 1 and alvo:
                 p_inicial = pygame.Vector2(rect.center)
-                alvo_cx, alvo_cy = get_iso_coords(alvo.pos_x, alvo.pos_y, alvo.elevacao, offset_y)
+                alvo_cx, alvo_cy = get_iso_coords(alvo.pos_x, alvo.pos_y, alvo.elevacao, offset_y, theta)
                 p_final = pygame.Vector2(alvo_cx, alvo_cy - 10)
                 pos_interp = p_inicial.lerp(p_final, progresso * 2) if progresso <= 0.5 else p_final.lerp(p_inicial, (progresso - 0.5) * 2)
                 rect.center = pos_interp
             desenhar_sprite(tela, p, rect, cor, imagens)
 
-        # Health/Resources bars (suspended above head)
         hp_percent = p.hp_atual / p.hp_max
         hp_bar_bg = pygame.Rect(rect.left, rect.top - 8, 30, 4)
         pygame.draw.rect(tela, (30, 30, 30), hp_bar_bg)
@@ -266,7 +293,6 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
             pygame.draw.rect(tela, COR_HP_BAR_FUNDO, energia_bar_fundo)
             pygame.draw.rect(tela, COR_ENERGIA_BAR, energia_bar_frente)
 
-        # Draw Level
         level_render = fonte.render(str(p.nivel), True, COR_TEXTO)
         pygame.draw.circle(tela, (0,0,0), (rect.left + 3, rect.top + 3), 6)
         tela.blit(level_render, (rect.left, rect.top - 3))
@@ -274,11 +300,12 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
 def desenhar_pre_visualizacao_ataque(tela, motor, hovered_enemy, game_images, y_offset):
     if not hovered_enemy:
         return
+    theta = getattr(motor, 'angulo_rotacao', 0.0)
 
     for p in motor.combatentes:
         if p.esta_vivo and p.time == TIME_A:
             if calcular_distancia(p, hovered_enemy) <= p.alcance:
-                cx, cy = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, y_offset)
+                cx, cy = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, y_offset, theta)
                 points = [
                     (cx, cy - TILE_HEIGHT // 2),
                     (cx + TILE_WIDTH // 2, cy),
@@ -290,11 +317,12 @@ def desenhar_pre_visualizacao_ataque(tela, motor, hovered_enemy, game_images, y_
 def desenhar_alcance_movimento(tela, motor, personagem_ativo, y_offset):
     if not personagem_ativo or personagem_ativo.time != TIME_A:
         return
+    theta = getattr(motor, 'angulo_rotacao', 0.0)
 
     movimentos_validos = motor.get_movimento_valido(personagem_ativo)
     for x, y in movimentos_validos:
         el = motor.tabuleiro.get_elevation_em(x, y)
-        cx, cy = get_iso_coords(x, y, el, y_offset)
+        cx, cy = get_iso_coords(x, y, el, y_offset, theta)
         points = [
             (cx, cy - TILE_HEIGHT // 2),
             (cx + TILE_WIDTH // 2, cy),
@@ -306,13 +334,14 @@ def desenhar_alcance_movimento(tela, motor, personagem_ativo, y_offset):
 
 def desenhar_alcance_habilidade(tela, motor, personagem_ativo, habilidade_key, y_offset, mouse_pos=None):
     tiles, tipo = motor.get_alcance_habilidade(personagem_ativo, habilidade_key)
+    theta = getattr(motor, 'angulo_rotacao', 0.0)
     
     color = (255, 50, 50, 80)
     border_color = (255, 0, 0)
     
     for x, y in tiles:
         el = motor.tabuleiro.get_elevation_em(x, y)
-        cx, cy = get_iso_coords(x, y, el, y_offset)
+        cx, cy = get_iso_coords(x, y, el, y_offset, theta)
         points = [
             (cx, cy - TILE_HEIGHT // 2),
             (cx + TILE_WIDTH // 2, cy),
@@ -335,7 +364,7 @@ def desenhar_alcance_habilidade(tela, motor, personagem_ativo, habilidade_key, y
                              tx, ty = gx + dx, gy + dy
                              if 0 <= tx < 20 and 0 <= ty < 20:
                                  el = motor.tabuleiro.get_elevation_em(tx, ty)
-                                 cx, cy = get_iso_coords(tx, ty, el, y_offset)
+                                 cx, cy = get_iso_coords(tx, ty, el, y_offset, theta)
                                  points = [
                                      (cx, cy - TILE_HEIGHT // 2),
                                      (cx + TILE_WIDTH // 2, cy),
@@ -395,7 +424,7 @@ def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images)
             x_offset = area_iniciativa.x + 10
             y_offset += 25
 
-def desenhar_projeteis_e_efeitos(tela, animacao_atual, y_offset, game_images):
+def desenhar_projeteis_e_efeitos(tela, animacao_atual, y_offset, game_images, theta=0.0):
     if not animacao_atual: return
     progresso = animacao_atual['progresso']
     
@@ -404,8 +433,8 @@ def desenhar_projeteis_e_efeitos(tela, animacao_atual, y_offset, game_images):
         alvo = animacao_atual.get('alvo')
         if not alvo: return
 
-        start_x, start_y = get_iso_coords(atacante.pos_x, atacante.pos_y, atacante.elevacao, y_offset)
-        end_x, end_y = get_iso_coords(alvo.pos_x, alvo.pos_y, alvo.elevacao, y_offset)
+        start_x, start_y = get_iso_coords(atacante.pos_x, atacante.pos_y, atacante.elevacao, y_offset, theta)
+        end_x, end_y = get_iso_coords(alvo.pos_x, alvo.pos_y, alvo.elevacao, y_offset, theta)
         
         start_pos = pygame.Vector2(start_x, start_y - 10)
         end_pos = pygame.Vector2(end_x, end_y - 10)
@@ -432,7 +461,7 @@ def desenhar_projeteis_e_efeitos(tela, animacao_atual, y_offset, game_images):
             pygame.draw.line(tela, (255, 255, 255), (int(ponto1.x), int(ponto1.y)), (int(ponto2.x), int(ponto2.y)), 3)
 
     elif animacao_atual['tipo'] == 'ataque_area':
-        cx, cy = get_iso_coords(animacao_atual['x'], animacao_atual['y'], 0, y_offset)
+        cx, cy = get_iso_coords(animacao_atual['x'], animacao_atual['y'], 0, y_offset, theta)
         raio_max = animacao_atual['raio'] * TILE_WIDTH
         raio_atual = raio_max * progresso
         
@@ -531,6 +560,7 @@ def desenhar_inventario(tela, fonte, personagem, max_altura, y_offset, mouse_pos
 def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
     if not unidade: return
     x, y = unidade.pos_x, unidade.pos_y
+    theta = getattr(motor, 'angulo_rotacao', 0.0)
     
     for r in range(-unidade.velocidade, unidade.velocidade + 1):
         for c in range(-unidade.velocidade, unidade.velocidade + 1):
@@ -538,7 +568,7 @@ def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
             if 0 <= nx < motor.tabuleiro.largura and 0 <= ny < motor.tabuleiro.altura:
                 if motor.tabuleiro.get_personagem_em(nx, ny) is None and motor.tabuleiro.get_terrain_em(nx, ny) != TERRENO_PAREDE:
                     el = motor.tabuleiro.get_elevation_em(nx, ny)
-                    cx, cy = get_iso_coords(nx, ny, el, y_offset)
+                    cx, cy = get_iso_coords(nx, ny, el, y_offset, theta)
                     points = [
                         (cx, cy - TILE_HEIGHT // 2),
                         (cx + TILE_WIDTH // 2, cy),
@@ -552,7 +582,7 @@ def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
             dist = abs(x - inimigo.pos_x) + abs(y - inimigo.pos_y)
             if dist <= unidade.alcance:
                 el = motor.tabuleiro.get_elevation_em(inimigo.pos_x, inimigo.pos_y)
-                cx, cy = get_iso_coords(inimigo.pos_x, inimigo.pos_y, el, y_offset)
+                cx, cy = get_iso_coords(inimigo.pos_x, inimigo.pos_y, el, y_offset, theta)
                 points = [
                     (cx, cy - TILE_HEIGHT // 2),
                     (cx + TILE_WIDTH // 2, cy),
@@ -614,7 +644,8 @@ def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos, personagem_ativo
         "  - Clique em sua unidade para selecionar.",
         "  - Clique em azul para mover.",
         "  - Clique em vermelho para atacar.",
-        "  - Clique fora para cancelar."
+        "  - Clique fora para cancelar.",
+        "  - Pressione Q / E para rotacionar."
     ]
     for cmd in comandos:
         cmd_render = fonte.render(cmd, True, COR_TEXTO)
@@ -634,14 +665,14 @@ def desenhar_feedback_invalido(tela, alpha, y_offset):
     overlay.fill((255, 0, 0, alpha))
     tela.blit(overlay, (0, y_offset))
 
-def desenhar_itens_no_chao(tela, tabuleiro, y_offset, visibilidade_map):
+def desenhar_itens_no_chao(tela, tabuleiro, y_offset, visibilidade_map, theta=0.0):
     for y in range(tabuleiro.altura):
         for x in range(tabuleiro.largura):
             if visibilidade_map[y][x] > 0: 
                 item = tabuleiro.get_item_em(x, y)
                 if item:
                     el = tabuleiro.get_elevation_em(x, y)
-                    cx, cy = get_iso_coords(x, y, el, y_offset)
+                    cx, cy = get_iso_coords(x, y, el, y_offset, theta)
                     if visibilidade_map[y][x] == 1:
                          pygame.draw.circle(tela, (120, 100, 0), (cx, cy), 5)
                     else:

@@ -37,7 +37,7 @@ class GameRenderer:
                 visibilidade = g.motor.visibilidade_map
                 desenhar_cenario(g.tela, g.motor, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 
-                desenhar_itens_no_chao(g.tela, g.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade)
+                desenhar_itens_no_chao(g.tela, g.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade, g.angulo_rotacao)
                 desenhar_personagens(g.tela, g.motor, g.fonte_personagem, personagem_ativo, tick, g.animacao_atual, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 
                 if g.habilidade_selecionada:
@@ -48,7 +48,7 @@ class GameRenderer:
                     hovered = g.motor.tabuleiro.get_personagem_em(grid_pos[0], grid_pos[1]) if grid_pos is not None else None
                     desenhar_pre_visualizacao_ataque(g.tela, g.motor, hovered, g.imagens, ALTURA_BARRA_INICIATIVA)
 
-                desenhar_projeteis_e_efeitos(g.tela, g.animacao_atual, ALTURA_BARRA_INICIATIVA, g.imagens)
+                desenhar_projeteis_e_efeitos(g.tela, g.animacao_atual, ALTURA_BARRA_INICIATIVA, g.imagens, g.angulo_rotacao)
                 desenhar_barra_iniciativa(g.tela, g.motor.ordem_de_combate, personagem_ativo, g.imagens)
                 desenhar_log(g.tela, g.fonte_log, g.log_combate, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
                 
@@ -89,31 +89,46 @@ class GameRenderer:
                 botao.desenhar(g.tela, g.fonte_menu, mouse_pos)
 
         elif g.estado_jogo == ESTADO_JOGO_EDITOR:
+            import math
             tile_w = 26
             tile_h = 13
             offset_x = 300
             offset_y = 200 + ALTURA_BARRA_INICIATIVA
             w = len(g.editor_mapa[0]) if len(g.editor_mapa) > 0 else 20
             h = len(g.editor_mapa)
+            theta = g.angulo_rotacao
             
-            for x_plus_y in range(w + h - 1):
+            cells = []
+            for y in range(h):
                 for x in range(w):
-                    y = x_plus_y - x
-                    if 0 <= y < h:
-                        terreno = g.editor_mapa[y][x]
-                        cx = (x - y) * (tile_w // 2) + offset_x
-                        cy = (x + y) * (tile_h // 2) + offset_y
-                        
-                        points = [
-                            (cx, cy - tile_h // 2),
-                            (cx + tile_w // 2, cy),
-                            (cx, cy + tile_h // 2),
-                            (cx - tile_w // 2, cy)
-                        ]
-                        
-                        cor_terreno = CORES_TERRENO.get(terreno, (30, 30, 30))
-                        pygame.draw.polygon(g.tela, cor_terreno, points)
-                        pygame.draw.polygon(g.tela, (50, 50, 50), points, 1)
+                    rx = x - 9.5
+                    ry = y - 9.5
+                    rot_x = rx * math.cos(theta) - ry * math.sin(theta) + 9.5
+                    rot_y = rx * math.sin(theta) + ry * math.cos(theta) + 9.5
+                    proj_y = (rot_x + rot_y) * (tile_h / 2)
+                    cells.append((proj_y, x, y))
+                    
+            cells.sort(key=lambda item: item[0])
+            
+            for _, x, y in cells:
+                terreno = g.editor_mapa[y][x]
+                rx = x - 9.5
+                ry = y - 9.5
+                rot_x = rx * math.cos(theta) - ry * math.sin(theta) + 9.5
+                rot_y = rx * math.sin(theta) + ry * math.cos(theta) + 9.5
+                cx = (rot_x - rot_y) * (tile_w // 2) + offset_x
+                cy = (rot_x + rot_y) * (tile_h // 2) + offset_y
+                
+                points = [
+                    (cx, cy - tile_h // 2),
+                    (cx + tile_w // 2, cy),
+                    (cx, cy + tile_h // 2),
+                    (cx - tile_w // 2, cy)
+                ]
+                
+                cor_terreno = CORES_TERRENO.get(terreno, (30, 30, 30))
+                pygame.draw.polygon(g.tela, cor_terreno, points)
+                pygame.draw.polygon(g.tela, (50, 50, 50), points, 1)
             
             area_editor = pygame.Rect(LARGURA_TABULEIRO, 0, LARGURA_LOG, ALTURA_TELA)
             s = pygame.Surface((area_editor.width, area_editor.height), pygame.SRCALPHA)
