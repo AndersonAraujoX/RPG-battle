@@ -23,7 +23,8 @@ class ChapterLoader:
                 fase = self._carregar_fase(caminho) # Renamed capitulo to fase, _carregar_capitulo to _carregar_fase
                 if fase:
                     self.fases.append(fase) # Renamed capitulos to fases
-                    print(f"Fase carregada: {fase['info'].get('titulo')} ({pasta})") # Renamed "Capítulo" to "Fase"
+                    if pasta == "fase_01":
+                        print(f"Fase carregada: {fase['info'].get('titulo')} ({pasta})") # Renamed "Capítulo" to "Fase"
             except Exception as e:
                 logging.error(f"Erro ao carregar fase {pasta}: {e}") # Renamed "capítulo" to "fase"
 

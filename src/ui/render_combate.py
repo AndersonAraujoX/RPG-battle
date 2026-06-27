@@ -645,7 +645,7 @@ def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos, personagem_ativo
         "  - Clique em azul para mover.",
         "  - Clique em vermelho para atacar.",
         "  - Clique fora para cancelar.",
-        "  - Pressione Q / E para rotacionar."
+        "  - Pressione Q / E para girar 90°."
     ]
     for cmd in comandos:
         cmd_render = fonte.render(cmd, True, COR_TEXTO)

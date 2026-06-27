@@ -47,7 +47,7 @@ class Game:
         pygame.init()
         pygame.mixer.init()
         self.tela = pygame.display.set_mode((LARGURA_TELA, ALTURA_TELA))
-        pygame.display.set_caption("Simulador de Batalha Tático")
+        pygame.display.set_caption("Cerco contra Isectum")
         self.fonte_personagem = pygame.font.Font(None, 18)
         self.fonte_log = pygame.font.Font(None, 20)
         self.fonte_info = pygame.font.Font(None, 22)
@@ -107,6 +107,9 @@ class Game:
         self.dialogo = Dialogo()
         self.game_over_processed = False
         self.angulo_rotacao = 0.0
+        self.target_angulo_rotacao = 0.0
+        self.key_q_pressed = False
+        self.key_e_pressed = False
 
         GameSetup.setup_ui(self)
         self.tocar_musica('menu')
@@ -309,13 +312,42 @@ class Game:
         self.event_handler.handle_events(mouse_pos, personagem_ativo)
 
     def update_game_logic(self, agora, personagem_ativo):
-        # Keyboard rotation control (Q/E)
+        # Keyboard rotation control (Q/E) with smooth 90-degree interpolation
         keys = pygame.key.get_pressed()
+        
+        # Debounce Q key (Rotate Counter-Clockwise 90 degrees)
         if keys[pygame.K_q]:
-            self.angulo_rotacao = (self.angulo_rotacao - 0.04) % (2 * math.pi)
-        if keys[pygame.K_e]:
-            self.angulo_rotacao = (self.angulo_rotacao + 0.04) % (2 * math.pi)
+            if not self.key_q_pressed:
+                self.target_angulo_rotacao -= math.pi / 2
+                self.key_q_pressed = True
+        else:
+            self.key_q_pressed = False
             
+        # Debounce E key (Rotate Clockwise 90 degrees)
+        if keys[pygame.K_e]:
+            if not self.key_e_pressed:
+                self.target_angulo_rotacao += math.pi / 2
+                self.key_e_pressed = True
+        else:
+            self.key_e_pressed = False
+            
+        # Keep target_angulo_rotacao within range to avoid floating overflow
+        self.target_angulo_rotacao = self.target_angulo_rotacao % (2 * math.pi)
+        
+        # Smoothly interpolate angulo_rotacao towards target_angulo_rotacao
+        diff = (self.target_angulo_rotacao - self.angulo_rotacao)
+        # Normalize diff to range [-pi, pi] to take shortest path
+        diff = (diff + math.pi) % (2 * math.pi) - math.pi
+        
+        if abs(diff) > 0.01:
+            step = 0.08  # speed of rotation animation
+            if abs(diff) < step:
+                self.angulo_rotacao = self.target_angulo_rotacao
+            else:
+                self.angulo_rotacao = (self.angulo_rotacao + (step if diff > 0 else -step)) % (2 * math.pi)
+        else:
+            self.angulo_rotacao = self.target_angulo_rotacao
+
         if self.motor:
             self.motor.angulo_rotacao = self.angulo_rotacao
 

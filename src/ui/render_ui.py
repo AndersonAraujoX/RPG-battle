@@ -59,13 +59,13 @@ def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
         print(f"Erro ao carregar background: {e}")
         tela.fill((20, 20, 30))
     
-    # Título "FINAL DE KINDREAD SOUL"
+    # Título "Cerco contra Isectum"
     # Estilo: Épico com Borda Grossa
     fonte_titulo = pygame.font.Font(None, 110)
     fonte_subtitulo = pygame.font.Font(None, 130)
     
-    texto_titulo = "FINAL DE"
-    texto_subtitulo = "KINDREAD SOUL"
+    texto_titulo = "Cerco contra"
+    texto_subtitulo = "Isectum"
     
     # Posições
     x_titulo = 80
@@ -74,10 +74,10 @@ def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
     y_sub = 160
     
     # Renderizar com Outline
-    # "FINAL DE" - Dourado Pálido com borda preta
+    # "Cerco contra" - Dourado Pálido com borda preta
     draw_text_with_outline(tela, texto_titulo, fonte_titulo, (240, 230, 140), (x_titulo, y_titulo), outline_width=4)
     
-    # "KINDREAD SOUL" - Laranja/Dourado Intenso com borda preta grossa
+    # "Isectum" - Laranja/Dourado Intenso com borda preta grossa
     draw_text_with_outline(tela, texto_subtitulo, fonte_subtitulo, (255, 140, 0), (x_sub, y_sub), outline_width=5)
     
     for botao in botoes.values():

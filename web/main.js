@@ -44,7 +44,7 @@ function render() {
     });
 
     // Render valid actions
-    validTiles.forEach(({x, y}) => {
+    validTiles.forEach(({ x, y }) => {
         const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
         if (selectedAction === 'move') cell.classList.add('valid-move');
         if (selectedAction === 'attack') cell.classList.add('valid-attack');
@@ -58,7 +58,7 @@ function render() {
 
 function handleCellClick(x, y) {
     const char = engine.combatenteAtual;
-    
+
     if (selectedAction === 'move') {
         if (validTiles.some(t => t.x === x && t.y === y)) {
             engine.grid.moveCharacter(char, x, y);
@@ -70,7 +70,7 @@ function handleCellClick(x, y) {
     } else if (selectedAction === 'attack') {
         const target = engine.grid.getCharacterAt(x, y);
         if (target && target.time !== char.time) {
-            const dist = engine.grid.getDistance(char.pos, {x, y});
+            const dist = engine.grid.getDistance(char.pos, { x, y });
             if (dist <= char.alcance) {
                 executeAttack(char, target);
                 selectedAction = null;
@@ -84,7 +84,7 @@ function handleCellClick(x, y) {
 function executeAttack(attacker, target) {
     const d20 = Math.floor(Math.random() * 20) + 1;
     const attackRoll = d20 + attacker.getMod(attacker.stats.forca || 10) + 2; // +2 proficiency approx
-    
+
     if (attackRoll >= target.ac) {
         const dmg = Math.floor(Math.random() * attacker.dadoDano[1]) + 1 + attacker.getMod(attacker.stats.forca || 10);
         target.receberDano(dmg);
@@ -93,7 +93,7 @@ function executeAttack(attacker, target) {
     } else {
         engine.log(`${attacker.nome} ERROU ${target.nome} com ${attackRoll} vs ${target.ac}`, 'damage');
     }
-    
+
     const win = engine.verificarVitoria();
     if (win) {
         alert(`${win} venceu!`);
@@ -106,9 +106,9 @@ function updateCharacterInfo(char) {
     charInfoEl.innerHTML = `
         <h4>${char.nome} (${char.classe})</h4>
         <div class="stat-row">HP: ${char.hpAtual} / ${char.hpMax}</div>
-        <div class="stat-bar"><div class="bar-fill bar-hp" style="width: ${(char.hpAtual/char.hpMax)*100}%"></div></div>
+        <div class="stat-bar"><div class="bar-fill bar-hp" style="width: ${(char.hpAtual / char.hpMax) * 100}%"></div></div>
         <div class="stat-row">${char.recursoNome}: ${char.recursoAtual} / ${char.recursoMax}</div>
-        <div class="stat-bar"><div class="bar-fill bar-resource" style="width: ${(char.recursoAtual/char.recursoMax)*100}%"></div></div>
+        <div class="stat-bar"><div class="bar-fill bar-resource" style="width: ${(char.recursoAtual / char.recursoMax) * 100}%"></div></div>
         <div class="stat-grid">
             <span>AC: ${char.ac}</span>
             <span>Mov: ${char.velocidade}</span>
@@ -139,7 +139,7 @@ document.getElementById('btn-attack').addEventListener('click', () => {
     validTiles = [];
     engine.combatentes.forEach(c => {
         if (c.vivo && c.time !== engine.combatenteAtual.time) {
-            validTiles.push({x: c.pos.x, y: c.pos.y});
+            validTiles.push({ x: c.pos.x, y: c.pos.y });
         }
     });
     render();

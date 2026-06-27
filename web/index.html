@@ -3,75 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPG Battle Simulator - Tactical Edition</title>
+    <title>Cerco contra Isectum - Defenda a Fortaleza</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="app">
+        <!-- HEADER -->
         <header class="game-header">
             <div class="logo">
-                <span class="accent">RPG</span> BATTLE
+                <span class="accent">CERCO CONTRA</span> ISECTUM
             </div>
-            <div id="turn-indicator" class="turn-indicator">
-                RODADA <span id="round-number">1</span>
+            <div id="turn-info-bar" class="turn-info-bar hidden">
+                <div class="info-item">RODADA: <span id="val-rodada">1</span></div>
+                <div class="info-item">TURNO DE: <span id="val-anão-ativo" class="color-tag">Nenhum</span></div>
+                <div class="info-item">DECK DE CERCO: <span id="val-deck-cerco">50</span> cartas</div>
             </div>
-            <div id="turn-order" class="turn-order">
-                <!-- Portraid list will be injected here -->
+            <div id="game-status-indicators" class="game-status-indicators hidden">
+                <!-- Status tokens like siege weapons and active threats -->
             </div>
         </header>
 
-        <main class="game-container">
+        <!-- MAIN LAYOUT -->
+        <main class="game-container hidden" id="game-main">
+            <!-- LEFT COLUMN: MAPA & TABULEIRO -->
             <section class="board-area">
-                <div id="board" class="board">
-                    <!-- 20x20 grid will be injected here -->
+                <div class="fortress-map" id="mapa-fortaleza">
+                    <!-- Central Chamber -->
+                    <div class="map-zone central-chamber" id="zone-central-chamber" data-zone="Câmara Central">
+                        <div class="zone-name">🪙 Câmara Central</div>
+                        <div class="zone-gold" id="gold-counter">20 🪙</div>
+                        <div class="zone-contents">
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Workshops -->
+                    <div class="map-zone workshop north" id="zone-carpintaria" data-zone="Carpintaria">
+                        <div class="zone-name">🪵 Carpintaria</div>
+                        <div class="zone-resources" id="carp-wood">10 🪵</div>
+                        <div class="zone-contents">
+                            <div class="enemies-list"></div>
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone workshop south" id="zone-curtume" data-zone="Curtume">
+                        <div class="zone-name">🧳 Curtume</div>
+                        <div class="zone-resources" id="curt-leather">10 🧳</div>
+                        <div class="zone-contents">
+                            <div class="enemies-list"></div>
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone workshop west" id="zone-fundicao" data-zone="Fundição">
+                        <div class="zone-name">⚙️ Fundição</div>
+                        <div class="zone-resources" id="fund-metal">10 ⚙️</div>
+                        <div class="zone-contents">
+                            <div class="enemies-list"></div>
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone workshop east" id="zone-patio" data-zone="Pátio de Entrada">
+                        <div class="zone-name">🕳️ Pátio (Túnel)</div>
+                        <div class="zone-contents">
+                            <div class="boulders-progress" id="tunnel-boulders">8 🧱</div>
+                            <div class="boss-list"></div>
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Walls -->
+                    <div class="map-zone wall north" id="zone-muralha-norte" data-zone="Muralha Norte">
+                        <div class="zone-name">🧱 Muralha Norte</div>
+                        <div class="zone-contents">
+                            <div class="enemies-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone wall south" id="zone-muralha-sul" data-zone="Muralha Sul">
+                        <div class="zone-name">🧱 Muralha Sul</div>
+                        <div class="zone-contents">
+                            <div class="enemies-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone wall west" id="zone-muralha-oeste" data-zone="Muralha Oeste">
+                        <div class="zone-name">🧱 Muralha Oeste</div>
+                        <div class="zone-contents">
+                            <div class="enemies-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone wall east" id="zone-muralha-leste" data-zone="Muralha Leste">
+                        <div class="zone-name">🧱 Muralha Leste</div>
+                        <div class="zone-contents">
+                            <div class="enemies-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Towers -->
+                    <div class="map-zone tower nw" id="zone-torre-nw" data-zone="Torre Noroeste">
+                        <div class="zone-name">🗼 Torre NW</div>
+                        <div class="zone-contents">
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone tower sw" id="zone-torre-sw" data-zone="Torre Sudoeste">
+                        <div class="zone-name">🗼 Torre SW</div>
+                        <div class="zone-contents">
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+                    <div class="map-zone tower east" id="zone-torre-leste" data-zone="Torre Leste (Túnel)">
+                        <div class="zone-name">🗼 Torre Leste</div>
+                        <div class="zone-contents">
+                            <div class="dwarves-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Siege Weapons Areas (Threat indicators) -->
+                    <div class="siege-area catapult-slot" id="catapult-threat-zone">
+                        <span>🏹 CATAPULTA</span>
+                        <div id="catapult-status">Inativa</div>
+                    </div>
+                    <div class="siege-area tower-slot" id="siege-tower-threat-zone">
+                        <span>🗼 TORRE DE ASSALTO</span>
+                        <div id="siege-tower-status">Inativa</div>
+                    </div>
+                </div>
+
+                <!-- CARDS IN HAND & ACTIONS PANEL -->
+                <div class="player-action-area">
+                    <div class="action-header">
+                        <h3>Mão do Defensor & Ações Disponíveis</h3>
+                        <div class="points-pool" id="action-points-pool">
+                            <span class="point-badge move-pts">Mov: <strong id="val-pts-move">0</strong></span>
+                            <span class="point-badge attack-pts">Ataque: <strong id="val-pts-attack">0</strong></span>
+                            <span class="point-badge work-pts">Trabalho: <strong id="val-pts-work">0</strong></span>
+                            <span class="point-badge dig-pts">Escavar: <strong id="val-pts-dig">0</strong></span>
+                        </div>
+                    </div>
+                    <div class="action-grid-container">
+                        <div class="hand-container" id="player-hand">
+                            <!-- Cards will be injected dynamically here -->
+                        </div>
+                        <div class="controls-panel">
+                            <button id="btn-action-move" class="action-btn" disabled>Mover anão</button>
+                            <button id="btn-action-work" class="action-btn" disabled>Trabalhar Oficina</button>
+                            <button id="btn-action-attack-melee" class="action-btn" disabled>Ataque Corpo-a-Corpo 🔨</button>
+                            <button id="btn-action-attack-ranged" class="action-btn" disabled>Ataque Longa Distância 🏹</button>
+                            <button id="btn-action-dig" class="action-btn" disabled>Escavar Pedregulhos 🧱</button>
+                            <button id="btn-action-pass" class="action-btn end-btn" disabled>Encerrar Turno</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
+            <!-- RIGHT COLUMN: NARRATOR & UPGRADES -->
             <aside class="side-panel">
-                <div class="panel-section log-section">
-                    <h3>Log de Combate</h3>
-                    <div id="combat-log" class="combat-log">
-                        <p class="log-entry system">Bem-vindo ao Simulador de Batalha!</p>
+                <!-- NARRATOR CHAT TERMINAL -->
+                <div class="panel-section narrator-section">
+                    <h3>📜 Crônicas do Cerco</h3>
+                    <div id="narrator-chat-log" class="narrator-chat-log">
+                        <!-- Story paragraphs will go here -->
                     </div>
                 </div>
 
-                <div class="panel-section info-section">
-                    <div id="character-info" class="character-info glass">
-                        <p class="empty-msg">Selecione um personagem</p>
+                <!-- UPGRADES MARKET BOARD -->
+                <div class="panel-section upgrades-section">
+                    <h3>⚙️ Mercado de Upgrades</h3>
+                    <div class="upgrades-market" id="upgrades-market-slots">
+                        <!-- 5 slots injected here -->
                     </div>
                 </div>
 
-                <div class="panel-section controls-section">
-                    <div id="controls" class="controls glass">
-                        <button id="btn-move" class="game-btn" disabled>Mover</button>
-                        <button id="btn-attack" class="game-btn" disabled>Atacar</button>
-                        <div id="skill-buttons" class="skill-buttons"></div>
-                        <button id="btn-pass" class="game-btn secondary" disabled>Passar Turno</button>
+                <!-- ACTIVE HERO CARD & PILES -->
+                <div class="panel-section player-stats-section">
+                    <div class="hero-summary-box" id="hero-summary">
+                        <!-- Active Dwarf and deck counts -->
                     </div>
                 </div>
             </aside>
         </main>
 
-        <footer class="game-footer">
-            <div class="status-bar">
-                <span id="coord-info">X: 0, Y: 0</span>
-                <span id="terrain-info">Terreno: Normal</span>
-            </div>
-        </footer>
-
-        <div id="overlay" class="overlay hidden">
+        <!-- SETUP MODAL OVERLAY -->
+        <div id="overlay" class="overlay">
             <div class="modal glass">
-                <h2 id="modal-title">Configurar Batalha</h2>
-                <div id="modal-content">
-                    <!-- Setup UI -->
+                <h2>O Cerco contra Isectum</h2>
+                <p class="modal-sub">Guie os Anões na defesa da fortaleza sitiada contra a horda de insetoides.</p>
+                
+                <div id="modal-content" class="setup-form">
+                    <div class="form-group">
+                        <label>Quantidade de Jogadores:</label>
+                        <div class="radio-group" id="setup-players-count">
+                            <button type="button" class="setup-option active" data-value="1">Solo (1 Anão)</button>
+                            <button type="button" class="setup-option" data-value="2">Coop (2 Anões)</button>
+                            <button type="button" class="setup-option" data-value="3">Coop (3 Anões)</button>
+                            <button type="button" class="setup-option" data-value="4">Coop (4 Anões)</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dificuldade (Pedregulhos por seção):</label>
+                        <div class="radio-group" id="setup-difficulty">
+                            <button type="button" class="setup-option" data-value="facil">Fácil (6 🧱)</button>
+                            <button type="button" class="setup-option active" data-value="normal">Normal (8 🧱)</button>
+                            <button type="button" class="setup-option" data-value="dificil">Difícil (10 🧱)</button>
+                            <button type="button" class="setup-option" data-value="epico">Épico (12 🧱)</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Selecione os Heróis:</label>
+                        <div class="hero-selector" id="setup-heroes">
+                            <div class="hero-card-select active" data-hero="red">
+                                <div class="hero-badge red">🔴 Runa Φ</div>
+                                <div class="hero-name">Anão Vermelho</div>
+                                <div class="hero-spec">Combate Físico</div>
+                            </div>
+                            <div class="hero-card-select" data-hero="purple">
+                                <div class="hero-badge purple">🟣 Runa 𝕏</div>
+                                <div class="hero-name">Anão Roxo</div>
+                                <div class="hero-spec">Especialista em Defesa</div>
+                            </div>
+                            <div class="hero-card-select" data-hero="yellow">
+                                <div class="hero-badge yellow">🟡 Runa ℍ</div>
+                                <div class="hero-name">Anão Amarelo</div>
+                                <div class="hero-spec">Engenharia / Ferramentas</div>
+                            </div>
+                            <div class="hero-card-select" data-hero="black">
+                                <div class="hero-badge black">⚫ Runa 𝕩</div>
+                                <div class="hero-name">Anão Preto</div>
+                                <div class="hero-spec">Mobilidade Alta</div>
+                            </div>
+                        </div>
+                        <div class="error-msg hidden" id="setup-hero-error">Escolha exatamente o mesmo número de heróis que jogadores!</div>
+                    </div>
                 </div>
-                <button id="btn-start" class="game-btn primary">Iniciar Combate</button>
+
+                <button id="btn-start" class="game-btn primary">Iniciar Defesa ⚔️</button>
+            </div>
+        </div>
+
+        <!-- DICE ROLL ANIMATION OVERLAY -->
+        <div id="dice-overlay" class="overlay hidden">
+            <div class="dice-modal glass">
+                <h3 id="dice-title">Rolando Dados de Ataque...</h3>
+                <div class="dice-container" id="dice-container">
+                    <!-- Virtual dice faces generated here -->
+                </div>
+                <div class="dice-totals" id="dice-totals"></div>
+                <button id="btn-close-dice" class="game-btn primary hidden">Confirmar Combate</button>
             </div>
         </div>
     </div>
+    
     <script type="module" src="main.js"></script>
 </body>
 </html>
