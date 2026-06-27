@@ -568,88 +568,86 @@ class EventHandler:
                     elif nome == 'cheat_win':
                         g.iniciar_sequencia_final()
 
-        if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO:
-            grid_x = mouse_pos[0] // TAMANHO_CELULA
-            grid_y = (mouse_pos[1] - ALTURA_BARRA_INICIATIVA) // TAMANHO_CELULA
-            
-            if 0 <= grid_x < 20 and 0 <= grid_y < 20 and g.motor:
-                clicked_unit = g.motor.tabuleiro.get_personagem_em(grid_x, grid_y)
-                if clicked_unit:
-                    g.unidade_selecionada = clicked_unit
+        grid_pos = g.screen_to_grid(mouse_pos[0], mouse_pos[1])
+        if grid_pos is not None and g.motor:
+            grid_x, grid_y = grid_pos
+            clicked_unit = g.motor.tabuleiro.get_personagem_em(grid_x, grid_y)
+            if clicked_unit:
+                g.unidade_selecionada = clicked_unit
 
-                if personagem_ativo and personagem_ativo.time == TIME_A and not g.animacao_atual and not g.fila_animacoes:
-                    
-                    if g.acao_action_selecionada:
-                        if not clicked_unit: 
-                            g.log_combate.append(("Selecione um alvo válido.", COR_DANO))
-                        else:
-                            dist = calcular_distancia(personagem_ativo, clicked_unit)
-                            success = False
-                            
-                            if g.acao_action_selecionada == 'help':
-                                if dist <= 1.5: 
-                                    success = personagem_ativo.usar_help(clicked_unit, g.log_combate)
-                                else:
-                                    g.log_combate.append(("Alvo muito longe para Ajudar/Distrair!", COR_DANO))
-                                    
-                            elif g.acao_action_selecionada == 'grapple':
-                                if dist <= 1.5:
-                                    success = personagem_ativo.usar_grapple(clicked_unit, g.log_combate)
-                                else:
-                                    g.log_combate.append(("Alvo fora de alcance (Melee)!", COR_DANO))
-                            
-                            elif g.acao_action_selecionada == 'shove':
-                                if dist <= 1.5:
-                                    success = personagem_ativo.usar_shove(clicked_unit, g.log_combate)
-                                else:
-                                    g.log_combate.append(("Alvo fora de alcance (Melee)!", COR_DANO))
-                                    
-                            if success:
-                                g.motor.avancar_turno()
-                                g.acao_action_selecionada = None
-                                g.actions_menu_open = False
-                    
-                    elif g.habilidade_selecionada:
-                        valid_tiles, tipo = g.motor.get_alcance_habilidade(personagem_ativo, g.habilidade_selecionada)
-                        if (grid_x, grid_y) in valid_tiles:
-                            eventos, logs = g.motor.jogador_usar_habilidade(
-                                personagem_ativo, 
-                                g.habilidade_selecionada, 
-                                alvo=clicked_unit, 
-                                pos_alvo=(grid_x, grid_y)
-                            )
-                            if eventos or logs:
-                                g.fila_animacoes.extend(eventos)
-                                g.log_combate.extend(logs)
-                                if eventos:
-                                    g.motor.avancar_turno()
-                                    g.habilidade_selecionada = None
-                        else:
-                            g.log_combate.append(("Alvo inválido para habilidade!", COR_DANO))
-                            g.play_sound('invalid_action')
-                            
-                    elif clicked_unit and clicked_unit.time == TIME_B:
+            if personagem_ativo and personagem_ativo.time == TIME_A and not g.animacao_atual and not g.fila_animacoes:
+                
+                if g.acao_action_selecionada:
+                    if not clicked_unit: 
+                        g.log_combate.append(("Selecione um alvo válido.", COR_DANO))
+                    else:
                         dist = calcular_distancia(personagem_ativo, clicked_unit)
-                        if dist <= personagem_ativo.alcance:
-                            eventos, logs = g.motor.jogador_ataca_personagem(personagem_ativo, clicked_unit)
+                        success = False
+                        
+                        if g.acao_action_selecionada == 'help':
+                            if dist <= 1.5: 
+                                success = personagem_ativo.usar_help(clicked_unit, g.log_combate)
+                            else:
+                                g.log_combate.append(("Alvo muito longe para Ajudar/Distrair!", COR_DANO))
+                                
+                        elif g.acao_action_selecionada == 'grapple':
+                            if dist <= 1.5:
+                                success = personagem_ativo.usar_grapple(clicked_unit, g.log_combate)
+                            else:
+                                g.log_combate.append(("Alvo fora de alcance (Melee)!", COR_DANO))
+                        
+                        elif g.acao_action_selecionada == 'shove':
+                            if dist <= 1.5:
+                                success = personagem_ativo.usar_shove(clicked_unit, g.log_combate)
+                            else:
+                                g.log_combate.append(("Alvo fora de alcance (Melee)!", COR_DANO))
+                                
+                        if success:
+                            g.motor.avancar_turno()
+                            g.acao_action_selecionada = None
+                            g.actions_menu_open = False
+                
+                elif g.habilidade_selecionada:
+                    valid_tiles, tipo = g.motor.get_alcance_habilidade(personagem_ativo, g.habilidade_selecionada)
+                    if (grid_x, grid_y) in valid_tiles:
+                        eventos, logs = g.motor.jogador_usar_habilidade(
+                            personagem_ativo, 
+                            g.habilidade_selecionada, 
+                            alvo=clicked_unit, 
+                            pos_alvo=(grid_x, grid_y)
+                        )
+                        if eventos or logs:
+                            g.fila_animacoes.extend(eventos)
+                            g.log_combate.extend(logs)
+                            if eventos:
+                                g.motor.avancar_turno()
+                                g.habilidade_selecionada = None
+                    else:
+                        g.log_combate.append(("Alvo inválido para habilidade!", COR_DANO))
+                        g.play_sound('invalid_action')
+                        
+                elif clicked_unit and clicked_unit.time == TIME_B:
+                    dist = calcular_distancia(personagem_ativo, clicked_unit)
+                    if dist <= personagem_ativo.alcance:
+                        eventos, logs = g.motor.jogador_ataca_personagem(personagem_ativo, clicked_unit)
+                        g.fila_animacoes.extend(eventos)
+                        g.log_combate.extend(logs)
+                        g.motor.avancar_turno()
+                    else:
+                        g.log_combate.append(("Alvo fora de alcance!", COR_DANO))
+                        g.play_sound('invalid_action')
+                        
+                elif not clicked_unit:
+                    if event.button == 1: # Left click move only
+                        eventos, logs = g.motor.jogador_move_personagem(personagem_ativo, grid_x, grid_y)
+                        if eventos: 
                             g.fila_animacoes.extend(eventos)
                             g.log_combate.extend(logs)
                             g.motor.avancar_turno()
+                            g.atualizar_visibilidade()
                         else:
-                            g.log_combate.append(("Alvo fora de alcance!", COR_DANO))
-                            g.play_sound('invalid_action')
-                            
-                    elif not clicked_unit:
-                        if event.button == 1: # Left click move only
-                            eventos, logs = g.motor.jogador_move_personagem(personagem_ativo, grid_x, grid_y)
-                            if eventos: 
-                                g.fila_animacoes.extend(eventos)
-                                g.log_combate.extend(logs)
-                                g.motor.avancar_turno()
-                                g.atualizar_visibilidade()
-                            else:
-                                if not logs: g.play_sound('invalid_action')
-                                g.log_combate.extend(logs)
+                            if not logs: g.play_sound('invalid_action')
+                            g.log_combate.extend(logs)
                                 
     def _handle_editor_click(self, event, mouse_pos):
         g = self.game
@@ -700,9 +698,7 @@ class EventHandler:
                     elif nome == 'voltar':
                         g.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
 
-            if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO:
-                grid_x = mouse_pos[0] // TAMANHO_CELULA
-                grid_y = (mouse_pos[1] - ALTURA_BARRA_INICIATIVA) // TAMANHO_CELULA
-                
-                if 0 <= grid_x < 20 and 0 <= grid_y < 20:
-                    g.editor_mapa[grid_y][grid_x] = g.editor_terreno_selecionado
+            grid_pos = g.screen_to_grid(mouse_pos[0], mouse_pos[1])
+            if grid_pos is not None:
+                grid_x, grid_y = grid_pos
+                g.editor_mapa[grid_y][grid_x] = g.editor_terreno_selecionado

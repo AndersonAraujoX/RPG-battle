@@ -65,6 +65,7 @@ class Tabuleiro:
             self.grid[y][x] = personagem
             personagem.pos_x = x
             personagem.pos_y = y
+            personagem.elevacao = self.get_elevation_em(x, y)
             return True
         return False
 
@@ -73,6 +74,7 @@ class Tabuleiro:
             self.grid[personagem.pos_y][personagem.pos_x] = None
         self.grid[novo_y][novo_x] = personagem
         personagem.pos_x, personagem.pos_y = novo_x, novo_y
+        personagem.elevacao = self.get_elevation_em(novo_x, novo_y)
 
     def adicionar_personagem_na_borda(self, personagem, borda):
         """Adiciona um personagem em uma borda vazia (norte ou sul), espalhando-os."""

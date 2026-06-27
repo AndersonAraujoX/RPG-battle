@@ -44,7 +44,9 @@ class GameRenderer:
                     desenhar_alcance_habilidade(g.tela, g.motor, personagem_ativo, g.habilidade_selecionada, ALTURA_BARRA_INICIATIVA, mouse_pos)
                 else:
                     desenhar_alcance_movimento(g.tela, g.motor, personagem_ativo, ALTURA_BARRA_INICIATIVA)
-                    desenhar_pre_visualizacao_ataque(g.tela, g.motor, g.motor.tabuleiro.get_personagem_em(mouse_pos[0] // TAMANHO_CELULA, (mouse_pos[1] - ALTURA_BARRA_INICIATIVA) // TAMANHO_CELULA) if mouse_pos[1] > ALTURA_BARRA_INICIATIVA and mouse_pos[0] < LARGURA_TABULEIRO else None, g.imagens, ALTURA_BARRA_INICIATIVA)
+                    grid_pos = g.screen_to_grid(mouse_pos[0], mouse_pos[1])
+                    hovered = g.motor.tabuleiro.get_personagem_em(grid_pos[0], grid_pos[1]) if grid_pos is not None else None
+                    desenhar_pre_visualizacao_ataque(g.tela, g.motor, hovered, g.imagens, ALTURA_BARRA_INICIATIVA)
 
                 desenhar_projeteis_e_efeitos(g.tela, g.animacao_atual, ALTURA_BARRA_INICIATIVA, g.imagens)
                 desenhar_barra_iniciativa(g.tela, g.motor.ordem_de_combate, personagem_ativo, g.imagens)
@@ -87,19 +89,31 @@ class GameRenderer:
                 botao.desenhar(g.tela, g.fonte_menu, mouse_pos)
 
         elif g.estado_jogo == ESTADO_JOGO_EDITOR:
-            for y in range(len(g.editor_mapa)):
-                for x in range(len(g.editor_mapa[y])):
-                    rect = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA + ALTURA_BARRA_INICIATIVA, TAMANHO_CELULA, TAMANHO_CELULA)
-                    
-                    terreno = g.editor_mapa[y][x]
-                    terreno_img_key = f"terreno_{terreno.lower()}"
-                    if terreno_img_key in g.imagens:
-                        img = pygame.transform.scale(g.imagens[terreno_img_key], (TAMANHO_CELULA, TAMANHO_CELULA))
-                        g.tela.blit(img, rect)
-                    else:
-                        pygame.draw.rect(g.tela, CORES_TERRENO.get(terreno, (0,0,0)), rect)
+            tile_w = 26
+            tile_h = 13
+            offset_x = 300
+            offset_y = 200 + ALTURA_BARRA_INICIATIVA
+            w = len(g.editor_mapa[0]) if len(g.editor_mapa) > 0 else 20
+            h = len(g.editor_mapa)
+            
+            for x_plus_y in range(w + h - 1):
+                for x in range(w):
+                    y = x_plus_y - x
+                    if 0 <= y < h:
+                        terreno = g.editor_mapa[y][x]
+                        cx = (x - y) * (tile_w // 2) + offset_x
+                        cy = (x + y) * (tile_h // 2) + offset_y
                         
-                    pygame.draw.rect(g.tela, (50, 50, 50), rect, 1)
+                        points = [
+                            (cx, cy - tile_h // 2),
+                            (cx + tile_w // 2, cy),
+                            (cx, cy + tile_h // 2),
+                            (cx - tile_w // 2, cy)
+                        ]
+                        
+                        cor_terreno = CORES_TERRENO.get(terreno, (30, 30, 30))
+                        pygame.draw.polygon(g.tela, cor_terreno, points)
+                        pygame.draw.polygon(g.tela, (50, 50, 50), points, 1)
             
             area_editor = pygame.Rect(LARGURA_TABULEIRO, 0, LARGURA_LOG, ALTURA_TELA)
             s = pygame.Surface((area_editor.width, area_editor.height), pygame.SRCALPHA)

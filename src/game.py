@@ -525,6 +525,33 @@ class Game:
         if self.motor:
             self.motor.atualizar_visibilidade()
 
+    def screen_to_grid(self, mx, my):
+        if self.motor:
+            elev_grid = self.motor.tabuleiro.elevation_grid
+            w = self.motor.tabuleiro.largura
+            h = self.motor.tabuleiro.altura
+        else:
+            h = len(self.editor_mapa) if self.editor_mapa else 20
+            w = len(self.editor_mapa[0]) if (self.editor_mapa and h > 0) else 20
+            elev_grid = [[0 for _ in range(w)] for _ in range(h)]
+            
+        tile_w = 26
+        tile_h = 13
+        elev_scale = 8
+        offset_x = 300
+        offset_y = 200 + ALTURA_BARRA_INICIATIVA
+        
+        for x_plus_y in range(w + h - 2, -1, -1):
+            for x in range(w):
+                y = x_plus_y - x
+                if 0 <= y < h:
+                    el = elev_grid[y][x]
+                    cx = (x - y) * (tile_w // 2) + offset_x
+                    cy = (x + y) * (tile_h // 2) - el * elev_scale + offset_y
+                    if (abs(mx - cx) * 2 / tile_w) + (abs(my - cy) * 2 / tile_h) <= 1.0:
+                        return x, y
+        return None
+
     def draw_elements(self, tick, mouse_pos, personagem_ativo=None):
         self.renderer.draw_elements(tick, mouse_pos, personagem_ativo)
 
