@@ -521,6 +521,10 @@ class Game:
             if self.motor.vencedor == "Time B" and self.checkbox_campanha.checked:
                  self.log_combate.append(("A campanha falhou...", COR_DANO))
 
+    def atualizar_visibilidade(self):
+        if self.motor:
+            self.motor.atualizar_visibilidade()
+
     def draw_elements(self, tick, mouse_pos, personagem_ativo=None):
         self.renderer.draw_elements(tick, mouse_pos, personagem_ativo)
 
