@@ -18,18 +18,31 @@ from __future__ import annotations
 from typing import Optional, Dict, List, Tuple
 
 # Mapeamento de Zonas Lógicas para Retângulos de Células (x_min, y_min, x_max, y_max)
-# Conforme imagem: Couro no topo (Norte), Madeira no rodapé (Sul), Ferro à esquerda (Oeste), Nexos à direita (Leste)
+# Grade 20x20 (coords 0..19), com zona externa de spawn usando coords virtuais -5..-1 e 20..24
 ZONAS_GRID = {
-    "camara_central": (8, 8, 11, 11),  # OURO (Centro)
-    "curtume":        (8, 3, 11, 7),   # COURO (Topo / Norte)
-    "carpintaria":    (8, 12, 11, 16), # MADEIRA (Rodapé / Sul)
-    "fundicao":       (3, 8, 7, 11),   # FERRO (Esquerda / Oeste)
-    "patio":          (12, 8, 16, 11),  # NEXOS (Direita / Leste)
-    "muralha_norte":  (5, 0, 14, 2),
-    "muralha_sul":    (5, 17, 14, 19),
-    "muralha_oeste":  (0, 5, 2, 14),
-    "muralha_leste":  (17, 5, 19, 14),
+    # ── Interior ────────────────────────────────────────────────────────────
+    "camara_central": (8,  8,  11, 11),  # OURO   — câmara do tesouro
+    "curtume":        (5,  4,  14,  7),  # COURO  — Norte interno
+    "carpintaria":    (5, 12,  14, 15),  # MADEIRA — Sul interno
+    "fundicao":       (4,  5,   7, 14),  # FERRO  — Oeste interno
+    "patio":          (12, 5,  15, 14),  # NEXOS  — Leste interno
+    # ── Muralhas (perímetro fechado) ────────────────────────────────────────
+    "muralha_norte":  (4,  0,  15,  3),  # muro N (inclui as Torres NO/NE)
+    "muralha_sul":    (4, 16,  15, 19),  # muro S
+    "muralha_oeste":  (0,  4,   3, 15),  # muro O
+    "muralha_leste":  (16, 4,  19, 15),  # muro L
+    # ── Torres dos cantos (elevação extra) ──────────────────────────────────
+    "torre_nw":       (0,  0,   3,  3),  # Torre Noroeste
+    "torre_ne":       (16, 0,  19,  3),  # Torre Nordeste
+    "torre_sw":       (0, 16,   3, 19),  # Torre Sudoeste
+    "torre_se":       (16,16,  19, 19),  # Torre Sudeste
+    # ── Campos Externos (Spawn e alvos de tiro) ─────────────────────────────
+    "campo_norte":    (-5, -5, 24, -1),
+    "campo_sul":      (-5, 20, 24, 24),
+    "campo_oeste":    (-5,  0, -1, 19),
+    "campo_leste":    (20,  0, 24, 19),
 }
+
 
 # Zonas de Produção e o recurso que geram
 OFICINAS = {

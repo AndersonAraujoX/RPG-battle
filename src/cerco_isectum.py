@@ -14,19 +14,27 @@ import copy
 # NOMES E ÍCONES
 # ═══════════════════════════════════════════════════════════════════════════
 NOMES_ZONA = {
+    # Interior
+    "camara_central": "Ouro",
+    "curtume":        "Couro",
+    "fundicao":       "Ferro",
+    "patio":          "Nexos",
+    "carpintaria":    "Madeira",
+    # Muralhas do perímetro
     "muralha_norte":  "Muralha Norte",
     "muralha_sul":    "Muralha Sul",
     "muralha_oeste":  "Muralha Oeste",
     "muralha_leste":  "Muralha Leste",
-    "carpintaria":    "Madeira",
-    "curtume":        "Couro",
-    "fundicao":       "Ferro",
-    "patio":          "Nexos",
-    "camara_central": "Ouro",
+    # Torres dos cantos
     "torre_nw":       "Torre NO",
     "torre_ne":       "Torre NE",
     "torre_sw":       "Torre SO",
     "torre_se":       "Torre SE",
+    # Zonas externas (campo de batalha — spawn dos inimigos)
+    "campo_norte":    "Campo Norte",
+    "campo_sul":      "Campo Sul",
+    "campo_oeste":    "Campo Oeste",
+    "campo_leste":    "Campo Leste",
 }
 
 FLUXO_ZONAS = {
@@ -147,8 +155,13 @@ def criar_estado(pedregulhos=8, is_solo=True):
         "pedregulhos":     pedregulhos,
         "pedregulhos_max": pedregulhos,
         "is_solo":         is_solo,
-        # Tokens por zona
+        # Tokens por zona — inclui campos externos
         "invasores":       {k: 0 for k in NOMES_ZONA},
+        # Inimigos nos campos externos (após avançar da reserva)
+        "campo_norte":     0,
+        "campo_sul":       0,
+        "campo_oeste":     0,
+        "campo_leste":     0,
         "brutamontes":     0,
         "infiltradores":   0,
         # Armas de cerco
@@ -249,6 +262,14 @@ def processar_carta(estado, carta):
 
     if tipo == "invasor":
         zona, qtd = carta["zona"], carta["qtd"]
+        # Inimigos aparecem primeiro no campo externo correspondente
+        mapa_spawn = {
+            "muralha_norte": "campo_norte",
+            "muralha_sul":   "campo_sul",
+            "muralha_oeste": "campo_oeste",
+            "muralha_leste": "campo_leste",
+        }
+        zona_spawn = mapa_spawn.get(zona, zona)
         if estado["reserva"] <= 0:
             delta["derrota"]     = True
             delta["msg_derrota"] = "Reserva esgotada — DERROTA"
@@ -256,10 +277,10 @@ def processar_carta(estado, carta):
         else:
             qreal = min(qtd, estado["reserva"])
             novos = dict(estado["invasores"])
-            novos[zona] = novos.get(zona, 0) + qreal
+            novos[zona_spawn] = novos.get(zona_spawn, 0) + qreal
             delta["invasores"] = novos
             delta["reserva"]   = estado["reserva"] - qreal
-            logs.append(("AMEACA", f"+{qreal}x Invasor em {NOMES_ZONA.get(zona, zona)}"))
+            logs.append(("AMEACA", f"+{qreal}x Invasor em {NOMES_ZONA.get(zona_spawn, zona_spawn)}"))
 
     elif tipo == "mover":
         novos         = dict(estado["invasores"])
@@ -287,6 +308,14 @@ def processar_carta(estado, carta):
                 novos[of] = novos.get(of, 0) + n
                 logs.append(("AMEACA", f"{n}x {NOMES_ZONA[mur]} → {NOMES_ZONA[of]}"))
                 novos[mur] = 0
+        # novos movimentos: campos externos → muralhas
+        for campo, mur in (("campo_norte", "muralha_norte"), ("campo_sul", "muralha_sul"),
+                           ("campo_oeste", "muralha_oeste"), ("campo_leste", "muralha_leste")):
+            n = novos.get(campo, 0)
+            if n > 0:
+                novos[mur] = novos.get(mur, 0) + n
+                logs.append(("AMEACA", f"{n}x {NOMES_ZONA.get(campo, campo)} → {NOMES_ZONA[mur]}"))
+                novos[campo] = 0
         nt = max(0, estado["tesouro"] + teso_delta)
         delta["invasores"] = novos
         delta["tesouro"]   = nt

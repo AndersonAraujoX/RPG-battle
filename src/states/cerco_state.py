@@ -27,7 +27,14 @@ from ..resolvedor_acoes import (
     validar_escavar,   executar_escavar,
     validar_subornar,  executar_subornar,
     validar_comprar_upgrade, executar_comprar_upgrade,
-    OFICINAS, ZONA_ESCAVACAO, NOME_RECURSO
+    OFICINAS, ZONA_ESCAVACAO, NOME_RECURSO,
+    obter_zona_por_coordenada, ZONAS_GRID
+)
+from ..juiz_combate import (
+    resolver_melee, resolver_distancia,
+    rolar_d6_customizado, calcular_dano_melee,
+    resetar_dano_turno_brutamonte, validar_pode_atacar_distancia,
+    ZONAS_TORRES, ZONAS_INTERNAS
 )
 from ..config import ESTADO_JOGO_MENU_PRINCIPAL, LARGURA_TELA, ALTURA_TELA
 
@@ -110,6 +117,8 @@ MODO_ESCAVAR   = "escavar"
 MODO_SUBORNAR  = "subornar"
 MODO_UPGRADE   = "upgrade"
 MODO_CONVOCAR  = "convocar"
+MODO_ATACAR    = "atacar"       # corpo-a-corpo: clique na zona com invasores
+MODO_ATIRAR    = "atirar"       # balestra: clique no alvo (de uma torre)
 
 
 class CercoState(GameState):
@@ -202,16 +211,18 @@ class CercoState(GameState):
         self.painel_rect = pygame.Rect(W - 318, 65, 310, H - 75)
         # Faixa de cartas na mão (bottom)
         self.mao_rect    = pygame.Rect(8, H - 100, W - 330, 92)
-        # Botões de ação
-        bw, bh = 136, 36
+        # Botões de ação — 7 botões lado a lado na faixa inferior
+        bw, bh = 110, 36
         bx = W - 318
         by = H - 48
-        self.btn_fim_turno  = pygame.Rect(bx,         by, bw,     bh)
-        self.btn_mover      = pygame.Rect(8,    H - 48, bw - 10,  bh)
-        self.btn_trabalhar  = pygame.Rect(8+bw, H - 48, bw - 10,  bh)
-        self.btn_escavar    = pygame.Rect(8+bw*2, H-48, bw - 10,  bh)
-        self.btn_subornar   = pygame.Rect(8+bw*3, H-48, bw - 10,  bh)
-        self.btn_convocar   = pygame.Rect(8+bw*4, H-48, bw - 10,  bh)
+        self.btn_fim_turno  = pygame.Rect(bx,         by, bw + 26, bh)
+        self.btn_mover      = pygame.Rect(8,          H - 48, bw - 4,  bh)
+        self.btn_trabalhar  = pygame.Rect(8+bw,       H - 48, bw - 4,  bh)
+        self.btn_escavar    = pygame.Rect(8+bw*2,     H - 48, bw - 4,  bh)
+        self.btn_subornar   = pygame.Rect(8+bw*3,     H - 48, bw - 4,  bh)
+        self.btn_convocar   = pygame.Rect(8+bw*4,     H - 48, bw - 4,  bh)
+        self.btn_atacar     = pygame.Rect(8+bw*5,     H - 48, bw - 4,  bh)
+        self.btn_atirar     = pygame.Rect(8+bw*6,     H - 48, bw - 4,  bh)
         self.btn_voltar     = pygame.Rect(W - 156, 68,  140,  30)
         self.btn_confirmar  = pygame.Rect(W//2-100, H-48, 200,  bh)
         # Rects das cartas na mão
@@ -312,6 +323,10 @@ class CercoState(GameState):
             self._selecionar_modo(MODO_TRABALHAR)
         if key == pygame.K_e and self.fase == "ACAO_LIVRE":
             self._selecionar_modo(MODO_ESCAVAR)
+        if key == pygame.K_a and self.fase == "ACAO_LIVRE":
+            self._selecionar_modo(MODO_ATACAR)
+        if key == pygame.K_f and self.fase == "ACAO_LIVRE":
+            self._selecionar_modo(MODO_ATIRAR)
 
     def _on_click(self, mouse):
         e = self.estado
@@ -345,6 +360,10 @@ class CercoState(GameState):
                 self._selecionar_modo(MODO_SUBORNAR); return
             if self.btn_convocar.collidepoint(mouse):
                 self._selecionar_modo(MODO_CONVOCAR); return
+            if self.btn_atacar.collidepoint(mouse):
+                self._selecionar_modo(MODO_ATACAR); return
+            if self.btn_atirar.collidepoint(mouse):
+                self._selecionar_modo(MODO_ATIRAR); return
 
             # Clique em carta na mão
             for i, rect in enumerate(self.carta_rects):
@@ -389,6 +408,8 @@ class CercoState(GameState):
             MODO_SUBORNAR:  "Modo SUBORNAR: escolha recurso no painel",
             MODO_UPGRADE:   "Modo UPGRADE: clique no slot e depois na carta para queimar",
             MODO_CONVOCAR:  "Modo CONVOCAR: clique em qualquer célula vazia para colocar um aliado!",
+            MODO_ATACAR:    "[A] ATACAR: clique na zona com invasores para combate melee (2D6 customizados)!",
+            MODO_ATIRAR:    "[F] ATIRAR: de uma Torre, clique no alvo externo (Balestra 2D6)!",
         }
         self._feedback(msgs.get(modo, ""), C_ACENTO)
 
@@ -441,7 +462,7 @@ class CercoState(GameState):
                 self._feedback(msg, C_PERIGO)
 
         elif self.modo_acao == MODO_CONVOCAR:
-            # Seleciona uma classe aliada aleatória (ou você pode escolher uma padrão)
+            # Seleciona uma classe aliada aleatória
             from ..personagens.protagonistas import Koema, Rilem, Yukito
             from ..personagens import Arqueiro, Clerigo
             aliado_classe = random.choice([Koema, Rilem, Yukito, Arqueiro, Clerigo])
@@ -457,6 +478,51 @@ class CercoState(GameState):
                 self.modo_acao = MODO_NENHUM
             else:
                 self._feedback("Célula ocupada ou inválida (parede). Escolha outra!", C_PERIGO)
+
+        elif self.modo_acao == MODO_ATACAR:
+            # ── COMBATE CORPO-A-CORPO com D6 Customizado ─────────────────
+            zona_alvo = obter_zona_por_coordenada(cx, cy)
+            if not zona_alvo:
+                self._feedback("Clique em uma zona válida do mapa!", C_PERIGO)
+                return
+            invasores_na_zona = self.estado["invasores"].get(zona_alvo, 0)
+            if invasores_na_zona == 0 and self.estado.get("brutamontes", 0) == 0:
+                self._feedback(f"Sem inimigos em [{zona_alvo}] para atacar!", C_PERIGO)
+                return
+            resultado = resolver_melee(self.estado, zona_alvo, num_dados=2)
+            self.estado = aplicar_delta(self.estado, resultado["delta"])
+            for t, m in resultado["logs"]:
+                self._push(t, m)
+            if resultado["rolagem"]:
+                faces = resultado["rolagem"]["faces"]
+                imp   = resultado["rolagem"]["impactos"]
+                dano  = imp // 2
+                self._feedback(f"Melee D6={faces} -> {imp} imp -> {dano} dano!", C_VERDE)
+            self.modo_acao = MODO_NENHUM
+
+        elif self.modo_acao == MODO_ATIRAR:
+            # ── COMBATE À DISTÂNCIA / BALESTRA ───────────────────────────
+            # Posição do herói determina se ele está em uma Torre
+            hx = self.estado.get("heroi_x", 9)
+            hy = self.estado.get("heroi_y", 9)
+            zona_defensor = obter_zona_por_coordenada(hx, hy)
+            zona_alvo_tiro = obter_zona_por_coordenada(cx, cy)
+            if not zona_defensor or not zona_alvo_tiro:
+                self._feedback("Posição inválida para Balestra!", C_PERIGO)
+                return
+            ok, msg_val = validar_pode_atacar_distancia(zona_defensor, zona_alvo_tiro)
+            if not ok:
+                self._feedback(msg_val, C_PERIGO)
+                return
+            resultado = resolver_distancia(self.estado, zona_defensor, zona_alvo_tiro, num_dados=2)
+            self.estado = aplicar_delta(self.estado, resultado["delta"])
+            for t, m in resultado["logs"]:
+                self._push(t, m)
+            if resultado["rolagem"]:
+                faces = resultado["rolagem"]["faces"]
+                dis   = resultado["rolagem"]["disparos"]
+                self._feedback(f"Balestra D6={faces} -> {dis} disparos -> {dis} dano!", C_HEROI)
+            self.modo_acao = MODO_NENHUM
 
     def _tentar_upgrade(self):
         e = self.estado
@@ -504,6 +570,10 @@ class CercoState(GameState):
             "pontos_trabalho":  0,
             "pontos_escavacao": 0,
         })
+        # Reset acumulador de dano do Brutamonte (sobras de impacto não acumulam entre turnos)
+        reset_brute = resetar_dano_turno_brutamonte(self.estado)
+        if reset_brute:
+            self.estado = aplicar_delta(self.estado, reset_brute)
         # Descarta mão restante
         desc = list(self.estado["descarte"]) + list(self.estado["mao"])
         self.estado = aplicar_delta(self.estado, {"mao": [], "descarte": desc})
@@ -636,167 +706,270 @@ class CercoState(GameState):
     # ── MAPA ────────────────────────────────────────────────────────────
     def _draw_mapa(self, tela):
         r = self.mapa_rect
-        pygame.draw.rect(tela, (8, 10, 20), r, border_radius=12)
+        pygame.draw.rect(tela, (4, 6, 14), r, border_radius=12)
         pygame.draw.rect(tela, C_BORDA, r, 1, border_radius=12)
 
-        # Usar as funções de desenho isométrico do jogo original
-        from src.ui.render_combate import get_iso_coords, TILE_HEIGHT, TILE_WIDTH, ELEVATION_SCALE
-        from src.resolvedor_acoes import ZONAS_GRID, obter_zona_por_coordenada
-        
-        tab = self.motor.tabuleiro
-        theta = getattr(self, 'angulo_rotacao', 0.0)
-        y_offset = 120  # Ajuste vertical dentro da janela do mapa
-        
-        # 1) Desenhar as Células Isométricas
+        # ── Constantes isométricas ───────────────────────────────────
+        TW = 24   # tile width  (base do losango)
+        TH = 12   # tile height (metade vertical)
+        ES = 8    # elevation scale
+
+        # Elevação por tipo de zona — define a "altura" de cada bloco
+        ELEV_ZONA = {
+            "camara_central": 3,   # Centro: mais alto internamente
+            "curtume":        2,   # Couro
+            "carpintaria":    2,   # Madeira
+            "fundicao":       2,   # Ferro
+            "patio":          2,   # Nexos
+            "muralha_norte":  4,   # Muro
+            "muralha_sul":    4,
+            "muralha_oeste":  4,
+            "muralha_leste":  4,
+            "torre_nw":       6,   # Torres dos cantos: mais altas
+            "torre_ne":       6,
+            "torre_sw":       6,
+            "torre_se":       6,
+            "_corredor":      1,   # Passagens internas
+            "_campo":         0,   # Campo externo (raso)
+            "_exterior":      0,
+        }
+
+        # Paleta: (topo, face_esquerda, face_direita)
+        PALETA = {
+            "camara_central": ((105, 82, 18),  (72, 55, 10),  (52, 38, 6)),
+            "curtume":        ((120, 72, 28),  (82, 48, 16),  (60, 34, 10)),
+            "carpintaria":    ((32, 90, 28),   (20, 60, 16),  (14, 44, 10)),
+            "fundicao":       ((70, 70, 88),   (46, 46, 62),  (32, 32, 46)),
+            "patio":          ((28, 60, 120),  (18, 40, 82),  (12, 28, 60)),
+            # Muralhas — pedra cinza-azulada
+            "muralha_norte":  ((90, 92, 108),  (62, 64, 78),  (44, 46, 58)),
+            "muralha_sul":    ((90, 92, 108),  (62, 64, 78),  (44, 46, 58)),
+            "muralha_oeste":  ((90, 92, 108),  (62, 64, 78),  (44, 46, 58)),
+            "muralha_leste":  ((90, 92, 108),  (62, 64, 78),  (44, 46, 58)),
+            # Torres — pedra escura quase preta com reflexo
+            "torre_nw":       ((70, 72, 92),   (45, 46, 64),  (30, 32, 48)),
+            "torre_ne":       ((70, 72, 92),   (45, 46, 64),  (30, 32, 48)),
+            "torre_sw":       ((70, 72, 92),   (45, 46, 64),  (30, 32, 48)),
+            "torre_se":       ((70, 72, 92),   (45, 46, 64),  (30, 32, 48)),
+            # Corredores internos — pedra escura
+            "_corredor":      ((36, 34, 28),   (24, 22, 18),  (18, 16, 13)),
+            # Campo externo — terra com grama
+            "_campo":         ((30, 52, 22),   (20, 34, 14),  (14, 24, 10)),
+            "_exterior":      ((18, 28, 12),   (12, 18, 8),   (8,  12, 5)),
+        }
+
+        # Rótulos visuais de cada zona
+        ZONA_LABELS = {
+            "camara_central": ("OURO",    C_OURO),
+            "curtume":        ("COURO",   (215, 165, 85)),
+            "carpintaria":    ("MADEIRA", (85, 205, 85)),
+            "fundicao":       ("FERRO",   (185, 185, 205)),
+            "patio":          ("NEXOS",   (105, 165, 255)),
+            "muralha_norte":  ("MURO N",  C_DIM),
+            "muralha_sul":    ("MURO S",  C_DIM),
+            "muralha_oeste":  ("MURO O",  C_DIM),
+            "muralha_leste":  ("MURO L",  C_DIM),
+            "torre_nw":       ("T.NO",    (180, 180, 220)),
+            "torre_ne":       ("T.NE",    (180, 180, 220)),
+            "torre_sw":       ("T.SO",    (180, 180, 220)),
+            "torre_se":       ("T.SE",    (180, 180, 220)),
+        }
+
+        from src.resolvedor_acoes import obter_zona_por_coordenada as _oz, ZONAS_GRID as _ZG
+
+        # Grade de renderização: inclui anel externo (-5 a 24)
+        RENDER_MIN = -5
+        RENDER_MAX = 24   # exclusive → rende 0..24 (inclui externos)
+        GRID_MIN, GRID_MAX = 0, 19  # limites da grade real
+
+        def _classificar(gx, gy):
+            """Retorna (zona_key, elevacao) para qualquer coordenada."""
+            if GRID_MIN <= gx <= GRID_MAX and GRID_MIN <= gy <= GRID_MAX:
+                z = _oz(gx, gy)
+                if z:
+                    return z, ELEV_ZONA.get(z, 1)
+                # Dentro da fortaleza mas sem zona (corredor/pátio)
+                if 4 <= gx <= 15 and 4 <= gy <= 15:
+                    return "_corredor", 1
+                return None, 0   # fora da fortaleza, não renderiza
+            # Fora da grade real → campo de batalha externo
+            dist_from_wall = max(
+                max(0, GRID_MIN - gx, gx - GRID_MAX),
+                max(0, GRID_MIN - gy, gy - GRID_MAX)
+            )
+            if dist_from_wall <= 4:
+                return "_campo", 0
+            return "_exterior", 0
+
+        def _campo_direcao(gx, gy):
+            """Retorna qual campo externo esta célula pertence."""
+            if gy < GRID_MIN:   return "campo_norte"
+            if gy > GRID_MAX:   return "campo_sul"
+            if gx < GRID_MIN:   return "campo_oeste"
+            if gx > GRID_MAX:   return "campo_leste"
+            return None
+
+        # Centro isométrico do painel de mapa
+        CX = r.centerx
+        CY = r.centery - 5
+
+        def _iso(gx, gy, el):
+            sx = (gx - 9.5) * (TW // 2) - (gy - 9.5) * (TW // 2) + CX
+            sy = (gx - 9.5) * (TH // 2) + (gy - 9.5) * (TH // 2) - el * ES + CY
+            return int(sx), int(sy)
+
+        def _losango(cx_, cy_):
+            return [
+                (cx_,           cy_ - TH // 2),
+                (cx_ + TW // 2, cy_),
+                (cx_,           cy_ + TH // 2),
+                (cx_ - TW // 2, cy_),
+            ]
+
+        # Ordenação painter: linha diagonal gx+gy crescente
         cells = []
-        for y in range(tab.altura):
-            for x in range(tab.largura):
-                rx = x - 9.5
-                ry = y - 9.5
-                rot_x = rx * math.cos(theta) - ry * math.sin(theta) + 9.5
-                rot_y = rx * math.sin(theta) + ry * math.cos(theta) + 9.5
-                proj_y = (rot_x + rot_y) * (TILE_HEIGHT / 2)
-                cells.append((proj_y, x, y))
-        cells.sort(key=lambda item: item[0])
+        for gy in range(RENDER_MIN, RENDER_MAX + 1):
+            for gx in range(RENDER_MIN, RENDER_MAX + 1):
+                cells.append((gx + gy, gx, gy))
+        cells.sort()
 
         mouse = pygame.mouse.get_pos()
         hovered_cell = None
+        labels_pendentes = {}  # zona_key → (cx, cy) centro isométrico
 
-        # Cores para cada tipo de zona no visual isométrico
-        cores_isometricas = {
-            "camara_central": (20, 20, 80),
-            "carpintaria":    (20, 70, 20),
-            "curtume":        (80, 50, 20),
-            "fundicao":       (80, 20, 20),
-            "patio":          (40, 40, 90),
-            "muralha_norte":  (60, 60, 80),
-            "muralha_sul":    (60, 60, 80),
-            "muralha_oeste":  (60, 60, 80),
-            "muralha_leste":  (60, 60, 80),
-        }
+        tab = self.motor.tabuleiro
+        e = self.estado
 
-        for _, x, y in cells:
-            el = tab.get_elevation_em(x, y)
-            zona = obter_zona_por_coordenada(x, y)
-            cor_base = cores_isometricas.get(zona, (30, 30, 35))
-            
-            # Ajustar coordenada isométrica relativa ao nosso painel de mapa
-            cx, cy = get_iso_coords(x, y, el, 0, theta)
-            # Centraliza o mapa isométrico na nossa área de mapa
-            cx = cx - 300 + r.centerx
-            cy = cy - 200 + r.centery - 20
-            
-            thickness = el * ELEVATION_SCALE
-            top_points = [
-                (cx, cy - TILE_HEIGHT // 2),
-                (cx + TILE_WIDTH // 2, cy),
-                (cx, cy + TILE_HEIGHT // 2),
-                (cx - TILE_WIDTH // 2, cy)
-            ]
+        for _, gx, gy in cells:
+            zona_key, el = _classificar(gx, gy)
+            if zona_key is None:
+                continue  # buracos entre exterior e interior
+
+            paleta = PALETA.get(zona_key, PALETA["_exterior"])
+            cor_top, cor_left, cor_right = paleta
+
+            cx_, cy_ = _iso(gx, gy, el)
+
+            # Clip: não renderiza fora do painel
+            if not r.inflate(TW + 4, TH + 4).collidepoint(cx_, cy_):
+                continue
+
+            top_pts = _losango(cx_, cy_)
+            thick = el * ES
+
+            # Hover (diamond test)
+            dx_ = abs(mouse[0] - cx_) / (TW / 2 + 0.001)
+            dy_ = abs(mouse[1] - cy_) / (TH / 2 + 0.001)
+            is_hover = (dx_ + dy_ <= 1.0) and r.collidepoint(mouse)
+            if is_hover:
+                hovered_cell = (gx, gy)
+                cor_top = tuple(min(255, int(c * 1.35)) for c in cor_top)
 
             # Destaque de movimento
-            if self.modo_acao == MODO_MOVER and (x, y) in self.alcancaveis:
-                cor_base = (30, 90, 30)
+            if self.modo_acao == MODO_MOVER and (gx, gy) in self.alcancaveis:
+                cor_top = (30, 130, 45)
 
-            # Hover
-            if (abs(mouse[0] - cx) * 2 / TILE_WIDTH) + (abs(mouse[1] - cy) * 2 / TILE_HEIGHT) <= 1.0 and r.collidepoint(mouse):
-                hovered_cell = (x, y)
-                cor_base = tuple(min(255, c + 35) for c in cor_base)
+            # Células do campo externo piscam quando têm inimigos
+            campo_dir = _campo_direcao(gx, gy)
+            if campo_dir and zona_key == "_campo":
+                inv_campo = e.get(campo_dir, 0)
+                if inv_campo > 0:
+                    pulso = abs((self.timer % 90) - 45) / 45.0
+                    r_comp = int(cor_top[0] + 40 * pulso)
+                    cor_top = (min(255, r_comp), cor_top[1], cor_top[2])
 
-            # Borda / Paredes da elevação
-            if thickness > 0:
-                r_c, g_c, b_c = cor_base
-                cor_left = (int(r_c * 0.7), int(g_c * 0.7), int(b_c * 0.7))
-                cor_right = (int(r_c * 0.5), int(g_c * 0.5), int(b_c * 0.5))
-                
-                left_points = [
-                    (cx - TILE_WIDTH // 2, cy),
-                    (cx, cy + TILE_HEIGHT // 2),
-                    (cx, cy + TILE_HEIGHT // 2 + thickness),
-                    (cx - TILE_WIDTH // 2, cy + thickness)
+            # Paredes laterais (elevação)
+            if thick > 0:
+                left_pts = [
+                    (cx_ - TW // 2, cy_),
+                    (cx_,           cy_ + TH // 2),
+                    (cx_,           cy_ + TH // 2 + thick),
+                    (cx_ - TW // 2, cy_ + thick),
                 ]
-                right_points = [
-                    (cx, cy + TILE_HEIGHT // 2),
-                    (cx + TILE_WIDTH // 2, cy),
-                    (cx + TILE_WIDTH // 2, cy + thickness),
-                    (cx, cy + TILE_HEIGHT // 2 + thickness)
+                right_pts = [
+                    (cx_,           cy_ + TH // 2),
+                    (cx_ + TW // 2, cy_),
+                    (cx_ + TW // 2, cy_ + thick),
+                    (cx_,           cy_ + TH // 2 + thick),
                 ]
-                pygame.draw.polygon(tela, cor_left, left_points)
-                pygame.draw.polygon(tela, cor_right, right_points)
-                pygame.draw.polygon(tela, (20, 20, 20), left_points, 1)
-                pygame.draw.polygon(tela, (20, 20, 20), right_points, 1)
+                pygame.draw.polygon(tela, cor_left,  left_pts)
+                pygame.draw.polygon(tela, cor_right, right_pts)
+                pygame.draw.polygon(tela, (15, 15, 20), left_pts, 1)
+                pygame.draw.polygon(tela, (15, 15, 20), right_pts, 1)
 
-            pygame.draw.polygon(tela, cor_base, top_points)
-            pygame.draw.polygon(tela, C_BORDA, top_points, 1)
+            pygame.draw.polygon(tela, cor_top, top_pts)
+            pygame.draw.polygon(tela, (10, 12, 20), top_pts, 1)
 
-            # Desenha Invasores nas Zonas mapeadas
-            # Como mostramos o count por zona inteira, vamos desenhar o contador de invasores
-            # no centro geométrico de cada zona lógica
-            
-            # Desenha qualquer combatente do tabuleiro nesta célula
-            char_na_celula = tab.grid[y][x]
-            if char_na_celula:
-                from src.ui.render_combate import desenhar_sprite
-                rect_char = pygame.Rect(cx - 16, cy - 26, 32, 32)
-                # Destaque se for Novak
-                cor_char = (100, 200, 255) if char_na_celula.nome == "Novak" else (180, 180, 255)
-                desenhar_sprite(tela, char_na_celula, rect_char, cor_char, self.game.imagens)
-                
-                # Feedback visual sob Novak
-                if char_na_celula.nome == "Novak":
-                    pulse = abs(self.timer - 60) / 60.0
-                    r_pulse = int(5 + 3 * pulse)
-                    pygame.draw.circle(tela, (255, 255, 255), (cx, cy), r_pulse, 1)
+            # Registra o centro de cada zona para label (uma vez por zona)
+            if zona_key not in labels_pendentes and zona_key in ZONA_LABELS:
+                if zona_key in _ZG:
+                    x1, y1, x2, y2 = _ZG[zona_key]
+                    mid_gx = (x1 + x2) // 2
+                    mid_gy = (y1 + y2) // 2
+                    _, mid_el = _classificar(mid_gx, mid_gy)
+                    mcx, mcy = _iso(mid_gx, mid_gy, mid_el)
+                    labels_pendentes[zona_key] = (mcx, mcy)
 
-        # Guarda a célula sob o mouse para o clique processar
+            # Personagens no tabuleiro real
+            if GRID_MIN <= gx <= GRID_MAX and GRID_MIN <= gy <= GRID_MAX:
+                char = tab.grid[gy][gx]
+                if char:
+                    from src.ui.render_combate import desenhar_sprite
+                    rect_char = pygame.Rect(cx_ - 12, cy_ - 22, 24, 24)
+                    cor_char = (100, 215, 255) if char.nome == "Novak" else (200, 150, 255)
+                    desenhar_sprite(tela, char, rect_char, cor_char, self.game.imagens)
+                    if char.nome == "Novak":
+                        pulse = abs(self.timer % 120 - 60) / 60.0
+                        pygame.draw.circle(tela, (120, 220, 255), (cx_, cy_), int(4 + 3 * pulse), 2)
+
         self._hovered_cell_tactical = hovered_cell
 
-        # 2) Desenhar Textos Informativos de Invasores sobre as Zonas
-        for zona_id, (x1, y1, x2, y2) in ZONAS_GRID.items():
-            mid_x, mid_y = (x1 + x2) // 2, (y1 + y2) // 2
-            el = tab.get_elevation_em(mid_x, mid_y)
-            cx, cy = get_iso_coords(mid_x, mid_y, el, 0, theta)
-            cx = cx - 300 + r.centerx
-            cy = cy - 200 + r.centery - 20
-            
-            inv = self.estado["invasores"].get(zona_id, 0)
+        # ── Labels de zona (desenhados depois de todos os tiles) ──────
+        e = self.estado
+        for zona_key, (lcx, lcy) in labels_pendentes.items():
+            nome_label, cor_label = ZONA_LABELS[zona_key]
+            inv = e["invasores"].get(zona_key, 0)
+
+            # Nome da zona (grande)
+            ls = self.fG.render(nome_label, True, cor_label)
+            bg_s = pygame.Surface((ls.get_width() + 6, ls.get_height() + 2), pygame.SRCALPHA)
+            bg_s.fill((0, 0, 0, 130))
+            tela.blit(bg_s, (lcx - ls.get_width() // 2 - 3, lcy - ls.get_height() // 2 - 1))
+            tela.blit(ls, (lcx - ls.get_width() // 2, lcy - ls.get_height() // 2))
+
+            # Invasores (linha abaixo do nome)
             if inv > 0:
-                lbl = self.fP.render(f"INVx{inv}", True, C_INVASOR if zona_id != "camara_central" else C_PERIGO)
-                # Fundo do texto para legibilidade
-                bg = pygame.Surface((lbl.get_width() + 4, lbl.get_height() + 2))
-                bg.fill((10, 10, 20))
-                tela.blit(bg, (cx - lbl.get_width() // 2 - 2, cy - 8 - 1))
-                tela.blit(lbl, (cx - lbl.get_width() // 2, cy - 8))
-            
-            # Se for o Pátio, mostra Brutamontes e Infiltradores
-            if zona_id == "patio":
-                cy_off = cy + 12
-                if self.estado["brutamontes"] > 0:
-                    lbl2 = self.fMi.render(f"BRUTx{self.estado['brutamontes']}", True, C_BRUTE)
-                    tela.blit(lbl2, (cx - lbl2.get_width() // 2, cy_off))
-                    cy_off += 12
-                if self.estado.get("infiltradores", 0) > 0:
-                    lbl3 = self.fMi.render(f"INFx{self.estado['infiltradores']}", True, C_CERCO)
-                    tela.blit(lbl3, (cx - lbl3.get_width() // 2, cy_off))
-                    cy_off += 12
-                peds = self.estado["pedregulhos"]
-                lbl4 = self.fMi.render(f"TUNEL: {peds}", True, (120, 160, 255))
-                tela.blit(lbl4, (cx - lbl4.get_width() // 2, cy_off))
+                li = self.fP.render(f"Inv x{inv}", True, C_INVASOR)
+                tela.blit(li, (lcx - li.get_width() // 2, lcy + ls.get_height() // 2 + 2))
 
-            # Se for Câmara Central, mostra o Tesouro
-            if zona_id == "camara_central":
-                lbl_t = self.fMi.render(f"OURO: {self.estado['tesouro']}", True, C_OURO)
-                bg_t = pygame.Surface((lbl_t.get_width() + 4, lbl_t.get_height() + 2))
-                bg_t.fill((10, 10, 20))
-                tela.blit(bg_t, (cx - lbl_t.get_width() // 2 - 2, cy + 8 - 1))
-                tela.blit(lbl_t, (cx - lbl_t.get_width() // 2, cy + 8))
+            # Câmara central: tesouro
+            if zona_key == "camara_central":
+                lt = self.fP.render(f"OURO: {e['tesouro']}", True, C_OURO)
+                tela.blit(lt, (lcx - lt.get_width() // 2, lcy + ls.get_height() // 2 + 14))
 
-        # Armas de cerco
+            # Pátio (NEXOS): brutamontes + infiltradores + pedregulhos
+            if zona_key == "patio":
+                offset_y = lcy + ls.get_height() // 2 + 14
+                if e["brutamontes"] > 0:
+                    hp_dat = e.get("brutamonte_hp", {})
+                    circ_tot  = hp_dat.get("circulos_total", 3)
+                    circ_marc = hp_dat.get("circulos_marcados", 0)
+                    lb = self.fMi.render(f"Brute x{e['brutamontes']}", True, C_BRUTE)
+                    tela.blit(lb, (lcx - lb.get_width() // 2, offset_y)); offset_y += 13
+                    circ_txt = "○" * (circ_tot - circ_marc) + "●" * circ_marc
+                    lhp = self.fMi.render(circ_txt, True, C_PERIGO)
+                    tela.blit(lhp, (lcx - lhp.get_width() // 2, offset_y)); offset_y += 13
+                if e.get("infiltradores", 0) > 0:
+                    lif = self.fMi.render(f"Inf x{e['infiltradores']}", True, C_CERCO)
+                    tela.blit(lif, (lcx - lif.get_width() // 2, offset_y)); offset_y += 13
+                lp = self.fMi.render(f"⛏{e['pedregulhos']}", True, (120, 160, 255))
+                tela.blit(lp, (lcx - lp.get_width() // 2, offset_y))
+
+        # ── Armas de cerco e narrativa ───────────────────────────────────────
         self._draw_armas_cerco(tela)
-
-        # Narrativa
         nr = self.fMi.render(self.narrativa[:88], True, C_DIM)
-        tela.blit(nr, (self.mapa_rect.x + 8, self.mapa_rect.bottom - 18))
+        tela.blit(nr, (r.x + 8, r.bottom - 18))
+
 
     def _draw_armas_cerco(self, tela):
         x, y = self.mapa_rect.x + 8, self.mapa_rect.bottom - 50
@@ -1009,8 +1182,22 @@ class CercoState(GameState):
              True, (30, 60, 60) if not c_at else (45, 90, 90),
              (60, 110, 110), (15, 30, 30))
 
+        # Verifica se há inimigos para atacar
+        tem_inimigos = any(v > 0 for v in e["invasores"].values()) or e.get("brutamontes", 0) > 0
+        a_at = MODO_ATACAR == self.modo_acao
+        _btn(self.btn_atacar, "[A] Atacar",
+             tem_inimigos,
+             (90, 20, 20) if not a_at else (140, 30, 30),
+             (180, 40, 40), (30, 12, 12))
+
+        f_at = MODO_ATIRAR == self.modo_acao
+        _btn(self.btn_atirar, "[F] Atirar",
+             tem_inimigos,
+             (20, 40, 100) if not f_at else (30, 60, 150),
+             (50, 80, 190), (10, 18, 35))
+
         # Fim de turno
-        _btn(self.btn_fim_turno, "Encerrar Turno  [↵]",
+        _btn(self.btn_fim_turno, "Encerrar Turno  [Ent]",
              True, (60, 20, 20), (90, 30, 30), C_PAINEL)
 
         # Subornar inline (se modo ativo)
