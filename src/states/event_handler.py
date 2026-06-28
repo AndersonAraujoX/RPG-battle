@@ -5,6 +5,7 @@ from src.utils import calcular_distancia
 from src.perks import PERKS
 from src.personagens.guerreiro import Guerreiro
 from src.personagens.protagonistas import Novak, Yukito, Rilem, Koema
+from src.states.cerco_state import CercoState
 
 class EventHandler:
     def __init__(self, game):
@@ -33,6 +34,11 @@ class EventHandler:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button in (1, 3): # Left or Right click
                     self._handle_mouse_click(event, mouse_pos, personagem_ativo)
+            
+            # Cerco: encaminha TODOS os eventos (teclado + mouse)
+            if g.estado_jogo == ESTADO_JOGO_CERCO:
+                if hasattr(g, 'cerco_state') and g.cerco_state:
+                    g.cerco_state.handle_events([event])
                     
             elif g.estado_jogo == ESTADO_JOGO_CUTSCENE:
                  if event.type == pygame.KEYDOWN or (event.type == pygame.MOUSEBUTTONDOWN):
@@ -58,6 +64,9 @@ class EventHandler:
             self._handle_combate_click(event, mouse_pos, personagem_ativo)
         elif g.estado_jogo == ESTADO_JOGO_EDITOR:
             self._handle_editor_click(event, mouse_pos)
+        elif g.estado_jogo == ESTADO_JOGO_CERCO:
+            if hasattr(g, 'cerco_state') and g.cerco_state:
+                g.cerco_state.handle_events([event])
 
     def _handle_menu_principal_click(self, event, mouse_pos):
         g = self.game
@@ -66,10 +75,8 @@ class EventHandler:
                 if botao.rect.collidepoint(mouse_pos):
                     g.play_sound('button_click')
                     if nome == 'nova_batalha':
-                        g.estado_jogo = ESTADO_JOGO_SETUP
-                        g.active_tab_id = "times"
-                        for t in g.menu_tabs.values(): t.selected = False
-                        g.menu_tabs["times"].selected = True
+                        g.cerco_state = CercoState(g)
+                        g.estado_jogo = ESTADO_JOGO_CERCO
                     elif nome == 'nova_campanha':
                         g.checkbox_campanha.checked = True
                         g.checkbox_chefe.checked = False

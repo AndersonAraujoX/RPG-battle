@@ -27,7 +27,7 @@ from .config import (
     TAMANHO_CELULA, ALTURA_BARRA_INICIATIVA, LARGURA_TABULEIRO, LARGURA_LOG,
     ESTADO_JOGO_SETUP, ESTADO_JOGO_COMBATE, ESTADO_JOGO_FIM,
     ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_MAPA_MUNDO, ESTADO_JOGO_EDITOR, ESTADO_JOGO_CUTSCENE, ESTADO_JOGO_NARRATIVA,
-    ESTADO_JOGO_DEV, ESTADO_JOGO_LEVEL_UP,
+    ESTADO_JOGO_DEV, ESTADO_JOGO_LEVEL_UP, ESTADO_JOGO_CERCO,
     TIME_A, TIME_B, CORES_TERRENO,
     TERRENO_NORMAL, TERRENO_FLORESTA, TERRENO_DIFICIL, TERRENO_PAREDE, TERRENO_GELO, TERRENO_ROCHA, TERRENO_BARRIL, TERRENO_FOGO, TERRENO_AGUA,
     IMAGE_PERSONAGENS, IMAGE_TERRENOS, PAINEL_MODO_LOG, PAINEL_MODO_INFO,
@@ -41,6 +41,7 @@ from .personagens.rei_goblin import ReiGoblin
 from .personagens.lorde_lich import LordeLich
 from .personagens.dragao_anciao import DragaoAnciao
 from .personagens.minions import Esqueleto, Goblin, Kobold
+from .states.cerco_state import CercoState
 
 class Game:
     def __init__(self):
@@ -113,6 +114,9 @@ class Game:
 
         GameSetup.setup_ui(self)
         self.tocar_musica('menu')
+        
+        # Inicializa o estado do cerco
+        self.cerco_state = CercoState(self)
         
         # Optimization Trackers
         self.last_char_id = None

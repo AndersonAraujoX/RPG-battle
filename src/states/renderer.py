@@ -156,3 +156,8 @@ class GameRenderer:
             
             titulo = g.fonte_menu.render("Editor de Mapas", True, (255, 215, 0))
             g.tela.blit(titulo, (x_ui + 20, 20))
+
+        elif g.estado_jogo == ESTADO_JOGO_CERCO:
+            if hasattr(g, 'cerco_state') and g.cerco_state:
+                g.cerco_state.update()
+                g.cerco_state.draw(g.tela)

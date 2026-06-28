@@ -117,6 +117,7 @@ ESTADO_JOGO_MAPA_MUNDO = 8
 ESTADO_JOGO_NARRATIVA = 9
 ESTADO_JOGO_DEV = 10
 ESTADO_JOGO_DEV_CHAPTERS = 11
+ESTADO_JOGO_CERCO = 12          # Modo: Cerco contra Isectum (jogo de tabuleiro)
 
 # --- Cores do Novo Menu ---
 COR_FUNDO_MENU = (5, 5, 5) # Quase preto

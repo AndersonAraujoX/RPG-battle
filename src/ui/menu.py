@@ -66,7 +66,7 @@ def setup_menu_principal_ui():
     col2_x = LARGURA_TELA // 2 + gap_x // 2
     
     # Linha 1
-    botoes['nova_batalha'] = Botao(col1_x, y_start, w_btn, h_btn, "JOGAR", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
+    botoes['nova_batalha'] = Botao(col1_x, y_start, w_btn, h_btn, "JOGAR CERCO", fonte_menu, icone=False, cor_fundo=(50, 20, 80))
     botoes['nova_campanha'] = Botao(col2_x, y_start, w_btn, h_btn, "NOVA CAMPANHA", fonte_menu, icone=False, cor_fundo=COR_BOTAO_MENU)
     
     # Linha 2
