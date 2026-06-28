@@ -156,6 +156,8 @@ class CercoState(GameState):
         for zona_id, (x1, y1, x2, y2) in ZONAS_GRID.items():
             for cy in range(y1, y2 + 1):
                 for cx in range(x1, x2 + 1):
+                    if not (0 <= cx < self.motor.tabuleiro.largura and 0 <= cy < self.motor.tabuleiro.altura):
+                        continue
                     # Definimos elevações e tipos de terrenos baseados nas zonas do cerco
                     if "muralha" in zona_id:
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "rocha"
@@ -321,7 +323,7 @@ class CercoState(GameState):
             self._selecionar_modo(MODO_MOVER)
         if key == pygame.K_t and self.fase == "ACAO_LIVRE":
             self._selecionar_modo(MODO_TRABALHAR)
-        if key == pygame.K_e and self.fase == "ACAO_LIVRE":
+        if key == pygame.K_g and self.fase == "ACAO_LIVRE":
             self._selecionar_modo(MODO_ESCAVAR)
         if key == pygame.K_a and self.fase == "ACAO_LIVRE":
             self._selecionar_modo(MODO_ATACAR)
@@ -404,7 +406,7 @@ class CercoState(GameState):
         msgs = {
             MODO_MOVER:     "Modo MOVER: clique em uma zona do mapa [M]",
             MODO_TRABALHAR: "Modo TRABALHAR: confirme na oficina onde está [T]",
-            MODO_ESCAVAR:   "Modo ESCAVAR: confirme no Pátio [E]",
+            MODO_ESCAVAR:   "Modo ESCAVAR: confirme no Pátio [G]",
             MODO_SUBORNAR:  "Modo SUBORNAR: escolha recurso no painel",
             MODO_UPGRADE:   "Modo UPGRADE: clique no slot e depois na carta para queimar",
             MODO_CONVOCAR:  "Modo CONVOCAR: clique em qualquer célula vazia para colocar um aliado!",
@@ -622,6 +624,8 @@ class CercoState(GameState):
         self.timer = (self.timer + 1) % 120
         if self.feedback_timer > 0:
             self.feedback_timer -= 1
+        # Sincroniza rotação com o motor do tabuleiro
+        self.motor.angulo_rotacao = self.game.angulo_rotacao
 
     # ═══════════════════════════════════════════════════════════════════
     # DRAW
@@ -813,9 +817,15 @@ class CercoState(GameState):
         CX = r.centerx
         CY = r.centery - 5
 
+        theta = self.game.angulo_rotacao
+
         def _iso(gx, gy, el):
-            sx = (gx - 9.5) * (TW // 2) - (gy - 9.5) * (TW // 2) + CX
-            sy = (gx - 9.5) * (TH // 2) + (gy - 9.5) * (TH // 2) - el * ES + CY
+            dx = gx - 9.5
+            dy = gy - 9.5
+            rx = dx * math.cos(theta) - dy * math.sin(theta)
+            ry = dx * math.sin(theta) + dy * math.cos(theta)
+            sx = (rx - ry) * (TW // 2) + CX
+            sy = (rx + ry) * (TH // 2) - el * ES + CY
             return int(sx), int(sy)
 
         def _losango(cx_, cy_):
@@ -1169,7 +1179,7 @@ class CercoState(GameState):
         _btn(self.btn_trabalhar, f"[T] Trabalhar ({e['pontos_trabalho']}PT)",
              tem_pt, (50, 30, 10) if not t_at else (80, 50, 20),
              (90, 60, 20), (28, 20, 10))
-        _btn(self.btn_escavar,   f"[E] Escavar ({e['pontos_escavacao']}PE)",
+        _btn(self.btn_escavar,   f"[G] Escavar ({e['pontos_escavacao']}PE)",
              tem_pe, (10, 30, 60) if not e_at else (20, 50, 90),
              (30, 70, 110), (10, 18, 30))
         _btn(self.btn_subornar,  "Subornar Inf",
