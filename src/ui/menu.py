@@ -2,7 +2,7 @@ import pygame
 import os
 from ..config import *
 from ..utils import resource_path
-from .componentes import Botao, Checkbox, Tab # Import Tab
+from .componentes import Botao, Checkbox, Tab
 from ..personagens import Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Paladino, Chefe, Druida, Bruxo
 from ..personagens.rei_goblin import ReiGoblin
 from ..personagens.lorde_lich import LordeLich
@@ -163,11 +163,15 @@ def setup_menu_ui():
     botoes_ui['sfx_vol_up'] = Botao(0, 0, 40, 40, "+", fonte_menu, cor_fundo=COR_BOTAO_MENU)
     
     # Resolução (Abaixo dos checkboxes)
+    from ..config import RESOLUCOES
     y_res = y_check + 280
-    botoes_ui['res_800'] = Botao(check_x, y_res, 100, 30, "800x600", fonte_menu, cor_fundo=COR_BOTAO_MENU)
-    botoes_ui['res_1024'] = Botao(check_x + 110, y_res, 100, 30, "1024x768", fonte_menu, cor_fundo=COR_BOTAO_MENU)
-    botoes_ui['res_1280'] = Botao(check_x + 220, y_res, 100, 30, "1280x720", fonte_menu, cor_fundo=COR_BOTAO_MENU)
-    botoes_ui['res_fullscreen'] = Botao(check_x, y_res + 40, 320, 30, "Salvar Resolução & Sair", fonte_menu, cor_fundo=COR_BOTAO_MENU) # Botão para aplicar? Não, melhor aplicar ao clicar.
+    for i, (rw, rh) in enumerate(RESOLUCOES):
+        col = i % 4
+        row = i // 4
+        bx = check_x + col * 105
+        by = y_res + row * 36
+        btn_name = f"res_{rw}x{rh}"
+        botoes_ui[btn_name] = Botao(bx, by, 95, 30, f"{rw}x{rh}", fonte_menu, cor_fundo=COR_BOTAO_MENU)
 
     
     bosses = [

@@ -23,13 +23,39 @@ if os.path.exists(SETTINGS_FILE):
         print(f"Erro ao carregar settings: {e}")
 
 # --- Constantes de Tela e Tabuleiro ---
-# Usa os valores carregados
-ALTURA_BARRA_INICIATIVA = 0 # Mantendo 0 conforme logic nova
+ALTURA_BARRA_INICIATIVA = 0
 ALTURA_TELA = ALTURA_BASE_TELA + ALTURA_BARRA_INICIATIVA
 TAMANHO_CELULA = 30
 LARGURA_TABULEIRO = 20 * TAMANHO_CELULA
 ALTURA_TABULEIRO = 20 * TAMANHO_CELULA
 LARGURA_LOG = LARGURA_TELA - LARGURA_TABULEIRO
+
+RESOLUCOES = [
+    (800, 600),
+    (960, 540),
+    (1024, 768),
+    (1280, 720),
+    (1366, 768),
+    (1600, 900),
+    (1920, 1080),
+]
+
+def atualizar_resolucao(largura, altura):
+    global LARGURA_TELA, ALTURA_BASE_TELA, ALTURA_TELA, LARGURA_LOG
+    global LARGURA_DIREITA, RECT_BARRA_ACOES, RECT_PAINEL_INFO, RECT_LOG, RECT_INVENTARIO, RECT_TUTORIAL
+    largura = max(800, min(largura, 3840))
+    altura = max(600, min(altura, 2160))
+    LARGURA_TELA = largura
+    ALTURA_BASE_TELA = altura
+    ALTURA_TELA = altura + ALTURA_BARRA_INICIATIVA
+    LARGURA_LOG = LARGURA_TELA - LARGURA_TABULEIRO
+    LARGURA_DIREITA = LARGURA_TELA - LARGURA_ESQUERDA
+    if hasattr(pygame, 'Rect'):
+        RECT_BARRA_ACOES = pygame.Rect(0, 600, LARGURA_ESQUERDA, ALTURA_TELA - 600)
+        RECT_PAINEL_INFO = pygame.Rect(X_DIREITA, 0, LARGURA_DIREITA, 120)
+        RECT_LOG = pygame.Rect(X_DIREITA, 120, LARGURA_DIREITA, 300)
+        RECT_INVENTARIO = pygame.Rect(X_DIREITA, 420, LARGURA_DIREITA, 150)
+        RECT_TUTORIAL = pygame.Rect(X_DIREITA, 570, LARGURA_DIREITA, ALTURA_TELA - 570)
 
 # --- Cores ---
 COR_FUNDO = (20, 20, 20)
@@ -92,6 +118,11 @@ TERRENO_FOGO = "FOGO"
 TERRENO_AGUA = "AGUA"
 TERRENO_ROCHA = "ROCHA"
 TERRENO_BARRIL = "BARRIL"
+TERRENO_CAMPO = "CAMPO"
+TERRENO_EXTERIOR = "EXTERIOR"
+TERRENO_CORREDOR = "CORREDOR"
+TERRENO_MURALHA_LO = "MURALHA_LO"
+TERRENO_SUBSOLO = "SUBSOLO"
 
 CORES_TERRENO = {
     TERRENO_NORMAL: (30, 30, 30),
@@ -118,6 +149,7 @@ ESTADO_JOGO_NARRATIVA = 9
 ESTADO_JOGO_DEV = 10
 ESTADO_JOGO_DEV_CHAPTERS = 11
 ESTADO_JOGO_CERCO = 12          # Modo: Cerco contra Isectum (jogo de tabuleiro)
+ESTADO_JOGO_CERCO_SETUP = 13    # Tela de configuração do modo Cerco
 
 # --- Cores do Novo Menu ---
 COR_FUNDO_MENU = (5, 5, 5) # Quase preto
@@ -286,9 +318,12 @@ IMAGE_TERRENOS = {
     TERRENO_FLORESTA: image_path_env + "terreno_floresta.png",
     TERRENO_DIFICIL: image_path_env + "terreno_dificil.png",
     TERRENO_PAREDE: image_path_env + "terreno_parede.png",
-    TERRENO_GELO: image_path_env + "terreno_gelo.png",
     TERRENO_FOGO: image_path_env + "terreno_fogo.png",
-    TERRENO_AGUA: image_path_env + "terreno_agua.png",
     TERRENO_ROCHA: image_path_env + "terreno_rocha.png",
     TERRENO_BARRIL: image_path_env + "terreno_barril.png",
+    TERRENO_CAMPO: image_path_env + "terreno_campo.png",
+    TERRENO_EXTERIOR: image_path_env + "terreno_exterior.png",
+    TERRENO_CORREDOR: image_path_env + "terreno_corredor.png",
+    TERRENO_MURALHA_LO: image_path_env + "terreno_muralha_lo.png",
+    TERRENO_SUBSOLO: image_path_env + "terreno_subsolo.png",
 }

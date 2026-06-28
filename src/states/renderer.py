@@ -161,3 +161,10 @@ class GameRenderer:
             if hasattr(g, 'cerco_state') and g.cerco_state:
                 g.cerco_state.update()
                 g.cerco_state.draw(g.tela)
+
+        elif g.estado_jogo == ESTADO_JOGO_CERCO_SETUP:
+            if not g.cerco_setup_state:
+                from .cerco_setup_state import CercoSetupState
+                g.cerco_setup_state = CercoSetupState(g)
+            g.cerco_setup_state.update()
+            g.cerco_setup_state.draw(g.tela)

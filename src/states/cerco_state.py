@@ -59,6 +59,26 @@ C_CARD_HL = ( 40,  55, 100)
 C_MOVE_HL = ( 30,  80,  30)
 C_ACT_HL  = ( 80,  30,  30)
 
+# Mapeamento zona → tipo de terreno (para sprites)
+ZONA_TERRENO_MAP = {
+    "camara_central": "normal",
+    "curtume":        "dificil",
+    "carpintaria":    "floresta",
+    "fundicao":       "rocha",
+    "patio":          "fogo",
+    "muralha_norte":  "parede",
+    "muralha_sul":    "parede",
+    "muralha_oeste":  "parede",
+    "muralha_leste":  "parede",
+    "torre_nw":       "rocha",
+    "torre_ne":       "rocha",
+    "torre_sw":       "rocha",
+    "torre_se":       "rocha",
+    "_corredor":      "normal",
+    "_campo":         "floresta",
+    "_exterior":      "floresta",
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 # LAYOUT DAS ZONAS NO MAPA (rx, ry, rw, rh — proporções 0..1)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -128,9 +148,20 @@ class CercoState(GameState):
     TAM_MAO = 5        # máximo de cartas na mão por turno
     DECK_FIXO = 12     # tamanho fixo do deck do herói
 
-    def __init__(self, game):
+    def __init__(self, game, config=None):
         super().__init__(game)
-        self.estado  = criar_estado(pedregulhos=8, is_solo=True)
+        if config is None:
+            config = self._default_config()
+        self.config = config
+        diff = config.get("dificuldade", {})
+        herois = config.get("herois", [])
+        self.estado  = criar_estado(
+            pedregulhos=diff.get("pedregulhos", 8),
+            is_solo=True
+        )
+        self.estado["tesouro"] = diff.get("tesouro", 20)
+        self.estado["reserva"] = diff.get("reserva", 10)
+
         self.deck    = criar_deck()
         self.log     = []
         self.narrativa    = "Pela barba de Durin! O cerco começa!"
@@ -146,6 +177,7 @@ class CercoState(GameState):
         self.idx_slot_upgrade   = -1
         # Zonas alcançáveis (highlight)
         self.alcancaveis        = {}
+        self.zoom               = 1.0
         
         # Cria um motor de combate simulado para renderizar o cenário e calcular as distâncias na grade
         from ..motor_combate import MotorCombate
@@ -158,51 +190,111 @@ class CercoState(GameState):
                 for cx in range(x1, x2 + 1):
                     if not (0 <= cx < self.motor.tabuleiro.largura and 0 <= cy < self.motor.tabuleiro.altura):
                         continue
-                    # Definimos elevações e tipos de terrenos baseados nas zonas do cerco
                     if "muralha" in zona_id:
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "rocha"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 2
                     elif "torre" in zona_id:
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "barril"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 3
-                    elif zona_id == "patio": # Nexos
-                        self.motor.tabuleiro.terrain_grid[cy][cx] = "fogo" # Representando magia/nexos
+                    elif zona_id == "patio":
+                        self.motor.tabuleiro.terrain_grid[cy][cx] = "fogo"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
-                    elif zona_id == "curtume": # Couro
-                        self.motor.tabuleiro.terrain_grid[cy][cx] = "dificil" # Lama/Couro
+                    elif zona_id == "curtume":
+                        self.motor.tabuleiro.terrain_grid[cy][cx] = "dificil"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
-                    elif zona_id == "carpintaria": # Madeira
-                        self.motor.tabuleiro.terrain_grid[cy][cx] = "floresta" # Madeira/Floresta
+                    elif zona_id == "carpintaria":
+                        self.motor.tabuleiro.terrain_grid[cy][cx] = "floresta"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
-                    elif zona_id == "fundicao": # Ferro
+                    elif zona_id == "fundicao":
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "rocha"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
-                    elif zona_id == "camara_central": # Ouro
+                    elif zona_id == "camara_central":
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "normal"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 1
                     else:
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "normal"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
 
-        # Adiciona o personagem do jogador (Novak) ao motor de combate e ao tabuleiro
-        from ..personagens.protagonistas import Novak
-        self.jogador_novak = Novak("Novak", "A", nivel=5)
-        self.motor.time_a = [self.jogador_novak]
-        self.motor.combatentes = [self.jogador_novak]
-        self.motor.tabuleiro.adicionar_personagem(self.jogador_novak, 9, 9)
+        # Cria os heróis selecionados e os posiciona no tabuleiro
+        from ..personagens.protagonistas import Novak, Koema, Rilem, Yukito
+        MAPA_CLASSES = {
+            "Novak": Novak, "Koema": Koema, "Rilem": Rilem, "Yukito": Yukito,
+        }
+        POSICOES_INICIAIS = [(9, 9), (7, 7), (11, 7), (7, 11)]
+        self.herois = []
+        self.heroi_atual_idx = 0
+        self.motor.time_a = []
+        self.motor.combatentes = []
+
+        if not herois:
+            herois = [("Novak", Novak)]
+        for i, (nome, cls) in enumerate(herois):
+            pos = POSICOES_INICIAIS[i] if i < len(POSICOES_INICIAIS) else (9, 9)
+            heroi = cls(nome, "A", nivel=5)
+            self.herois.append(heroi)
+            self.motor.time_a.append(heroi)
+            self.motor.combatentes.append(heroi)
+            self.motor.tabuleiro.adicionar_personagem(heroi, pos[0], pos[1])
 
         self._setup_fonts()
         self._setup_layout()
+        self.terrain_iso_cache = {}
+        self._init_terrain_textures()
         self._comprar_mao()
-        self._push("SISTEMA", "Cerco contra Isectum iniciado! Jogue cartas e aja.")
+        nomes_herois = ", ".join(h.nome for h in self.herois)
+        self._push("SISTEMA", f"Cerco contra Isectum! Heróis: {nomes_herois}")
+        self._push("SISTEMA", f"Dificuldade: {diff.get('nome', 'Normal')}")
+
+    @property
+    def heroi_atual(self):
+        if not self.herois:
+            return None
+        if self.heroi_atual_idx >= len(self.herois):
+            self.heroi_atual_idx = 0
+        return self.herois[self.heroi_atual_idx]
+
+    def _alternar_heroi(self):
+        """Alterna para o próximo herói na lista."""
+        if len(self.herois) <= 1:
+            return
+        self.heroi_atual_idx = (self.heroi_atual_idx + 1) % len(self.herois)
+        novo = self.heroi_atual
+        if novo:
+            # Encontra a posição do herói no grid
+            tab = self.motor.tabuleiro
+            for gy in range(tab.altura):
+                for gx in range(tab.largura):
+                    if tab.grid[gy][gx] is novo:
+                        self.estado = aplicar_delta(self.estado, {
+                            "heroi_x": gx,
+                            "heroi_y": gy,
+                            "pos_heroi": "camara_central",
+                        })
+                        break
+            self._feedback(f"Herói atual: {novo.nome}", C_HEROI)
+            # Recalcula alcançáveis
+            from ..resolvedor_acoes import obter_celulas_alcancaveis
+            self.alcancaveis = obter_celulas_alcancaveis(
+                self.motor,
+                (self.estado.get("heroi_x", 9), self.estado.get("heroi_y", 9)),
+                self.estado["pontos_movimento"]
+            )
+
+    def _default_config(self):
+        from ..personagens.protagonistas import Novak
+        return {
+            "herois": [("Novak", Novak)],
+            "dificuldade": {"nome": "Normal", "pedregulhos": 8, "tesouro": 20, "reserva": 10},
+        }
 
     # ── FONTS ────────────────────────────────────────────────────────────
     def _setup_fonts(self):
-        self.fT  = pygame.font.Font(None, 48)
-        self.fG  = pygame.font.Font(None, 36)
-        self.fM  = pygame.font.Font(None, 28)
-        self.fP  = pygame.font.Font(None, 22)
-        self.fMi = pygame.font.Font(None, 18)
+        s = max(0.5, ALTURA_TELA / 720.0)
+        self.fT  = pygame.font.Font(None, max(16, int(48 * s)))
+        self.fG  = pygame.font.Font(None, max(14, int(36 * s)))
+        self.fM  = pygame.font.Font(None, max(12, int(28 * s)))
+        self.fP  = pygame.font.Font(None, max(10, int(22 * s)))
+        self.fMi = pygame.font.Font(None, max(8,  int(18 * s)))
 
     # ── LAYOUT (recalculado uma vez) ─────────────────────────────────────
     def _setup_layout(self):
@@ -229,6 +321,28 @@ class CercoState(GameState):
         self.btn_confirmar  = pygame.Rect(W//2-100, H-48, 200,  bh)
         # Rects das cartas na mão
         self.carta_rects = []  # list[pygame.Rect]
+
+    # ── SPRITES DE TERRENO ────────────────────────────────────────────
+    def _init_terrain_textures(self):
+        self.terrain_iso_cache.clear()
+
+    def _tex(self, zona_key, tw, th):
+        tipo = ZONA_TERRENO_MAP.get(zona_key, "normal")
+        key = (tipo, tw, th)
+        if key in self.terrain_iso_cache:
+            return self.terrain_iso_cache[key]
+        img = self.game.imagens.get(f"terreno_{tipo.lower()}")
+        if img is None:
+            return None
+        scaled = pygame.transform.scale(img, (tw, th))
+        surf = pygame.Surface((tw, th), pygame.SRCALPHA)
+        surf.blit(scaled, (0, 0))
+        mask = pygame.Surface((tw, th), pygame.SRCALPHA)
+        diamond = [(tw // 2, 0), (tw, th // 2), (tw // 2, th), (0, th // 2)]
+        pygame.draw.polygon(mask, (255, 255, 255, 255), diamond)
+        surf.blit(mask, (0, 0), None, pygame.BLEND_RGBA_MULT)
+        self.terrain_iso_cache[key] = surf
+        return surf
 
     # ── LOG ──────────────────────────────────────────────────────────────
     def _push(self, tipo, msg):
@@ -298,19 +412,85 @@ class CercoState(GameState):
         for event in events:
             # Fim universal
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.game.mudar_estado(ESTADO_JOGO_MENU_PRINCIPAL)
+                self.game.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+                self.game.cerco_state = None
                 return
 
-            # Tela de fim
             if e.get("derrota") or e.get("vitoria"):
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    self.game.mudar_estado(ESTADO_JOGO_MENU_PRINCIPAL)
+                    self.game.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+                    self.game.cerco_state = None
                 return
 
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self._on_click(mouse)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self._on_click(mouse)
+                elif event.button == 4:
+                    new_z = min(3.0, self.zoom + 0.25)
+                    if new_z != self.zoom:
+                        self.zoom = new_z
+                        self.terrain_iso_cache.clear()
+                elif event.button == 5:
+                    new_z = max(0.35, self.zoom - 0.25)
+                    if new_z != self.zoom:
+                        self.zoom = new_z
+                        self.terrain_iso_cache.clear()
             if event.type == pygame.KEYDOWN:
                 self._on_key(event.key)
+
+    def _screen_to_grid(self, mx: int, my: int) -> tuple | None:
+        """Converte coordenada da tela para célula (gx, gy) no mapa isométrico do cerco."""
+        r = self.mapa_rect
+        if not r.collidepoint(mx, my):
+            return None
+        CX = r.centerx
+        CY = r.centery - 5
+        TW = max(6, int(24 * self.zoom))
+        TH = max(3, int(12 * self.zoom))
+        ES = max(2, int(8 * self.zoom))
+        theta = self.game.angulo_rotacao
+        from ..resolvedor_acoes import obter_zona_por_coordenada as _oz
+        GRID_MIN, GRID_MAX = 0, 19
+
+        def _classificar(gx, gy):
+            if GRID_MIN <= gx <= GRID_MAX and GRID_MIN <= gy <= GRID_MAX:
+                z = _oz(gx, gy)
+                if z:
+                    return z
+                if 4 <= gx <= 15 and 4 <= gy <= 15:
+                    return "_corredor"
+            return None
+
+        cells = []
+        for gy in range(GRID_MIN, GRID_MAX + 1):
+            for gx in range(GRID_MIN, GRID_MAX + 1):
+                zona_key = _classificar(gx, gy)
+                if zona_key is None:
+                    continue
+                el = {
+                    "camara_central": 3, "curtume": 2, "carpintaria": 2,
+                    "fundicao": 2, "patio": 2,
+                    "muralha_norte": 4, "muralha_sul": 4,
+                    "muralha_oeste": 4, "muralha_leste": 4,
+                    "torre_nw": 6, "torre_ne": 6, "torre_sw": 6, "torre_se": 6,
+                    "_corredor": 1,
+                }.get(zona_key, 1)
+                dx = gx - 9.5
+                dy = gy - 9.5
+                rx = dx * math.cos(theta) - dy * math.sin(theta)
+                ry = dx * math.sin(theta) + dy * math.cos(theta)
+                cx = (rx - ry) * (TW // 2) + CX
+                cy = (rx + ry) * (TH // 2) - el * ES + CY
+                proj_y = (rx + ry) * (TH // 2)
+                cells.append((proj_y, gx, gy, cx, cy))
+
+        cells.sort(key=lambda x: x[0], reverse=True)
+        for _, gx, gy, cx, cy in cells:
+            dx_ = abs(mx - cx) / (TW / 2 + 1e-10)
+            dy_ = abs(my - cy) / (TH / 2 + 1e-10)
+            if dx_ + dy_ <= 1.0:
+                return (gx, gy)
+        return None
 
     def _on_key(self, key):
         if key == pygame.K_RETURN:
@@ -329,13 +509,25 @@ class CercoState(GameState):
             self._selecionar_modo(MODO_ATACAR)
         if key == pygame.K_f and self.fase == "ACAO_LIVRE":
             self._selecionar_modo(MODO_ATIRAR)
+        if key == pygame.K_TAB:
+            self._alternar_heroi()
+        if key in (pygame.K_PLUS, pygame.K_EQUALS):
+            new_z = min(3.0, self.zoom + 0.25)
+            if new_z != self.zoom:
+                self.zoom = new_z
+                self.terrain_iso_cache.clear()
+        if key == pygame.K_MINUS:
+            new_z = max(0.35, self.zoom - 0.25)
+            if new_z != self.zoom:
+                self.zoom = new_z
+                self.terrain_iso_cache.clear()
 
     def _on_click(self, mouse):
         e = self.estado
 
         # ── Voltar ──────────────────────────────────────────────────────
         if self.btn_voltar.collidepoint(mouse):
-            self.game.mudar_estado(ESTADO_JOGO_MENU_PRINCIPAL)
+            self.game.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
             return
 
         # ── Fase de Ameaça ──────────────────────────────────────────────
@@ -393,11 +585,10 @@ class CercoState(GameState):
                     return
 
             # Clique em célula do tabuleiro tático
-            if self.mapa_rect.collidepoint(mouse):
-                cell = getattr(self, '_hovered_cell_tactical', None)
-                if cell:
-                    self._on_cell_click(cell[0], cell[1])
-                    return
+            cell = self._screen_to_grid(mouse[0], mouse[1])
+            if cell:
+                self._on_cell_click(cell[0], cell[1])
+                return
 
     def _selecionar_modo(self, modo):
         self.modo_acao = modo
@@ -421,7 +612,7 @@ class CercoState(GameState):
             ok, custo, msg = validar_mover(e, cx, cy, e["pontos_movimento"], self.motor)
             if ok:
                 # Atualiza a posição no tabuleiro isométrico real
-                self.motor.tabuleiro.mover_personagem(self.jogador_novak, cx, cy)
+                self.motor.tabuleiro.mover_personagem(self.heroi_atual, cx, cy)
                 
                 delta, logs = executar_mover(e, cx, cy, custo)
                 self.estado = aplicar_delta(e, delta)
@@ -696,8 +887,13 @@ class CercoState(GameState):
             x -= s.get_width() + 14
             tela.blit(s, (x, 20))
 
-        # Posição do herói
-        ph = self.fMi.render(f"🦸 {NOMES_ZONA.get(e['pos_heroi'], '?')}", True, C_HEROI)
+        # Herói atual
+        heroi_nome = self.heroi_atual.nome if self.heroi_atual else "?"
+        if len(self.herois) > 1:
+            heroi_info = f"🦸 {heroi_nome} [{self.heroi_atual_idx + 1}/{len(self.herois)}]  [TAB]"
+        else:
+            heroi_info = f"🦸 {heroi_nome}"
+        ph = self.fMi.render(heroi_info, True, C_HEROI)
         tela.blit(ph, (14, 46))
 
         # Botão voltar
@@ -713,10 +909,10 @@ class CercoState(GameState):
         pygame.draw.rect(tela, (4, 6, 14), r, border_radius=12)
         pygame.draw.rect(tela, C_BORDA, r, 1, border_radius=12)
 
-        # ── Constantes isométricas ───────────────────────────────────
-        TW = 24   # tile width  (base do losango)
-        TH = 12   # tile height (metade vertical)
-        ES = 8    # elevation scale
+        # ── Constantes isométricas (escaladas pelo zoom) ─────────────
+        TW = max(6, int(24 * self.zoom))
+        TH = max(3, int(12 * self.zoom))
+        ES = max(2, int(8 * self.zoom))
 
         # Elevação por tipo de zona — define a "altura" de cada bloco
         ELEV_ZONA = {
@@ -836,29 +1032,33 @@ class CercoState(GameState):
                 (cx_ - TW // 2, cy_),
             ]
 
-        # Ordenação painter: linha diagonal gx+gy crescente
         cells = []
+        theta_cos = math.cos(theta)
+        theta_sin = math.sin(theta)
         for gy in range(RENDER_MIN, RENDER_MAX + 1):
             for gx in range(RENDER_MIN, RENDER_MAX + 1):
-                cells.append((gx + gy, gx, gy))
-        cells.sort()
+                zona_key, el = _classificar(gx, gy)
+                if zona_key is None:
+                    continue
+                dx = gx - 9.5
+                dy = gy - 9.5
+                rx = dx * theta_cos - dy * theta_sin
+                ry = dx * theta_sin + dy * theta_cos
+                depth = (rx + ry) * (TH // 2) - el * ES
+                cells.append((depth, gx, gy, zona_key, el, rx, ry))
+        cells.sort(key=lambda x: x[0])
 
-        mouse = pygame.mouse.get_pos()
-        hovered_cell = None
         labels_pendentes = {}  # zona_key → (cx, cy) centro isométrico
 
         tab = self.motor.tabuleiro
         e = self.estado
 
-        for _, gx, gy in cells:
-            zona_key, el = _classificar(gx, gy)
-            if zona_key is None:
-                continue  # buracos entre exterior e interior
-
+        for depth, gx, gy, zona_key, el, rx, ry in cells:
             paleta = PALETA.get(zona_key, PALETA["_exterior"])
-            cor_top, cor_left, cor_right = paleta
+            _, cor_left, cor_right = paleta
 
-            cx_, cy_ = _iso(gx, gy, el)
+            cx_ = int((rx - ry) * (TW // 2) + CX)
+            cy_ = int(depth + CY)
 
             # Clip: não renderiza fora do painel
             if not r.inflate(TW + 4, TH + 4).collidepoint(cx_, cy_):
@@ -868,25 +1068,16 @@ class CercoState(GameState):
             thick = el * ES
 
             # Hover (diamond test)
-            dx_ = abs(mouse[0] - cx_) / (TW / 2 + 0.001)
-            dy_ = abs(mouse[1] - cy_) / (TH / 2 + 0.001)
-            is_hover = (dx_ + dy_ <= 1.0) and r.collidepoint(mouse)
-            if is_hover:
-                hovered_cell = (gx, gy)
-                cor_top = tuple(min(255, int(c * 1.35)) for c in cor_top)
+            mx_draw, my_draw = pygame.mouse.get_pos()
+            dx_ = abs(mx_draw - cx_) / (TW / 2 + 0.001)
+            dy_ = abs(my_draw - cy_) / (TH / 2 + 0.001)
+            is_hover = (dx_ + dy_ <= 1.0) and r.collidepoint(mx_draw, my_draw)
 
             # Destaque de movimento
-            if self.modo_acao == MODO_MOVER and (gx, gy) in self.alcancaveis:
-                cor_top = (30, 130, 45)
+            is_move_hl = self.modo_acao == MODO_MOVER and (gx, gy) in self.alcancaveis
 
             # Células do campo externo piscam quando têm inimigos
             campo_dir = _campo_direcao(gx, gy)
-            if campo_dir and zona_key == "_campo":
-                inv_campo = e.get(campo_dir, 0)
-                if inv_campo > 0:
-                    pulso = abs((self.timer % 90) - 45) / 45.0
-                    r_comp = int(cor_top[0] + 40 * pulso)
-                    cor_top = (min(255, r_comp), cor_top[1], cor_top[2])
 
             # Paredes laterais (elevação)
             if thick > 0:
@@ -907,7 +1098,35 @@ class CercoState(GameState):
                 pygame.draw.polygon(tela, (15, 15, 20), left_pts, 1)
                 pygame.draw.polygon(tela, (15, 15, 20), right_pts, 1)
 
-            pygame.draw.polygon(tela, cor_top, top_pts)
+            # ── Topo com textura ────────────────────────────────────────
+            tex = self._tex(zona_key, TW, TH)
+            if tex:
+                tela.blit(tex, (cx_ - TW // 2, cy_ - TH // 2))
+            else:
+                cor_top = paleta[0]
+                pygame.draw.polygon(tela, cor_top, top_pts)
+
+            # Overlay de hover (brilho)
+            if is_hover:
+                hl = pygame.Surface((TW, TH), pygame.SRCALPHA)
+                hl.fill((255, 255, 255, 40))
+                tela.blit(hl, (cx_ - TW // 2, cy_ - TH // 2))
+
+            # Overlay de movimento
+            if is_move_hl:
+                hl = pygame.Surface((TW, TH), pygame.SRCALPHA)
+                hl.fill((0, 180, 0, 70))
+                tela.blit(hl, (cx_ - TW // 2, cy_ - TH // 2))
+
+            # Overlay de campo com invasores
+            if campo_dir and zona_key == "_campo":
+                inv_campo = e.get(campo_dir, 0)
+                if inv_campo > 0:
+                    pulso = abs((self.timer % 90) - 45) / 45.0
+                    hl = pygame.Surface((TW, TH), pygame.SRCALPHA)
+                    hl.fill((255, 0, 0, int(50 * pulso)))
+                    tela.blit(hl, (cx_ - TW // 2, cy_ - TH // 2))
+
             pygame.draw.polygon(tela, (10, 12, 20), top_pts, 1)
 
             # Registra o centro de cada zona para label (uma vez por zona)
@@ -925,55 +1144,78 @@ class CercoState(GameState):
                 char = tab.grid[gy][gx]
                 if char:
                     from src.ui.render_combate import desenhar_sprite
-                    rect_char = pygame.Rect(cx_ - 12, cy_ - 22, 24, 24)
-                    cor_char = (100, 215, 255) if char.nome == "Novak" else (200, 150, 255)
+                    sw, sh = max(10, int(24 * self.zoom)), max(10, int(24 * self.zoom))
+                    rect_char = pygame.Rect(cx_ - sw // 2, cy_ - sh + 2, sw, sh)
+                    eh_atual = char is self.heroi_atual
+                    cor_char = (100, 215, 255) if eh_atual else (200, 180, 255)
                     desenhar_sprite(tela, char, rect_char, cor_char, self.game.imagens)
-                    if char.nome == "Novak":
+                    if eh_atual:
                         pulse = abs(self.timer % 120 - 60) / 60.0
-                        pygame.draw.circle(tela, (120, 220, 255), (cx_, cy_), int(4 + 3 * pulse), 2)
+                        pulse_r = max(2, int((4 + 3 * pulse) * self.zoom))
+                        pygame.draw.circle(tela, (120, 220, 255), (cx_, cy_), pulse_r, max(1, int(2 * self.zoom)))
+                    # Nome do herói
+                    nome_s = self.fMi.render(char.nome, True, C_TEXTO)
+                    if self.zoom != 1.0:
+                        nome_s = pygame.transform.scale(nome_s,
+                            (max(1, int(nome_s.get_width() * self.zoom)),
+                             max(1, int(nome_s.get_height() * self.zoom))))
+                    tela.blit(nome_s, (cx_ - nome_s.get_width() // 2, cy_ - int(32 * self.zoom)))
 
-        self._hovered_cell_tactical = hovered_cell
-
-        # ── Labels de zona (desenhados depois de todos os tiles) ──────
+        # ── Info dinâmica sobre zonas ─────────────────────────────────
         e = self.estado
         for zona_key, (lcx, lcy) in labels_pendentes.items():
-            nome_label, cor_label = ZONA_LABELS[zona_key]
             inv = e["invasores"].get(zona_key, 0)
+            y_off = lcy - int(8 * self.zoom)
 
-            # Nome da zona (grande)
-            ls = self.fG.render(nome_label, True, cor_label)
-            bg_s = pygame.Surface((ls.get_width() + 6, ls.get_height() + 2), pygame.SRCALPHA)
-            bg_s.fill((0, 0, 0, 130))
-            tela.blit(bg_s, (lcx - ls.get_width() // 2 - 3, lcy - ls.get_height() // 2 - 1))
-            tela.blit(ls, (lcx - ls.get_width() // 2, lcy - ls.get_height() // 2))
-
-            # Invasores (linha abaixo do nome)
             if inv > 0:
-                li = self.fP.render(f"Inv x{inv}", True, C_INVASOR)
-                tela.blit(li, (lcx - li.get_width() // 2, lcy + ls.get_height() // 2 + 2))
+                li = self.fP.render(f"⚔{inv}", True, C_INVASOR)
+                if self.zoom != 1.0:
+                    li = pygame.transform.scale(li,
+                        (max(1, int(li.get_width() * self.zoom)),
+                         max(1, int(li.get_height() * self.zoom))))
+                tela.blit(li, (lcx - li.get_width() // 2, y_off))
+                y_off += int(16 * self.zoom)
 
-            # Câmara central: tesouro
             if zona_key == "camara_central":
-                lt = self.fP.render(f"OURO: {e['tesouro']}", True, C_OURO)
-                tela.blit(lt, (lcx - lt.get_width() // 2, lcy + ls.get_height() // 2 + 14))
+                lt = self.fP.render(f"🪙{e['tesouro']}", True, C_OURO)
+                if self.zoom != 1.0:
+                    lt = pygame.transform.scale(lt,
+                        (max(1, int(lt.get_width() * self.zoom)),
+                         max(1, int(lt.get_height() * self.zoom))))
+                tela.blit(lt, (lcx - lt.get_width() // 2, y_off))
 
-            # Pátio (NEXOS): brutamontes + infiltradores + pedregulhos
             if zona_key == "patio":
-                offset_y = lcy + ls.get_height() // 2 + 14
+                gap = max(8, int(13 * self.zoom))
                 if e["brutamontes"] > 0:
                     hp_dat = e.get("brutamonte_hp", {})
                     circ_tot  = hp_dat.get("circulos_total", 3)
                     circ_marc = hp_dat.get("circulos_marcados", 0)
                     lb = self.fMi.render(f"Brute x{e['brutamontes']}", True, C_BRUTE)
-                    tela.blit(lb, (lcx - lb.get_width() // 2, offset_y)); offset_y += 13
+                    if self.zoom != 1.0:
+                        lb = pygame.transform.scale(lb,
+                            (max(1, int(lb.get_width() * self.zoom)),
+                             max(1, int(lb.get_height() * self.zoom))))
+                    tela.blit(lb, (lcx - lb.get_width() // 2, y_off)); y_off += gap
                     circ_txt = "○" * (circ_tot - circ_marc) + "●" * circ_marc
                     lhp = self.fMi.render(circ_txt, True, C_PERIGO)
-                    tela.blit(lhp, (lcx - lhp.get_width() // 2, offset_y)); offset_y += 13
+                    if self.zoom != 1.0:
+                        lhp = pygame.transform.scale(lhp,
+                            (max(1, int(lhp.get_width() * self.zoom)),
+                             max(1, int(lhp.get_height() * self.zoom))))
+                    tela.blit(lhp, (lcx - lhp.get_width() // 2, y_off)); y_off += gap
                 if e.get("infiltradores", 0) > 0:
                     lif = self.fMi.render(f"Inf x{e['infiltradores']}", True, C_CERCO)
-                    tela.blit(lif, (lcx - lif.get_width() // 2, offset_y)); offset_y += 13
+                    if self.zoom != 1.0:
+                        lif = pygame.transform.scale(lif,
+                            (max(1, int(lif.get_width() * self.zoom)),
+                             max(1, int(lif.get_height() * self.zoom))))
+                    tela.blit(lif, (lcx - lif.get_width() // 2, y_off)); y_off += gap
                 lp = self.fMi.render(f"⛏{e['pedregulhos']}", True, (120, 160, 255))
-                tela.blit(lp, (lcx - lp.get_width() // 2, offset_y))
+                if self.zoom != 1.0:
+                    lp = pygame.transform.scale(lp,
+                        (max(1, int(lp.get_width() * self.zoom)),
+                         max(1, int(lp.get_height() * self.zoom))))
+                tela.blit(lp, (lcx - lp.get_width() // 2, y_off))
 
         # ── Armas de cerco e narrativa ───────────────────────────────────────
         self._draw_armas_cerco(tela)

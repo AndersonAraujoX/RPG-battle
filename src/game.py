@@ -47,7 +47,7 @@ class Game:
     def __init__(self):
         pygame.init()
         pygame.mixer.init()
-        self.tela = pygame.display.set_mode((LARGURA_TELA, ALTURA_TELA))
+        self.tela = pygame.display.set_mode((LARGURA_TELA, ALTURA_TELA), pygame.RESIZABLE)
         pygame.display.set_caption("Cerco contra Isectum")
         self.fonte_personagem = pygame.font.Font(None, 18)
         self.fonte_log = pygame.font.Font(None, 20)
@@ -115,8 +115,8 @@ class Game:
         GameSetup.setup_ui(self)
         self.tocar_musica('menu')
         
-        # Inicializa o estado do cerco
-        self.cerco_state = CercoState(self)
+        self.cerco_state = None
+        self.cerco_setup_state = None
         
         # Optimization Trackers
         self.last_char_id = None

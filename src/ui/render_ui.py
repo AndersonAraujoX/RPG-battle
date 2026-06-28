@@ -295,24 +295,23 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
         botoes_ui['sfx_vol_up'].desenhar(tela, fonte, mouse_pos)
         
         # Resolução
+        from ..config import RESOLUCOES as _RES
         y_res = y_volume + 50
-        tela.blit(fonte.render("Resolução (Reinício necessário):", True, COR_TEXTO), (config_x, y_res))
+        res_atual = f"{LARGURA_TELA}x{ALTURA_TELA}"
+        tela.blit(fonte.render(f"Resolução: {res_atual}", True, COR_TEXTO), (config_x, y_res))
         
         y_res_btns = y_res + 30
-        
-        # Atualizar posições para manter centralizado/relativo
-        # Aumentando espaçamento e garantindo que caiba no painel
-        # Botões tem largura 100. Vamos dar 20 px de espaço -> offset 120
-        botoes_ui['res_800'].rect.topleft = (config_x - 20, y_res_btns) # Um pouco pra esquerda pra compensar
-        botoes_ui['res_1024'].rect.topleft = (config_x + 110, y_res_btns) 
-        botoes_ui['res_1280'].rect.topleft = (config_x + 240, y_res_btns)
-        
-        botoes_ui['res_800'].desenhar(tela, fonte, mouse_pos)
-        botoes_ui['res_1024'].desenhar(tela, fonte, mouse_pos)
-        botoes_ui['res_1280'].desenhar(tela, fonte, mouse_pos)
-        
-        botoes_ui['res_fullscreen'].rect.topleft = (config_x, y_res_btns + 50) # Mais espaço vertical também
-        botoes_ui['res_fullscreen'].desenhar(tela, fonte, mouse_pos)
+        for i, (rw, rh) in enumerate(_RES):
+            col = i % 4
+            row = i // 4
+            btn_name = f"res_{rw}x{rh}"
+            if btn_name in botoes_ui:
+                bx = config_x + col * 105
+                by = y_res_btns + row * 36
+                botoes_ui[btn_name].rect.topleft = (bx, by)
+                botoes_ui[btn_name].desenhar(tela, fonte, mouse_pos)
+                if rw == LARGURA_TELA and rh == ALTURA_TELA:
+                    pygame.draw.rect(tela, (100, 200, 255), botoes_ui[btn_name].rect, 2, border_radius=3)
 
     # Iniciar Batalha button (always visible)
     botoes_ui['iniciar'].rect.center = (LARGURA_TELA // 2, ALTURA_TELA - 60)

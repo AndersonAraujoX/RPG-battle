@@ -20,7 +20,17 @@ class EventHandler:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 g.rodando = False
-            
+
+            if event.type == pygame.VIDEORESIZE:
+                from src.config import atualizar_resolucao
+                w, h = event.w, event.h
+                atualizar_resolucao(w, h)
+                g.tela = pygame.display.set_mode((w, h), pygame.RESIZABLE)
+                import json
+                with open("settings.json", "w") as f:
+                    json.dump({"width": w, "height": h}, f)
+                continue
+
             # Se o diálogo estiver ativo, apenas ele recebe input
             if g.dialogo.ativo:
                 if event.type == pygame.KEYDOWN:
@@ -40,6 +50,12 @@ class EventHandler:
                 if hasattr(g, 'cerco_state') and g.cerco_state:
                     g.cerco_state.handle_events([event])
                     
+            # Cerco Setup: encaminha eventos para tela de configuração
+            if g.estado_jogo == ESTADO_JOGO_CERCO_SETUP:
+                if not g.cerco_setup_state:
+                    from .cerco_setup_state import CercoSetupState
+                    g.cerco_setup_state = CercoSetupState(g)
+                g.cerco_setup_state.handle_events([event])
             elif g.estado_jogo == ESTADO_JOGO_CUTSCENE:
                  if event.type == pygame.KEYDOWN or (event.type == pygame.MOUSEBUTTONDOWN):
                       g.cutscene_manager.pular()
@@ -62,6 +78,9 @@ class EventHandler:
             self._handle_setup_click(event, mouse_pos)
         elif g.estado_jogo == ESTADO_JOGO_COMBATE:
             self._handle_combate_click(event, mouse_pos, personagem_ativo)
+        elif g.estado_jogo == ESTADO_JOGO_CERCO_SETUP:
+            # Já tratado no handle_events principal
+            pass
         elif g.estado_jogo == ESTADO_JOGO_EDITOR:
             self._handle_editor_click(event, mouse_pos)
         elif g.estado_jogo == ESTADO_JOGO_CERCO:
@@ -75,8 +94,7 @@ class EventHandler:
                 if botao.rect.collidepoint(mouse_pos):
                     g.play_sound('button_click')
                     if nome == 'nova_batalha':
-                        g.cerco_state = CercoState(g)
-                        g.estado_jogo = ESTADO_JOGO_CERCO
+                        g.estado_jogo = ESTADO_JOGO_CERCO_SETUP
                     elif nome == 'nova_campanha':
                         g.checkbox_campanha.checked = True
                         g.checkbox_chefe.checked = False
@@ -402,23 +420,26 @@ class EventHandler:
                         g.volume_sfx = min(1.0, g.volume_sfx + 0.1)
                         pygame.mixer.music.set_volume(g.volume_sfx)
                     elif nome.startswith('res_'):
-                        w, h = 1024, 768
-                        if nome == 'res_800': w, h = 800, 600
-                        elif nome == 'res_1024': w, h = 1024, 768
-                        elif nome == 'res_1280': w, h = 1280, 720
-                        
-                        settings = {"width": w, "height": h}
+                        partes = nome.split('_')
+                        if len(partes) == 2:
+                            res_str = partes[1]
+                        else:
+                            res_str = partes[1] + 'x' + partes[2] if len(partes) > 2 else '1024x768'
                         try:
-                            with open("settings.json", "w") as f:
-                                json.dump(settings, f)
-                            print(f"Resolução salva: {w}x{h}. Reinicie o jogo.")
-                            if nome == 'res_fullscreen':
-                                 g.rodando = False
-                        except Exception as e:
-                            print(f"Erro ao salvar settings: {e}")
-                            
-                        if nome == 'res_fullscreen':
-                             g.rodando = False 
+                            import re
+                            match = re.match(r'(\d+)x(\d+)', res_str)
+                            if match:
+                                w, h = int(match.group(1)), int(match.group(2))
+                            else:
+                                w, h = 1024, 768
+                        except:
+                            w, h = 1024, 768
+                        from src.config import atualizar_resolucao
+                        atualizar_resolucao(w, h)
+                        g.tela = pygame.display.set_mode((w, h), pygame.RESIZABLE)
+                        import json
+                        with open("settings.json", "w") as f:
+                            json.dump({"width": w, "height": h}, f)
 
         if g.active_tab_id == "times" and event.type == pygame.MOUSEBUTTONDOWN:
             coluna_a_x = LARGURA_TELA // 4 - 150
