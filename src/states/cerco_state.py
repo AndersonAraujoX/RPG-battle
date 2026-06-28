@@ -334,9 +334,23 @@ class CercoState(GameState):
         img = self.game.imagens.get(f"terreno_{tipo.lower()}")
         if img is None:
             return None
-        scaled = pygame.transform.scale(img, (tw, th))
+        
+        # Recorte inteligente do centro (crop) para remover bordas escuras e sombras do tile bruto da IA
+        orig_w, orig_h = img.get_size()
+        crop_w = int(orig_w * 0.65)
+        crop_h = int(orig_h * 0.65)
+        crop_x = (orig_w - crop_w) // 2
+        crop_y = (orig_h - crop_h) // 2
+        
+        try:
+            cropped_img = img.subsurface(pygame.Rect(crop_x, crop_y, crop_w, crop_h))
+        except Exception:
+            cropped_img = img
+
+        scaled = pygame.transform.scale(cropped_img, (tw, th))
         surf = pygame.Surface((tw, th), pygame.SRCALPHA)
         surf.blit(scaled, (0, 0))
+        
         mask = pygame.Surface((tw, th), pygame.SRCALPHA)
         diamond = [(tw // 2, 0), (tw, th // 2), (tw // 2, th), (0, th // 2)]
         pygame.draw.polygon(mask, (255, 255, 255, 255), diamond)
@@ -482,12 +496,15 @@ class CercoState(GameState):
                 cx = (rx - ry) * (TW // 2) + CX
                 cy = (rx + ry) * (TH // 2) - el * ES + CY
                 proj_y = (rx + ry) * (TH // 2)
-                cells.append((proj_y, gx, gy, cx, cy))
+                cells.append((proj_y, gx, gy, cx, cy, el))
 
-        cells.sort(key=lambda x: x[0], reverse=True)
-        for _, gx, gy, cx, cy in cells:
+        cells.sort(key=lambda x: x[4], reverse=True)
+        for _, gx, gy, cx, cy, el in cells:
+            thick = el * ES
+            ctr_y = cy + thick // 2
+            half_h = (TH + thick) // 2
             dx_ = abs(mx - cx) / (TW / 2 + 1e-10)
-            dy_ = abs(my - cy) / (TH / 2 + 1e-10)
+            dy_ = abs(my - ctr_y) / (half_h + 1e-10)
             if dx_ + dy_ <= 1.0:
                 return (gx, gy)
         return None
@@ -1099,7 +1116,8 @@ class CercoState(GameState):
                 pygame.draw.polygon(tela, (15, 15, 20), right_pts, 1)
 
             # ── Topo com textura ────────────────────────────────────────
-            tex = self._tex(zona_key, TW, TH)
+            usar_sprite = self.game.sprites_visiveis
+            tex = self._tex(zona_key, TW, TH) if usar_sprite else None
             if tex:
                 tela.blit(tex, (cx_ - TW // 2, cy_ - TH // 2))
             else:
@@ -1148,7 +1166,7 @@ class CercoState(GameState):
                     rect_char = pygame.Rect(cx_ - sw // 2, cy_ - sh + 2, sw, sh)
                     eh_atual = char is self.heroi_atual
                     cor_char = (100, 215, 255) if eh_atual else (200, 180, 255)
-                    desenhar_sprite(tela, char, rect_char, cor_char, self.game.imagens)
+                    desenhar_sprite(tela, char, rect_char, cor_char, self.game.imagens, self.game.sprites_visiveis)
                     if eh_atual:
                         pulse = abs(self.timer % 120 - 60) / 60.0
                         pulse_r = max(2, int((4 + 3 * pulse) * self.zoom))

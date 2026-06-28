@@ -68,7 +68,7 @@ class GameSetup:
 
     @staticmethod
     def setup_ui(game):
-        config_times_init, config_chefe_init, botoes_ui_init, checkbox_terreno_init, checkbox_auto_init, checkbox_chefe_init, checkbox_autoplay_init, checkbox_mapa_custom_init, checkbox_campanha_init, checkbox_limitadores_init, bosses_init = setup_menu_ui()
+        config_times_init, config_chefe_init, botoes_ui_init, checkbox_terreno_init, checkbox_auto_init, checkbox_chefe_init, checkbox_autoplay_init, checkbox_mapa_custom_init, checkbox_campanha_init, checkbox_limitadores_init, checkbox_sprites_init, bosses_init = setup_menu_ui()
     
         game.config_times.update(config_times_init)
         game.config_chefe.update(config_chefe_init)
@@ -81,6 +81,8 @@ class GameSetup:
         game.checkbox_mapa_custom = checkbox_mapa_custom_init
         game.checkbox_campanha = checkbox_campanha_init
         game.checkbox_limitadores = checkbox_limitadores_init
+        game.checkbox_sprites = checkbox_sprites_init
+        game.sprites_visiveis = not checkbox_sprites_init.checked
         game.bosses = bosses_init
         
         btn_width = 250

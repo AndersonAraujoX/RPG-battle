@@ -157,6 +157,7 @@ def setup_menu_ui():
     checkbox_mapa_custom = Checkbox(check_x, y_check + 160, 20, "Usar Mapa Customizado", fonte_menu)
     checkbox_campanha = Checkbox(check_x, y_check + 200, 20, "Modo Campanha", fonte_menu)
     checkbox_limitadores = Checkbox(check_x, y_check + 240, 20, "Adicionar Limitadores", fonte_menu)
+    checkbox_sprites = Checkbox(check_x, y_check + 280, 20, "Desativar Sprites", fonte_menu)
     
     # Volume Controls
     botoes_ui['sfx_vol_down'] = Botao(0, 0, 40, 40, "-", fonte_menu, cor_fundo=COR_BOTAO_MENU)
@@ -180,4 +181,4 @@ def setup_menu_ui():
         {"classe": DragaoAnciao, "nome": "Dragão Ancião"}
     ]
 
-    return config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, bosses
+    return config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, checkbox_sprites, bosses

@@ -484,6 +484,9 @@ class EventHandler:
             if g.checkbox_mapa_custom.rect.collidepoint(mouse_pos): g.checkbox_mapa_custom.toggle()
             if g.checkbox_campanha.rect.collidepoint(mouse_pos): g.checkbox_campanha.toggle()
             if g.checkbox_limitadores.rect.collidepoint(mouse_pos): g.checkbox_limitadores.toggle()
+            if g.checkbox_sprites.rect.collidepoint(mouse_pos):
+                g.checkbox_sprites.toggle()
+                g.sprites_visiveis = not g.checkbox_sprites.checked
 
 
     def _handle_combate_click(self, event, mouse_pos, personagem_ativo):

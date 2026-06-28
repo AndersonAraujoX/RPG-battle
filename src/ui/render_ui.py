@@ -141,7 +141,7 @@ def desenhar_dialogo(tela, fonte, dialogo_sistema, game_images):
             (rect_caixa.right - 25, rect_caixa.bottom - 20)
         ])
 
-def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id, mouse_pos=None):
+def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, checkbox_sprites, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id, mouse_pos=None):
     # Fundo (Wallpaper)
     try:
         bg_img = pygame.image.load(resource_path("assets/images/ui/menu_background.png")).convert()
@@ -285,9 +285,11 @@ def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, c
         checkbox_campanha.desenhar(tela)
         checkbox_limitadores.rect.topleft = (config_x, config_y + 240)
         checkbox_limitadores.desenhar(tela)
+        checkbox_sprites.rect.topleft = (config_x, config_y + 280)
+        checkbox_sprites.desenhar(tela)
         
         # Draw volume controls separately
-        y_volume = config_y + 280 # Below limiters checkbox
+        y_volume = config_y + 320 # Below sprites checkbox
         tela.blit(fonte.render(f"Volume SFX: {int(volume_sfx * 100)}%", True, COR_TEXTO), (config_x, y_volume))
         botoes_ui['sfx_vol_down'].rect.topleft = (config_x + 200, y_volume)
         botoes_ui['sfx_vol_down'].desenhar(tela, fonte, mouse_pos)

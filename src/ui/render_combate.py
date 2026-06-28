@@ -147,9 +147,9 @@ def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
         pygame.draw.polygon(tela, cor_base, top_points)
         pygame.draw.polygon(tela, (60, 60, 60) if visibilidade == 2 else (35, 35, 35), top_points, 1)
 
-def desenhar_sprite(tela, personagem, rect, cor, game_images):
+def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True):
     personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
-    if personagem_img_key in game_images and game_images[personagem_img_key]:
+    if mostrar and personagem_img_key in game_images and game_images[personagem_img_key]:
         scaled_img = pygame.transform.scale(game_images[personagem_img_key], (rect.width, rect.height))
         tela.blit(scaled_img, rect.topleft)
     else:

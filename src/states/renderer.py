@@ -27,7 +27,7 @@ class GameRenderer:
         elif g.estado_jogo == ESTADO_JOGO_SETUP:
             desenhar_setup_batalha(g.tela, g.fonte_menu, g.config_times, g.config_chefe, g.botoes_ui, 
                                    g.checkbox_terreno, g.checkbox_auto, g.checkbox_chefe, g.checkbox_autoplay, 
-                                   g.checkbox_mapa_custom, g.checkbox_campanha, g.checkbox_limitadores, g.bosses, g.selected_boss_index, 
+                                   g.checkbox_mapa_custom, g.checkbox_campanha, g.checkbox_limitadores, g.checkbox_sprites, g.bosses, g.selected_boss_index, 
                                    g.imagens, g.volume_sfx, g.menu_tabs, g.active_tab_id, mouse_pos)
         
         elif g.estado_jogo == ESTADO_JOGO_COMBATE:
