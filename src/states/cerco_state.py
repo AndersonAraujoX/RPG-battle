@@ -178,6 +178,8 @@ class CercoState(GameState):
         # Zonas alcançáveis (highlight)
         self.alcancaveis        = {}
         self.zoom               = 1.0
+        # Animação de caminhada
+        self.walk_anim          = None  # {char, from_pos, to_pos, progress,速度}
         
         # Cria um motor de combate simulado para renderizar o cenário e calcular as distâncias na grade
         from ..motor_combate import MotorCombate
@@ -498,7 +500,7 @@ class CercoState(GameState):
                 proj_y = (rx + ry) * (TH // 2)
                 cells.append((proj_y, gx, gy, cx, cy, el))
 
-        cells.sort(key=lambda x: x[4], reverse=True)
+        cells.sort(key=lambda x: x[0], reverse=True)
         for _, gx, gy, cx, cy, el in cells:
             thick = el * ES
             ctr_y = cy + thick // 2
@@ -538,6 +540,64 @@ class CercoState(GameState):
             if new_z != self.zoom:
                 self.zoom = new_z
                 self.terrain_iso_cache.clear()
+
+    # ── ANIMAÇÃO DE CAMINHADA ──────────────────────────────────────────
+    def _start_walk(self, char, from_pos, to_pos, on_done=None):
+        self.walk_anim = {
+            "char": char,
+            "from_pos": from_pos,
+            "to_pos": to_pos,
+            "progress": 0.0,
+            "speed": 0.06,
+            "on_done": on_done,
+        }
+
+    def _update_walk(self):
+        if not self.walk_anim:
+            return False
+        a = self.walk_anim
+        a["progress"] += a["speed"]
+        if a["progress"] >= 1.0:
+            a["progress"] = 1.0
+            on_done = a.get("on_done")
+            self.walk_anim = None
+            if on_done:
+                on_done()
+            return True
+        return False
+
+    def _get_walk_screen_pos(self, gx, gy, el):
+        a = self.walk_anim
+        if a is None:
+            return None
+        if (gx, gy) != a["from_pos"]:
+            return None
+        if a["char"] is not self.heroi_atual:
+            return None
+        from_gx, from_gy = a["from_pos"]
+        to_gx, to_gy = a["to_pos"]
+        theta = self.game.angulo_rotacao
+        theta_cos = math.cos(theta)
+        theta_sin = math.sin(theta)
+        TW = max(6, int(24 * self.zoom))
+        TH = max(3, int(12 * self.zoom))
+        ES = max(2, int(8 * self.zoom))
+        CX = self.mapa_rect.centerx
+        CY = self.mapa_rect.centery - 5
+        p = a["progress"]
+        p_smooth = p * p * (3 - 2 * p)
+        igx = from_gx + (to_gx - from_gx) * p_smooth
+        igy = from_gy + (to_gy - from_gy) * p_smooth
+        dx = igx - 9.5
+        dy = igy - 9.5
+        rx = dx * theta_cos - dy * theta_sin
+        ry = dx * theta_sin + dy * theta_cos
+        cy_coord = (rx + ry) * (TH // 2) - el * ES
+        cx = int((rx - ry) * (TW // 2) + CX)
+        cy = int(cy_coord + CY)
+        if p < 1.0:
+            cy -= int(abs(math.sin(p * math.pi)) * 8 * self.zoom)
+        return cx, cy
 
     def _on_click(self, mouse):
         e = self.estado
@@ -607,6 +667,12 @@ class CercoState(GameState):
                 self._on_cell_click(cell[0], cell[1])
                 return
 
+        # ── Movimento livre (fora de qualquer modo) ─────────────────────
+        if self.modo_acao == MODO_NENHUM and not self.walk_anim:
+            cell = self._screen_to_grid(mouse[0], mouse[1])
+            if cell:
+                self._on_cell_click(cell[0], cell[1])
+
     def _selecionar_modo(self, modo):
         self.modo_acao = modo
         self.idx_slot_upgrade  = -1
@@ -625,25 +691,49 @@ class CercoState(GameState):
 
     def _on_cell_click(self, cx: int, cy: int):
         e = self.estado
-        if self.modo_acao == MODO_MOVER:
+        if self.walk_anim:
+            return
+
+        # ── Movimento livre (MODO_NENHUM) ───────────────────────────────
+        if self.modo_acao == MODO_NENHUM:
+            from_pos = (e.get("heroi_x", 9), e.get("heroi_y", 9))
+            if from_pos == (cx, cy):
+                return
+            from ..resolvedor_acoes import custo_minimo_grade
+            custo = custo_minimo_grade(self.motor, from_pos, (cx, cy))
+            if custo is None:
+                self._feedback("Destino inaccessivel!", C_PERIGO)
+                return
+            def _finalize_free():
+                self.motor.tabuleiro.mover_personagem(self.heroi_atual, cx, cy)
+                from ..resolvedor_acoes import obter_zona_por_coordenada
+                delta = {
+                    "heroi_x": cx,
+                    "heroi_y": cy,
+                    "pos_heroi": obter_zona_por_coordenada(cx, cy) or "camara_central",
+                }
+                self.estado = aplicar_delta(e, delta)
+                self._push("HEROI", f"Moveu para ({cx}, {cy})")
+            self._start_walk(self.heroi_atual, from_pos, (cx, cy), on_done=_finalize_free)
+
+        elif self.modo_acao == MODO_MOVER:
             ok, custo, msg = validar_mover(e, cx, cy, e["pontos_movimento"], self.motor)
             if ok:
-                # Atualiza a posição no tabuleiro isométrico real
-                self.motor.tabuleiro.mover_personagem(self.heroi_atual, cx, cy)
-                
-                delta, logs = executar_mover(e, cx, cy, custo)
-                self.estado = aplicar_delta(e, delta)
-                e = self.estado
-                for t, m in logs: self._push(t, m)
-                
-                # Recalcula alcancáveis na grade tática
-                from ..resolvedor_acoes import obter_celulas_alcancaveis
-                self.alcancaveis = obter_celulas_alcancaveis(
-                    self.motor, (e.get("heroi_x", 9), e.get("heroi_y", 9)),
-                    e["pontos_movimento"]
-                )
-                self._feedback(f"Moveu para ({cx}, {cy})", C_VERDE)
-                self.modo_acao = MODO_NENHUM
+                from_pos = (e.get("heroi_x", 9), e.get("heroi_y", 9))
+                def _finalize():
+                    self.motor.tabuleiro.mover_personagem(self.heroi_atual, cx, cy)
+                    delta, logs = executar_mover(e, cx, cy, custo)
+                    self.estado = aplicar_delta(e, delta)
+                    e2 = self.estado
+                    for t, m in logs: self._push(t, m)
+                    from ..resolvedor_acoes import obter_celulas_alcancaveis
+                    self.alcancaveis = obter_celulas_alcancaveis(
+                        self.motor, (e2.get("heroi_x", 9), e2.get("heroi_y", 9)),
+                        e2["pontos_movimento"]
+                    )
+                    self._feedback(f"Moveu para ({cx}, {cy})", C_VERDE)
+                    self.modo_acao = MODO_NENHUM
+                self._start_walk(self.heroi_atual, from_pos, (cx, cy), on_done=_finalize)
             else:
                 self._feedback(msg, C_PERIGO)
 
@@ -830,6 +920,7 @@ class CercoState(GameState):
     # ═══════════════════════════════════════════════════════════════════
     def update(self):
         self.timer = (self.timer + 1) % 120
+        self._update_walk()
         if self.feedback_timer > 0:
             self.feedback_timer -= 1
         # Sincroniza rotação com o motor do tabuleiro
@@ -879,10 +970,10 @@ class CercoState(GameState):
         tela.blit(rod, (W // 2 - rod.get_width() // 2, 20))
 
         fase_label = {
-            "JOGAR_CARTA": "🃏 JOGUE CARTAS",
-            "ACAO_LIVRE":  "⚔️  EXECUTE AÇÕES",
-            "FASE_AMEACA": "⚠️  AMEAÇA",
-            "FIM":         "🏁 FIM",
+            "JOGAR_CARTA": "JOGUE CARTAS",
+            "ACAO_LIVRE":  "EXECUTE ACOES",
+            "FASE_AMEACA": "AMEACA",
+            "FIM":         "FIM",
         }
         fc = C_VERDE if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE") else C_PERIGO
         fs = self.fMi.render(fase_label.get(self.fase, ""), True, fc)
@@ -891,9 +982,9 @@ class CercoState(GameState):
         # Stats rápidas
         e = self.estado
         info = [
-            (f"🏰{e['tesouro']}", C_OURO),
-            (f"👿R:{e['reserva']}", C_INVASOR),
-            (f"⛏️{e['pedregulhos']}", (120, 160, 255)),
+            (f"Ouro:{e['tesouro']}", C_OURO),
+            (f"Res:{e['reserva']}", C_INVASOR),
+            (f"Esc:{e['pedregulhos']}", (120, 160, 255)),
             (f"PM:{e['pontos_movimento']}", C_HEROI),
             (f"PT:{e['pontos_trabalho']}", C_VERDE),
             (f"PE:{e['pontos_escavacao']}", C_CERCO),
@@ -907,9 +998,9 @@ class CercoState(GameState):
         # Herói atual
         heroi_nome = self.heroi_atual.nome if self.heroi_atual else "?"
         if len(self.herois) > 1:
-            heroi_info = f"🦸 {heroi_nome} [{self.heroi_atual_idx + 1}/{len(self.herois)}]  [TAB]"
+            heroi_info = f"Heroi: {heroi_nome} [{self.heroi_atual_idx + 1}/{len(self.herois)}]  [TAB]"
         else:
-            heroi_info = f"🦸 {heroi_nome}"
+            heroi_info = f"Heroi: {heroi_nome}"
         ph = self.fMi.render(heroi_info, True, C_HEROI)
         tela.blit(ph, (14, 46))
 
@@ -1061,8 +1152,9 @@ class CercoState(GameState):
                 dy = gy - 9.5
                 rx = dx * theta_cos - dy * theta_sin
                 ry = dx * theta_sin + dy * theta_cos
-                depth = (rx + ry) * (TH // 2) - el * ES
-                cells.append((depth, gx, gy, zona_key, el, rx, ry))
+                ground_depth = rx + ry
+                cy_coord = (rx + ry) * (TH // 2) - el * ES
+                cells.append((ground_depth, cy_coord, gx, gy, zona_key, el, rx, ry))
         cells.sort(key=lambda x: x[0])
 
         labels_pendentes = {}  # zona_key → (cx, cy) centro isométrico
@@ -1070,12 +1162,12 @@ class CercoState(GameState):
         tab = self.motor.tabuleiro
         e = self.estado
 
-        for depth, gx, gy, zona_key, el, rx, ry in cells:
+        for ground_depth, cy_coord, gx, gy, zona_key, el, rx, ry in cells:
             paleta = PALETA.get(zona_key, PALETA["_exterior"])
             _, cor_left, cor_right = paleta
 
             cx_ = int((rx - ry) * (TW // 2) + CX)
-            cy_ = int(depth + CY)
+            cy_ = int(cy_coord + CY)
 
             # Clip: não renderiza fora do painel
             if not r.inflate(TW + 4, TH + 4).collidepoint(cx_, cy_):
@@ -1163,6 +1255,9 @@ class CercoState(GameState):
                 if char:
                     from src.ui.render_combate import desenhar_sprite
                     sw, sh = max(10, int(24 * self.zoom)), max(10, int(24 * self.zoom))
+                    walk_pos = self._get_walk_screen_pos(gx, gy, el)
+                    if walk_pos:
+                        cx_, cy_ = walk_pos
                     rect_char = pygame.Rect(cx_ - sw // 2, cy_ - sh + 2, sw, sh)
                     eh_atual = char is self.heroi_atual
                     cor_char = (100, 215, 255) if eh_atual else (200, 180, 255)
@@ -1267,11 +1362,11 @@ class CercoState(GameState):
         # ── Recursos depositados ─────────────────────────────────────────
         dep = self.estado.get("recursos_depositados", {})
         yt = y + 8
-        tt = self.fMi.render("⚙️ RECURSOS DEPOSITADOS", True, C_ACENTO)
+        tt = self.fMi.render("RECURSOS DEPOSITADOS", True, C_ACENTO)
         tela.blit(tt, (x + pw // 2 - tt.get_width() // 2, yt)); yt += 18
-        res_info = [("🪵", "madeira", (120, 200, 100)),
-                    ("🧳", "couro",   (200, 150,  80)),
-                    ("⚙️",  "metal",   (180, 180, 220))]
+        res_info = [("Mad:", "madeira", (120, 200, 100)),
+                    ("Cou:", "couro",   (200, 150,  80)),
+                    ("Met:", "metal",   (180, 180, 220))]
         rx = x + 8
         for emoji, key, cor in res_info:
             s = self.fP.render(f"{emoji}{dep.get(key, 0)}", True, cor)
@@ -1281,7 +1376,7 @@ class CercoState(GameState):
         pygame.draw.line(tela, C_BORDA, (x + 6, yt), (x + pw - 6, yt), 1); yt += 6
 
         # ── Mercado de Upgrades ──────────────────────────────────────────
-        ut = self.fMi.render("🏪 MERCADO DE MELHORIAS", True, C_ACENTO)
+        ut = self.fMi.render("MERCADO DE MELHORIAS", True, C_ACENTO)
         tela.blit(ut, (x + pw // 2 - ut.get_width() // 2, yt)); yt += 18
 
         self._slot_y_start = yt
@@ -1310,8 +1405,8 @@ class CercoState(GameState):
             pygame.draw.rect(tela, bcor, sr, 1, border_radius=5)
 
             # Nome e custo
-            st_nome = (f"💥{slot['nome']}" if slot.get("bloqueado") else
-                       f"✅{slot['nome']}" if slot.get("adquirido") else
+            st_nome = (f"[X]{slot['nome']}" if slot.get("bloqueado") else
+                       f"[V]{slot['nome']}" if slot.get("adquirido") else
                        f"{slot['simbolo']} {slot['nome']}")
             nt = self.fMi.render(st_nome[:26], True,
                                  C_PERIGO if slot.get("bloqueado") else
@@ -1335,8 +1430,8 @@ class CercoState(GameState):
         cor_map = {"DERROTA": C_PERIGO, "VITORIA": C_VERDE, "AMEACA": C_INVASOR,
                    "CERCO": C_CERCO, "CARTA": C_OURO, "HEROI": C_VERDE,
                    "SISTEMA": C_DIM}
-        pre_map = {"DERROTA": "⛔", "VITORIA": "🏆", "AMEACA": "👿", "CERCO": "⚡",
-                   "CARTA": "🃏", "HEROI": "⚔️", "SISTEMA": "🔧"}
+        pre_map = {"DERROTA": "[!]", "VITORIA": "[W]", "AMEACA": "[A]", "CERCO": "[C]",
+                   "CARTA": "[K]", "HEROI": "[H]", "SISTEMA": "[S]"}
         for tipo, msg in entries:
             cor   = cor_map.get(tipo, C_TEXTO)
             pre   = pre_map.get(tipo, "▪")

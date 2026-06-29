@@ -38,7 +38,7 @@ class GameRenderer:
                 desenhar_cenario(g.tela, g.motor, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 
                 desenhar_itens_no_chao(g.tela, g.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade, g.angulo_rotacao)
-                desenhar_personagens(g.tela, g.motor, g.fonte_personagem, personagem_ativo, tick, g.animacao_atual, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
+                desenhar_personagens(g.tela, g.motor, g.fonte_personagem, personagem_ativo, tick, g.animacao_atual, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade, mostrar=g.sprites_visiveis)
                 
                 if g.habilidade_selecionada:
                     desenhar_alcance_habilidade(g.tela, g.motor, personagem_ativo, g.habilidade_selecionada, ALTURA_BARRA_INICIATIVA, mouse_pos)
@@ -49,7 +49,7 @@ class GameRenderer:
                     desenhar_pre_visualizacao_ataque(g.tela, g.motor, hovered, g.imagens, ALTURA_BARRA_INICIATIVA)
 
                 desenhar_projeteis_e_efeitos(g.tela, g.animacao_atual, ALTURA_BARRA_INICIATIVA, g.imagens, g.angulo_rotacao)
-                desenhar_barra_iniciativa(g.tela, g.motor.ordem_de_combate, personagem_ativo, g.imagens)
+                desenhar_barra_iniciativa(g.tela, g.motor.ordem_de_combate, personagem_ativo, g.imagens, mostrar=g.sprites_visiveis)
                 desenhar_log(g.tela, g.fonte_log, g.log_combate, ALTURA_TELA, ALTURA_BARRA_INICIATIVA)
                 
                 if g.unidade_selecionada:

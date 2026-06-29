@@ -193,7 +193,7 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True):
             pygame.draw.polygon(tela, cor, points)
         else: pygame.draw.rect(tela, cor, rect)
 
-def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, imagens, offset_y, visibilidade_map=None):
+def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, imagens, offset_y, visibilidade_map=None, mostrar=True):
     theta = getattr(motor, 'angulo_rotacao', 0.0)
     
     # Dead characters first
@@ -245,9 +245,9 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
                 escala = 1.0 + 0.15 * abs(math.sin(tick * 0.1))
                 largura, altura = int(30 * escala), int(30 * escala)
                 sprite_rect = pygame.Rect(rect.centerx - largura // 2, rect.centery - altura // 2, largura, altura)
-                desenhar_sprite(tela, p, sprite_rect, cor, imagens)
+                desenhar_sprite(tela, p, sprite_rect, cor, imagens, mostrar)
             else:
-                desenhar_sprite(tela, p, rect, cor, imagens)
+                desenhar_sprite(tela, p, rect, cor, imagens, mostrar)
             
             if p.status_efeitos:
                 status_x_offset = 0
@@ -267,7 +267,7 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
                 p_final = pygame.Vector2(alvo_cx, alvo_cy - 10)
                 pos_interp = p_inicial.lerp(p_final, progresso * 2) if progresso <= 0.5 else p_final.lerp(p_inicial, (progresso - 0.5) * 2)
                 rect.center = pos_interp
-            desenhar_sprite(tela, p, rect, cor, imagens)
+            desenhar_sprite(tela, p, rect, cor, imagens, mostrar)
 
         hp_percent = p.hp_atual / p.hp_max
         hp_bar_bg = pygame.Rect(rect.left, rect.top - 8, 30, 4)
@@ -373,7 +373,7 @@ def desenhar_alcance_habilidade(tela, motor, personagem_ativo, habilidade_key, y
                                  ]
                                  draw_alpha_polygon(tela, (255, 200, 0, 100), points)
 
-def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_images):
+def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_images, mostrar=True):
     BARRA_ALTURA = 80 
     SPRITE_SIZE = 50 
     SPRITE_PADDING = 20 
@@ -391,11 +391,11 @@ def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_ima
 
         sprite_rect = pygame.Rect(x_offset, BARRA_ALTURA // 2 - SPRITE_SIZE // 2, SPRITE_SIZE, SPRITE_SIZE)
         cor = CORES_TIME.get(personagem.time, (200, 200, 200))
-        desenhar_sprite(tela, personagem, sprite_rect, cor, game_images)
+        desenhar_sprite(tela, personagem, sprite_rect, cor, game_images, mostrar)
         
         x_offset += SPRITE_SIZE + SPRITE_PADDING
 
-def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images): 
+def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images, mostrar=True): 
     area_iniciativa = pygame.Rect(LARGURA_TABULEIRO, ALTURA_TELA - 250, LARGURA_LOG, 100)
     s = pygame.Surface((area_iniciativa.width, area_iniciativa.height), pygame.SRCALPHA)
     s.fill((30, 20, 10, 230))
@@ -417,7 +417,7 @@ def desenhar_ordem_iniciativa(tela, fonte, ordem, personagem_ativo, game_images)
             pygame.draw.rect(tela, COR_BOTAO_HOVER, (x_offset - 2, y_offset - 2, 24, 24), border_radius=4)
 
         sprite_rect = pygame.Rect(x_offset, y_offset, 20, 20)
-        desenhar_sprite(tela, personagem, sprite_rect, cor, game_images)
+        desenhar_sprite(tela, personagem, sprite_rect, cor, game_images, mostrar)
         
         x_offset += 25
         if x_offset > area_iniciativa.right - 25:
