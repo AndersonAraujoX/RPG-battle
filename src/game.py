@@ -58,6 +58,8 @@ class Game:
 
         self.sounds = GameSetup.carregar_sons()
         self.imagens = GameSetup.carregar_imagens()
+        self.animacoes_sprites = GameSetup.carregar_animacoes()
+        self.estado_animacao_personagem = {}
         
         self.event_handler = EventHandler(self)
         self.renderer = GameRenderer(self)
@@ -409,22 +411,44 @@ class Game:
 
             # Animation Handling
             if self.animacao_atual:
-                # Check if animation finished (this logic depends on how animations are implemented in drawing)
-                # For now, let's assume animations are visual only and we just wait a bit or check a timer
-                # But looking at drawing code, it uses self.animacao_atual to draw. 
-                # We need a way to expire animations.
-                # Let's assume a simple timer for now if the animation dict doesn't have one.
                 if 'inicio' not in self.animacao_atual:
                     self.animacao_atual['inicio'] = agora
-                    self.animacao_atual['duracao'] = 500 # Default 500ms
+                    self.animacao_atual['duracao'] = 500
                     if self.animacao_atual['tipo'] == 'ataque': self.play_sound('attack')
-                    elif self.animacao_atual['tipo'] == 'movimento': pass # Sound handled elsewhere or continuous
                     elif self.animacao_atual['tipo'] == 'dano': self.play_sound('hit')
-                    
+
                 if agora - self.animacao_atual['inicio'] > self.animacao_atual['duracao']:
+                    if self.animacao_atual['tipo'] == 'movimento':
+                        p = self.animacao_atual['personagem']
+                        p_id = id(p)
+                        if p_id in self.estado_animacao_personagem:
+                            self.estado_animacao_personagem[p_id]["andando"] = False
+                            self.estado_animacao_personagem[p_id]["quadro"] = 0
                     self.animacao_atual = None
                 else:
                     self.animacao_atual['progresso'] = (agora - self.animacao_atual['inicio']) / self.animacao_atual['duracao']
+
+                if self.animacao_atual and self.animacao_atual['tipo'] == 'movimento':
+                    p = self.animacao_atual['personagem']
+                    p_id = id(p)
+                    classe_nome = p.__class__.__name__
+                    if classe_nome in self.animacoes_sprites:
+                        if p_id not in self.estado_animacao_personagem:
+                            self.estado_animacao_personagem[p_id] = {"direcao": 0, "quadro": 0, "timer": 0, "andando": False}
+                        estado = self.estado_animacao_personagem[p_id]
+                        estado["andando"] = True
+
+                        dx = self.animacao_atual['end_pos'][0] - self.animacao_atual['start_pos'][0]
+                        dy = self.animacao_atual['end_pos'][1] - self.animacao_atual['start_pos'][1]
+                        if abs(dx) > abs(dy):
+                            estado["direcao"] = 1 if dx < 0 else 2
+                        else:
+                            estado["direcao"] = 0 if dy > 0 else 3
+
+                        estado["timer"] += 1
+                        if estado["timer"] >= 6:
+                            estado["timer"] = 0
+                            estado["quadro"] = (estado["quadro"] % 3) + 1
             
             elif self.fila_animacoes:
                 self.animacao_atual = self.fila_animacoes.popleft()

@@ -38,7 +38,7 @@ class GameRenderer:
                 desenhar_cenario(g.tela, g.motor, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade)
                 
                 desenhar_itens_no_chao(g.tela, g.motor.tabuleiro, ALTURA_BARRA_INICIATIVA, visibilidade, g.angulo_rotacao)
-                desenhar_personagens(g.tela, g.motor, g.fonte_personagem, personagem_ativo, tick, g.animacao_atual, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade, mostrar=g.sprites_visiveis)
+                desenhar_personagens(g.tela, g.motor, g.fonte_personagem, personagem_ativo, tick, g.animacao_atual, g.imagens, ALTURA_BARRA_INICIATIVA, visibilidade, mostrar=g.sprites_visiveis, animacoes_sprites=g.animacoes_sprites, estado_animacao=g.estado_animacao_personagem)
                 
                 if g.habilidade_selecionada:
                     desenhar_alcance_habilidade(g.tela, g.motor, personagem_ativo, g.habilidade_selecionada, ALTURA_BARRA_INICIATIVA, mouse_pos)

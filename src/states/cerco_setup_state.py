@@ -9,7 +9,7 @@ from __future__ import annotations
 import pygame
 from .state_base import GameState
 from ..config import ESTADO_JOGO_MENU_PRINCIPAL, ESTADO_JOGO_CERCO, LARGURA_TELA, ALTURA_TELA, RESOLUCOES, atualizar_resolucao
-from ..personagens import Novak, Koema, Rilem, Yukito
+from ..personagens import Stark, Elden, Doom, Gruu, Kuro, Darwin, Aquele
 
 C_BG        = (8, 10, 20)
 C_PAINEL    = (14, 16, 30)
@@ -29,17 +29,23 @@ DIFICULDADES = [
 
 # Heróis disponíveis para seleção
 HEROIS_DISPONIVEIS = [
-    ("Novak",  Novak,  "Guerreiro"),
-    ("Koema",  Koema,  "Clérigo"),
-    ("Rilem",  Rilem,  "Ladino"),
-    ("Yukito", Yukito, "Mago"),
+    ("Aquele", Aquele, "Guerreiro"),
+    ("Stark",  Stark,  "Paladino"),
+    ("Elden",  Elden,  "Mago"),
+    ("Doom",   Doom,   "Ladino"),
+    ("Gruu",   Gruu,   "Barbaro"),
+    ("Kuro",   Kuro,   "Ladino"),
+    ("Darwin", Darwin, "Druida"),
 ]
 
 ICONES_HEROI = {
-    "Novak":  "⚔️",
-    "Koema":  "💚",
-    "Rilem":  "🗡️",
-    "Yukito": "🔮",
+    "Aquele": "🌑",
+    "Stark":  "🛡️",
+    "Elden":  "✨",
+    "Doom":   "🌑",
+    "Gruu":   "💀",
+    "Kuro":   "🗡️",
+    "Darwin": "🌿",
 }
 
 
@@ -50,7 +56,7 @@ class CercoSetupState(GameState):
         self._setup_layout()
 
         self.selecionados = {nome: False for nome, _, _ in HEROIS_DISPONIVEIS}
-        self.selecionados["Novak"] = True
+        self.selecionados["Aquele"] = True
         self.dificuldade_idx = 1
         self.resolucao_idx = 2  # 1024x768 por padrão (índice 2 em RESOLUCOES)
         # Encontra a resolução atual no índice correspondente
@@ -69,10 +75,14 @@ class CercoSetupState(GameState):
     def _setup_layout(self):
         W, H = LARGURA_TELA, ALTURA_TELA
 
+        qtd_herois = len(HEROIS_DISPONIVEIS)
+        linhas_herois = max(1, (qtd_herois + 4) // 5)
+        altura_herois = 50 + linhas_herois * 100
+        y_dif = 90 + altura_herois + 15
         self.area_titulo   = pygame.Rect(0, 0, W, 70)
-        self.area_herois   = pygame.Rect(40, 90, W - 80, 220)
-        self.area_dificuldade = pygame.Rect(40, 325, W - 80, 130)
-        self.area_resolucao = pygame.Rect(40, 470, W - 80, 100)
+        self.area_herois   = pygame.Rect(40, 90, W - 80, altura_herois)
+        self.area_dificuldade = pygame.Rect(40, y_dif, W - 80, 130)
+        self.area_resolucao = pygame.Rect(40, y_dif + 145, W - 80, 100)
         self.btn_iniciar   = pygame.Rect(W // 2 - 120, H - 60, 240, 42)
         self.btn_voltar    = pygame.Rect(20, 20, 100, 36)
 
@@ -198,7 +208,7 @@ class CercoSetupState(GameState):
 
         mouse = pygame.mouse.get_pos()
         self.heroi_rects = []
-        cols = 4
+        cols = 4 if len(HEROIS_DISPONIVEIS) <= 4 else 5
         cw = (r.width - 60) // cols
         ch = 90
         y0 = r.y + 50

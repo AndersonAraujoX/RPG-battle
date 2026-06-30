@@ -194,10 +194,10 @@ class CercoState(GameState):
                         continue
                     if "muralha" in zona_id:
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "rocha"
-                        self.motor.tabuleiro.elevation_grid[cy][cx] = 2
+                        self.motor.tabuleiro.elevation_grid[cy][cx] = 1
                     elif "torre" in zona_id:
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "barril"
-                        self.motor.tabuleiro.elevation_grid[cy][cx] = 3
+                        self.motor.tabuleiro.elevation_grid[cy][cx] = 2
                     elif zona_id == "patio":
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "fogo"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
@@ -218,18 +218,15 @@ class CercoState(GameState):
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
 
         # Cria os heróis selecionados e os posiciona no tabuleiro
-        from ..personagens.protagonistas import Novak, Koema, Rilem, Yukito
-        MAPA_CLASSES = {
-            "Novak": Novak, "Koema": Koema, "Rilem": Rilem, "Yukito": Yukito,
-        }
-        POSICOES_INICIAIS = [(9, 9), (7, 7), (11, 7), (7, 11)]
+        POSICOES_INICIAIS = [(9, 9), (7, 7), (11, 7), (7, 11), (9, 5), (5, 9), (13, 9)]
         self.herois = []
         self.heroi_atual_idx = 0
         self.motor.time_a = []
         self.motor.combatentes = []
 
         if not herois:
-            herois = [("Novak", Novak)]
+            from ..personagens.novos_personagens import Stark
+            herois = [("Stark", Stark)]
         for i, (nome, cls) in enumerate(herois):
             pos = POSICOES_INICIAIS[i] if i < len(POSICOES_INICIAIS) else (9, 9)
             heroi = cls(nome, "A", nivel=5)
@@ -283,9 +280,9 @@ class CercoState(GameState):
             )
 
     def _default_config(self):
-        from ..personagens.protagonistas import Novak
+        from ..personagens.novos_personagens import Stark
         return {
-            "herois": [("Novak", Novak)],
+            "herois": [("Stark", Stark)],
             "dificuldade": {"nome": "Normal", "pedregulhos": 8, "tesouro": 20, "reserva": 10},
         }
 
@@ -301,24 +298,24 @@ class CercoState(GameState):
     # ── LAYOUT (recalculado uma vez) ─────────────────────────────────────
     def _setup_layout(self):
         W, H = LARGURA_TELA, ALTURA_TELA
-        # Área do mapa
-        self.mapa_rect   = pygame.Rect(8, 65, W - 330, H - 170)
+        # Área do mapa (redimensionada para dar espaço na vertical)
+        self.mapa_rect   = pygame.Rect(8, 65, W - 330, H - 217)
         # Painel lateral (log + recursos + mercado)
         self.painel_rect = pygame.Rect(W - 318, 65, 310, H - 75)
-        # Faixa de cartas na mão (bottom)
-        self.mao_rect    = pygame.Rect(8, H - 100, W - 330, 92)
-        # Botões de ação — 7 botões lado a lado na faixa inferior
+        # Faixa de cartas na mão (posicionada acima dos botões)
+        self.mao_rect    = pygame.Rect(8, H - 146, W - 330, 92)
+        # Botões de ação — posicionados na base inferior (H - 48)
         bw, bh = 110, 36
         bx = W - 318
         by = H - 48
         self.btn_fim_turno  = pygame.Rect(bx,         by, bw + 26, bh)
-        self.btn_mover      = pygame.Rect(8,          H - 48, bw - 4,  bh)
-        self.btn_trabalhar  = pygame.Rect(8+bw,       H - 48, bw - 4,  bh)
-        self.btn_escavar    = pygame.Rect(8+bw*2,     H - 48, bw - 4,  bh)
-        self.btn_subornar   = pygame.Rect(8+bw*3,     H - 48, bw - 4,  bh)
-        self.btn_convocar   = pygame.Rect(8+bw*4,     H - 48, bw - 4,  bh)
-        self.btn_atacar     = pygame.Rect(8+bw*5,     H - 48, bw - 4,  bh)
-        self.btn_atirar     = pygame.Rect(8+bw*6,     H - 48, bw - 4,  bh)
+        self.btn_mover      = pygame.Rect(8,          by, bw - 4,  bh)
+        self.btn_trabalhar  = pygame.Rect(8+bw,       by, bw - 4,  bh)
+        self.btn_escavar    = pygame.Rect(8+bw*2,     by, bw - 4,  bh)
+        self.btn_subornar   = pygame.Rect(8+bw*3,     by, bw - 4,  bh)
+        self.btn_convocar   = pygame.Rect(8+bw*4,     by, bw - 4,  bh)
+        self.btn_atacar     = pygame.Rect(8+bw*5,     by, bw - 4,  bh)
+        self.btn_atirar     = pygame.Rect(8+bw*6,     by, bw - 4,  bh)
         self.btn_voltar     = pygame.Rect(W - 156, 68,  140,  30)
         self.btn_confirmar  = pygame.Rect(W//2-100, H-48, 200,  bh)
         # Rects das cartas na mão
@@ -337,10 +334,10 @@ class CercoState(GameState):
         if img is None:
             return None
         
-        # Recorte inteligente do centro (crop) para remover bordas escuras e sombras do tile bruto da IA
+        # Recorte inteligente do centro (crop) ajustado para preservar mais detalhes originais da imagem (82%)
         orig_w, orig_h = img.get_size()
-        crop_w = int(orig_w * 0.65)
-        crop_h = int(orig_h * 0.65)
+        crop_w = int(orig_w * 0.82)
+        crop_h = int(orig_h * 0.82)
         crop_x = (orig_w - crop_w) // 2
         crop_y = (orig_h - crop_h) // 2
         
@@ -349,7 +346,12 @@ class CercoState(GameState):
         except Exception:
             cropped_img = img
 
-        scaled = pygame.transform.scale(cropped_img, (tw, th))
+        # Redimensionamento bilinear de alta fidelidade para suavizar pixels e remover borrões
+        try:
+            scaled = pygame.transform.smoothscale(cropped_img, (tw, th))
+        except Exception:
+            scaled = pygame.transform.scale(cropped_img, (tw, th))
+            
         surf = pygame.Surface((tw, th), pygame.SRCALPHA)
         surf.blit(scaled, (0, 0))
         
@@ -763,9 +765,9 @@ class CercoState(GameState):
 
         elif self.modo_acao == MODO_CONVOCAR:
             # Seleciona uma classe aliada aleatória
-            from ..personagens.protagonistas import Koema, Rilem, Yukito
+            from ..personagens.novos_personagens import Elden, Kuro, Darwin
             from ..personagens import Arqueiro, Clerigo
-            aliado_classe = random.choice([Koema, Rilem, Yukito, Arqueiro, Clerigo])
+            aliado_classe = random.choice([Elden, Kuro, Darwin, Arqueiro, Clerigo])
             
             # Tenta posicionar no tabuleiro
             novo_aliado = aliado_classe(f"{aliado_classe.__name__}", "A", nivel=3)
@@ -966,18 +968,89 @@ class CercoState(GameState):
         tela.blit(t1, (14, 10))
         tela.blit(t2, (14 + t1.get_width() + 8, 10))
 
-        rod = self.fP.render(f"RODADA {self.estado['rodada']}", True, C_DIM)
-        tela.blit(rod, (W // 2 - rod.get_width() // 2, 20))
+        # ── Barra de Iniciativa Visual (Cabeçalho Central) ──────────────────
+        bx = W // 2 - 150
+        by = 8
+        bw = 300
+        bh = 32
+        
+        # Desenha trilha de fundo
+        pygame.draw.rect(tela, (14, 16, 30), (bx, by, bw, bh), border_radius=6)
+        pygame.draw.rect(tela, C_BORDA, (bx, by, bw, bh), 1, border_radius=6)
+        
+        # Desenhamos os avatares dos heróis na trilha
+        av_size = 22
+        for idx, h in enumerate(self.herois):
+            hx = bx + 8 + idx * (av_size + 14)
+            hy = by + (bh - av_size) // 2
+            
+            # Moldura do herói
+            h_rect = pygame.Rect(hx, hy, av_size, av_size)
+            eh_ativo = (h is self.heroi_atual)
+            
+            # Se for o herói ativo e for a fase do jogador, destaca
+            destaque = eh_ativo and (self.fase in ("JOGAR_CARTA", "ACAO_LIVRE"))
+            cor_b = C_VERDE if destaque else (C_ACENTO if eh_ativo else C_BORDA)
+            
+            pygame.draw.rect(tela, (8, 8, 16), h_rect, border_radius=3)
+            
+            img_key = f"personagem_{h.nome.lower()}"
+            img = self.game.imagens.get(img_key)
+            if img:
+                img_scaled = pygame.transform.scale(img, (av_size - 2, av_size - 2))
+                tela.blit(img_scaled, (h_rect.x + 1, h_rect.y + 1))
+            else:
+                # Fallback inicial do herói
+                fallback = self.fMi.render(h.nome[0], True, C_TEXTO)
+                tela.blit(fallback, (h_rect.centerx - fallback.get_width() // 2, h_rect.centery - fallback.get_height() // 2))
+                
+            pygame.draw.rect(tela, cor_b, h_rect, 2 if destaque else 1, border_radius=3)
+            
+            # Efeito pulsar no ativo
+            if destaque:
+                pulse = abs(self.timer % 60 - 30) / 30.0
+                rp = int(2 + 2 * pulse)
+                pygame.draw.rect(tela, C_VERDE, h_rect.inflate(rp, rp), 1, border_radius=3)
+
+        # Ícone de Ameaça/Invasores no fim da trilha
+        ax = bx + bw - 30
+        ay = by + (bh - av_size) // 2
+        a_rect = pygame.Rect(ax, ay, av_size, av_size)
+        
+        eh_ameaca = (self.fase == "FASE_AMEACA")
+        cor_a = C_PERIGO if eh_ameaca else C_DIM
+        pygame.draw.rect(tela, (20, 10, 10) if eh_ameaca else (10, 12, 16), a_rect, border_radius=3)
+        pygame.draw.rect(tela, cor_a, a_rect, 2 if eh_ameaca else 1, border_radius=3)
+        
+        # Desenha uma caveira simplificada com círculos
+        pygame.draw.circle(tela, cor_a, (a_rect.centerx, a_rect.centery - 2), 4)
+        pygame.draw.rect(tela, cor_a, (a_rect.centerx - 3, a_rect.centery + 1, 6, 4))
+        pygame.draw.circle(tela, (0, 0, 0), (a_rect.centerx - 2, a_rect.centery - 2), 1)
+        pygame.draw.circle(tela, (0, 0, 0), (a_rect.centerx + 2, a_rect.centery - 2), 1)
+        
+        if eh_ameaca:
+            pulse = abs(self.timer % 60 - 30) / 30.0
+            rp = int(2 + 2 * pulse)
+            pygame.draw.rect(tela, C_PERIGO, a_rect.inflate(rp, rp), 1, border_radius=3)
+            
+        # Seta indicando o fluxo (Heróis -> Invasores)
+        seta_x = bx + bw - 52
+        seta_y = by + bh // 2
+        pygame.draw.line(tela, C_DIM, (seta_x - 5, seta_y), (seta_x + 5, seta_y), 1)
+        pygame.draw.line(tela, C_DIM, (seta_x + 5, seta_y), (seta_x + 1, seta_y - 3), 1)
+        pygame.draw.line(tela, C_DIM, (seta_x + 5, seta_y), (seta_x + 1, seta_y + 3), 1)
 
         fase_label = {
-            "JOGAR_CARTA": "JOGUE CARTAS",
-            "ACAO_LIVRE":  "EXECUTE ACOES",
-            "FASE_AMEACA": "AMEACA",
-            "FIM":         "FIM",
+            "JOGAR_CARTA": "Jogue Cartas",
+            "ACAO_LIVRE":  "Execute Ações",
+            "FASE_AMEACA": "Fase de Ameaça",
+            "FIM":         "Fim",
         }
+        
+        rod_txt = f"RODADA {self.estado['rodada']}  |  {fase_label.get(self.fase, '').upper()}"
         fc = C_VERDE if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE") else C_PERIGO
-        fs = self.fMi.render(fase_label.get(self.fase, ""), True, fc)
-        tela.blit(fs, (W // 2 - fs.get_width() // 2, 44))
+        lbl_rod = self.fMi.render(rod_txt, True, fc if self.fase == "FASE_AMEACA" else C_DIM)
+        tela.blit(lbl_rod, (W // 2 - lbl_rod.get_width() // 2, by + bh + 4))
 
         # Stats rápidas
         e = self.estado
@@ -1006,16 +1079,50 @@ class CercoState(GameState):
 
         # Botão voltar
         m = pygame.mouse.get_pos()
-        bc = (40, 40, 70) if self.btn_voltar.collidepoint(m) else (22, 22, 42)
+        hover = self.btn_voltar.collidepoint(m)
+        bc = (48, 48, 72) if hover else (24, 24, 42)
         pygame.draw.rect(tela, bc, self.btn_voltar, border_radius=6)
-        vt = self.fMi.render("← Menu  [ESC]", True, C_DIM)
-        tela.blit(vt, (self.btn_voltar.x + 6, self.btn_voltar.y + 8))
+        pygame.draw.rect(tela, C_BORDA if hover else (30, 30, 50), self.btn_voltar, 1, border_radius=6)
+        vt = self.fMi.render("< MENU [ESC]", True, C_TEXTO if hover else C_DIM)
+        tela.blit(vt, (self.btn_voltar.centerx - vt.get_width() // 2, self.btn_voltar.centery - vt.get_height() // 2))
 
     # ── MAPA ────────────────────────────────────────────────────────────
     def _draw_mapa(self, tela):
         r = self.mapa_rect
-        pygame.draw.rect(tela, (4, 6, 14), r, border_radius=12)
+        
+        # ── Céu Estrelado Noturno com Degradê Místico ──────────────────
+        bg_sky = pygame.Surface((2, 2))
+        bg_sky.set_at((0, 0), (6, 10, 26))      # Azul profundo no topo
+        bg_sky.set_at((1, 0), (6, 10, 26))
+        bg_sky.set_at((0, 1), (18, 10, 24))     # Roxo escuro na base
+        bg_sky.set_at((1, 1), (18, 10, 24))
+        bg_sky_scaled = pygame.transform.smoothscale(bg_sky, (r.width, r.height))
+        tela.blit(bg_sky_scaled, (r.x, r.y))
+
+        # Estrelas piscantes (seed fixo)
+        import random
+        random.seed(1337)
+        for _ in range(40):
+            sx = random.randint(r.x + 10, r.right - 10)
+            sy = random.randint(r.y + 10, r.bottom - 10)
+            if sy < r.y + r.height * 0.4:
+                brilho = int(100 + 155 * abs(math.sin((self.timer + sx) * 0.05)))
+                pygame.draw.circle(tela, (brilho, brilho, min(255, brilho + 30)), (sx, sy), 1)
+
+        # Névoa mística nas bordas do mapa (Fog of War)
+        fog = pygame.Surface((r.width, r.height), pygame.SRCALPHA)
+        pygame.draw.ellipse(fog, (40, 50, 80, 40), (0, r.height - 120, r.width, 140))
+        pygame.draw.ellipse(fog, (20, 30, 60, 30), (-50, r.height - 80, r.width + 100, 100))
+        tela.blit(fog, (r.x, r.y))
+
+        # Moldura com Cantoneiras Rúnicas
         pygame.draw.rect(tela, C_BORDA, r, 1, border_radius=12)
+        d = 12
+        for cx, cy in [(r.left, r.top), (r.right, r.top), (r.left, r.bottom), (r.right, r.bottom)]:
+            x_dir = 1 if cx == r.left else -1
+            y_dir = 1 if cy == r.top else -1
+            pygame.draw.line(tela, C_OURO, (cx, cy), (cx + d * x_dir, cy), 2)
+            pygame.draw.line(tela, C_OURO, (cx, cy), (cx, cy + d * y_dir), 2)
 
         # ── Constantes isométricas (escaladas pelo zoom) ─────────────
         TW = max(6, int(24 * self.zoom))
@@ -1204,11 +1311,55 @@ class CercoState(GameState):
                 ]
                 pygame.draw.polygon(tela, cor_left,  left_pts)
                 pygame.draw.polygon(tela, cor_right, right_pts)
+                
+                # Padrão de Tijolo Procedural nas Paredes para Texturização
+                h_step = max(5, int(8 * self.zoom))
+                c_mortar_l = (max(0, cor_left[0] - 35),  max(0, cor_left[1] - 35),  max(0, cor_left[2] - 35))
+                c_mortar_r = (max(0, cor_right[0] - 35), max(0, cor_right[1] - 35), max(0, cor_right[2] - 35))
+                
+                # Desenha linhas de argamassa horizontais (paralelas ao topo)
+                for h in range(h_step, thick, h_step):
+                    # Face Esquerda
+                    pygame.draw.line(tela, c_mortar_l, 
+                                     (cx_ - TW // 2, cy_ + h), 
+                                     (cx_, cy_ + TH // 2 + h), 1)
+                    # Face Direita
+                    pygame.draw.line(tela, c_mortar_r, 
+                                     (cx_, cy_ + TH // 2 + h), 
+                                     (cx_ + TW // 2, cy_ + h), 1)
+                
+                # Desenha juntas verticais alternadas para simular alvenaria
+                row_idx = 0
+                for h in range(0, thick, h_step):
+                    j_h = min(h_step, thick - h)
+                    if j_h <= 2:
+                        continue
+                    
+                    if row_idx % 2 == 0:
+                        fractions = [0.5]
+                    else:
+                        fractions = [0.25, 0.75]
+                    
+                    # Face Esquerda
+                    for f in fractions:
+                        jx = cx_ - TW // 2 + int(f * (TW // 2))
+                        jy = cy_ + int(f * (TH // 2)) + h
+                        pygame.draw.line(tela, c_mortar_l, (jx, jy), (jx, jy + j_h), 1)
+                        
+                    # Face Direita
+                    for f in fractions:
+                        jx = cx_ + int(f * (TW // 2))
+                        jy = cy_ + TH // 2 - int(f * (TH // 2)) + h
+                        pygame.draw.line(tela, c_mortar_r, (jx, jy), (jx, jy + j_h), 1)
+                        
+                    row_idx += 1
+
                 pygame.draw.polygon(tela, (15, 15, 20), left_pts, 1)
                 pygame.draw.polygon(tela, (15, 15, 20), right_pts, 1)
 
             # ── Topo com textura ────────────────────────────────────────
-            usar_sprite = self.game.sprites_visiveis
+            eh_muralha_torre = zona_key and ("muralha" in zona_key or "torre" in zona_key)
+            usar_sprite = self.game.sprites_visiveis or eh_muralha_torre
             tex = self._tex(zona_key, TW, TH) if usar_sprite else None
             if tex:
                 tela.blit(tex, (cx_ - TW // 2, cy_ - TH // 2))
@@ -1359,20 +1510,33 @@ class CercoState(GameState):
         pygame.draw.rect(tela, C_BORDA,  pr, 1, border_radius=10)
         x, y, pw, ph = pr.x, pr.y, pr.width, pr.height
 
-        # ── Recursos depositados ─────────────────────────────────────────
+        # ── Recursos depositados (Design de Slots de Inventário) ─────────
         dep = self.estado.get("recursos_depositados", {})
         yt = y + 8
         tt = self.fMi.render("RECURSOS DEPOSITADOS", True, C_ACENTO)
         tela.blit(tt, (x + pw // 2 - tt.get_width() // 2, yt)); yt += 18
-        res_info = [("Mad:", "madeira", (120, 200, 100)),
-                    ("Cou:", "couro",   (200, 150,  80)),
-                    ("Met:", "metal",   (180, 180, 220))]
+        
+        res_info = [
+            ("MAD", "madeira", (120, 200, 100)),
+            ("COU", "couro",   (200, 150,  80)),
+            ("MET", "metal",   (180, 180, 220))
+        ]
+        
+        slot_w = (pw - 24) // 3
         rx = x + 8
-        for emoji, key, cor in res_info:
-            s = self.fP.render(f"{emoji}{dep.get(key, 0)}", True, cor)
-            tela.blit(s, (rx, yt))
-            rx += pw // 3
-        yt += 20
+        for label, key, cor in res_info:
+            s_rect = pygame.Rect(rx, yt, slot_w, 36)
+            pygame.draw.rect(tela, (18, 20, 32), s_rect, border_radius=4)
+            pygame.draw.rect(tela, C_BORDA, s_rect, 1, border_radius=4)
+            
+            lbl = self.fMi.render(label, True, C_DIM)
+            tela.blit(lbl, (s_rect.centerx - lbl.get_width() // 2, s_rect.y + 4))
+            
+            val = self.fP.render(str(dep.get(key, 0)), True, cor)
+            tela.blit(val, (s_rect.centerx - val.get_width() // 2, s_rect.y + 16))
+            
+            rx += slot_w + 4
+        yt += 42
         pygame.draw.line(tela, C_BORDA, (x + 6, yt), (x + pw - 6, yt), 1); yt += 6
 
         # ── Mercado de Upgrades ──────────────────────────────────────────
@@ -1384,9 +1548,7 @@ class CercoState(GameState):
             srect = self._slot_rect(slot["id"])
             if srect is None:
                 continue
-            # Redesenha rect aqui para ficar preciso
             sr = pygame.Rect(x + 6, yt, pw - 12, 38)
-            # Guarda mapeamento
             self._slot_rects_cache[slot["id"]] = sr
 
             if slot.get("bloqueado"):
@@ -1404,17 +1566,17 @@ class CercoState(GameState):
             pygame.draw.rect(tela, scor, sr, border_radius=5)
             pygame.draw.rect(tela, bcor, sr, 1, border_radius=5)
 
-            # Nome e custo
-            st_nome = (f"[X]{slot['nome']}" if slot.get("bloqueado") else
-                       f"[V]{slot['nome']}" if slot.get("adquirido") else
-                       f"{slot['simbolo']} {slot['nome']}")
+            # Nome e custo (removidos símbolos especiais para evitar tofus)
+            st_nome = (f"[BLOQUEADO] {slot['nome']}" if slot.get("bloqueado") else
+                       f"[ADQUIRIDO] {slot['nome']}" if slot.get("adquirido") else
+                       f"[*] {slot['nome']}")
             nt = self.fMi.render(st_nome[:26], True,
                                  C_PERIGO if slot.get("bloqueado") else
                                  C_VERDE  if slot.get("adquirido") else C_TEXTO)
             tela.blit(nt, (sr.x + 4, sr.y + 4))
 
             custo_txt = " ".join(
-                f"{NOME_RECURSO.get(r, r)[:2]}:{q}"
+                f"{NOME_RECURSO.get(r, r)[:2].upper()}:{q}"
                 for r, q in slot.get("custo", {}).items()
             )
             ct2 = self.fMi.render(custo_txt, True, C_DIM)
@@ -1424,24 +1586,31 @@ class CercoState(GameState):
 
         pygame.draw.line(tela, C_BORDA, (x + 6, yt), (x + pw - 6, yt), 1); yt += 6
 
-        # ── Log ─────────────────────────────────────────────────────────
-        max_lin = max(1, (ph - (yt - y) - 8) // 15)
+        # ── Log Estilizado (Terminal de RPG) ────────────────────────────
+        log_bg = pygame.Rect(x + 6, yt, pw - 12, ph - (yt - y) - 8)
+        pygame.draw.rect(tela, (8, 9, 16), log_bg, border_radius=4)
+        pygame.draw.rect(tela, (25, 27, 42), log_bg, 1, border_radius=4)
+        
+        max_lin = max(1, (log_bg.height - 8) // 14)
         entries = self.log[-(max_lin):]
+        
         cor_map = {"DERROTA": C_PERIGO, "VITORIA": C_VERDE, "AMEACA": C_INVASOR,
                    "CERCO": C_CERCO, "CARTA": C_OURO, "HEROI": C_VERDE,
                    "SISTEMA": C_DIM}
-        pre_map = {"DERROTA": "[!]", "VITORIA": "[W]", "AMEACA": "[A]", "CERCO": "[C]",
-                   "CARTA": "[K]", "HEROI": "[H]", "SISTEMA": "[S]"}
+        pre_map = {"DERROTA": "[X]", "VITORIA": "[V]", "AMEACA": "[!]", "CERCO": "[C]",
+                   "CARTA": "[#]", "HEROI": "[*]", "SISTEMA": "[o]"}
+        
+        yt_log = log_bg.y + 6
         for tipo, msg in entries:
-            cor   = cor_map.get(tipo, C_TEXTO)
-            pre   = pre_map.get(tipo, "▪")
+            cor = cor_map.get(tipo, C_TEXTO)
+            pre = pre_map.get(tipo, "-")
             linha = f"{pre} {msg}"
             for part in [linha[i:i + 36] for i in range(0, len(linha), 36)]:
                 lt = self.fMi.render(part, True, cor)
-                tela.blit(lt, (x + 5, yt))
-                yt += 14
-                if yt > y + ph - 12:
-                    return
+                tela.blit(lt, (log_bg.x + 6, yt_log))
+                yt_log += 14
+                if yt_log > log_bg.bottom - 12:
+                    break
 
     _slot_rects_cache = {}  # dict[int, pygame.Rect]
 
@@ -1466,6 +1635,12 @@ class CercoState(GameState):
         gap   = max(2, (mr.width - cw * len(mao)) // (len(mao) + 1))
         mouse = pygame.mouse.get_pos()
 
+        GEMAS_COR = {
+            "movimento": (100, 200, 255),  # Azul
+            "trabalho":  (120, 220, 100),  # Verde
+            "escavacao": (255, 195, 40),   # Dourado
+        }
+
         for i, carta in enumerate(mao):
             cx = mr.x + gap + i * (cw + gap)
             cy = mr.y + 4
@@ -1475,29 +1650,68 @@ class CercoState(GameState):
 
             hover = crect.collidepoint(mouse)
             sel   = (i == self.idx_carta_queimar)
-            fundo = C_ACENTO if sel else (C_CARD_HL if hover else C_CARD)
-            pygame.draw.rect(tela, fundo, crect, border_radius=7)
-            pygame.draw.rect(tela, C_ACENTO if sel else C_BORDA, crect, 1, border_radius=7)
+            
+            # Fundo Gradiente Místico
+            grad = pygame.Surface((2, 2))
+            c_top = (14, 20, 36) if not hover else (26, 34, 58)
+            c_bot = (32, 18, 48) if not hover else (50, 28, 75)
+            grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
+            grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
+            grad_scaled = pygame.transform.smoothscale(grad, (cw, ch))
+            tela.blit(grad_scaled, (cx, cy))
 
-            # Símbolo
-            st = self.fM.render(carta.get("simbolo", "?"), True, C_TEXTO)
-            tela.blit(st, (crect.centerx - st.get_width() // 2, cy + 4))
+            # Borda externa com brilho místico no hover
+            borda_cor = C_ACENTO if sel else (C_OURO if hover else C_BORDA)
+            pygame.draw.rect(tela, borda_cor, crect, 1, border_radius=7)
+            
+            # Borda interna (card frame)
+            inner_rect = crect.inflate(-6, -6)
+            pygame.draw.rect(tela, (borda_cor[0]//2, borda_cor[1]//2, borda_cor[2]//2), inner_rect, 1, border_radius=5)
 
-            # Nome
+            # Moldura interna para a gema de ação
+            gem_frame = pygame.Rect(cx + 8, cy + 8, cw - 16, 28)
+            pygame.draw.rect(tela, (8, 9, 16), gem_frame, border_radius=4)
+            pygame.draw.rect(tela, (28, 30, 48), gem_frame, 1, border_radius=4)
+
+            # Determina o tipo de gema de ação
+            tipo_gema = "movimento"
+            if carta.get("trabalho"):  tipo_gema = "trabalho"
+            if carta.get("escavacao"): tipo_gema = "escavacao"
+            cor_gema = GEMAS_COR.get(tipo_gema, (200, 200, 200))
+            
+            # Desenha losango da gema (sem unicode/tofus!)
+            gx_center = gem_frame.centerx
+            gy_center = gem_frame.centery
+            gem_pts = [
+                (gx_center, gy_center - 7),
+                (gx_center + 7, gy_center),
+                (gx_center, gy_center + 7),
+                (gx_center - 7, gy_center)
+            ]
+            pygame.draw.polygon(tela, cor_gema, gem_pts)
+            pygame.draw.polygon(tela, C_TEXTO, gem_pts, 1)
+
+            # Nome da carta
             nt = self.fMi.render(carta["nome"][:14], True, C_TEXTO)
-            tela.blit(nt, (crect.centerx - nt.get_width() // 2, cy + 28))
+            tela.blit(nt, (crect.centerx - nt.get_width() // 2, cy + 42))
 
-            # Stats
+            # Stats (PM, PT, PE) formatados
             stats = []
-            if carta.get("movimento"): stats.append(f"{carta['movimento']}PM")
-            if carta.get("trabalho"):  stats.append(f"{carta['trabalho']}PT")
-            if carta.get("escavacao"): stats.append(f"{carta['escavacao']}PE")
-            st2 = self.fMi.render(" ".join(stats), True, C_HEROI)
-            tela.blit(st2, (crect.centerx - st2.get_width() // 2, cy + 44))
+            if carta.get("movimento"): stats.append(f"PM:{carta['movimento']}")
+            if carta.get("trabalho"):  stats.append(f"PT:{carta['trabalho']}")
+            if carta.get("escavacao"): stats.append(f"PE:{carta['escavacao']}")
+            
+            st_text = " ".join(stats)
+            st2 = self.fMi.render(st_text, True, cor_gema)
+            
+            # Caixa de fundo para destacar os status
+            stat_bg = pygame.Rect(crect.centerx - st2.get_width() // 2 - 4, cy + 58, st2.get_width() + 8, 14)
+            pygame.draw.rect(tela, (18, 20, 32), stat_bg, border_radius=3)
+            tela.blit(st2, (crect.centerx - st2.get_width() // 2, cy + 58))
 
             if sel:
-                ql = self.fMi.render("QUEIMAR", True, C_PERIGO)
-                tela.blit(ql, (crect.centerx - ql.get_width() // 2, cy + 62))
+                ql = self.fMi.render("DESCARTE", True, C_PERIGO)
+                tela.blit(ql, (crect.centerx - ql.get_width() // 2, cy + 74))
 
     # ── BOTÕES DE AÇÃO ───────────────────────────────────────────────────
     def _draw_botoes_acao(self, tela, W, H):

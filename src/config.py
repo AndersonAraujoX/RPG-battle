@@ -280,6 +280,18 @@ image_path_monsters = "assets/images/characters/monsters/"
 image_path_bosses = "assets/images/characters/bosses/"
 image_path_env = "assets/images/environment/"
 image_path_ui = "assets/images/ui/"
+image_path_animation = "assets/images/characters/animation/"
+image_path_animation_processed = "assets/images/characters/animation/processed/"
+
+ANIMACAO_QUADROS = {
+    "Aquele": {"arquivo": "processed/aquele.png", "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+    "Stark":  {"arquivo": "processed/stark.png",  "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+    "Elden":  {"arquivo": "processed/elden.png",  "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+    "Doom":   {"arquivo": "processed/doom.png",   "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+    "Gruu":   {"arquivo": "processed/gruu.png",   "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+    "Kuro":   {"arquivo": "processed/kuro.png",   "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+    "Darwin": {"arquivo": "processed/darwin.png", "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+}
 
 IMAGE_PERSONAGENS = {
     # Protagonists (Specific)
@@ -287,6 +299,15 @@ IMAGE_PERSONAGENS = {
     "Koema": image_path_heroes + "Koema.png",
     "Rilem": image_path_heroes + "Rilem.png",
     "Yukito": image_path_heroes + "Yukito.png",
+    "Aquele": image_path_animation_processed + "aquele.png",
+
+    # Processed animation characters
+    "Stark": image_path_animation_processed + "stark.png",
+    "Elden": image_path_animation_processed + "elden.png",
+    "Doom": image_path_animation_processed + "doom.png",
+    "Gruu": image_path_animation_processed + "gruu.png",
+    "Kuro": image_path_animation_processed + "kuro.png",
+    "Darwin": image_path_animation_processed + "darwin.png",
 
     # Generic Classes
     "Guerreiro": image_path_heroes + "guerreiro.png",

@@ -161,3 +161,44 @@ class Yukito(Personagem):
         self.custo_habilidades = {k: v['custo'] for k, v in self.habilidades.items()}
         self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
         self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
+
+class Aquele(Personagem):
+    def __init__(self, nome, time, nivel=5, sound_player=None):
+        super().__init__(nome, time, nivel, sound_player)
+        self.classe_nome = "Aquele"
+        self.hp_max = 48
+        self.hp_atual = 48
+        self._forca += 3
+        self._destreza += 2
+        self._constituicao += 2
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        self.habilidades['investida'] = {
+            "nome": "Investida",
+            "descricao": "Avança sobre o inimigo causando dano extra.",
+            "custo": 0,
+            "cooldown": 2,
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 2,
+            "dano_extra": 4,
+            "tipo_dano": "Esmagamento"
+        }
+        self.cooldown_max['investida'] = 2
+
+        self.habilidades['golpe_preciso'] = {
+            "nome": "Golpe Preciso",
+            "descricao": "Ataque com bônus de acerto e dano adicional.",
+            "custo": 0,
+            "cooldown": 1,
+            "tipo": "acao",
+            "alvo": "inimigo",
+            "alcance": 1,
+            "dano_extra": 6,
+            "tipo_dano": "Perfurante"
+        }
+        self.cooldown_max['golpe_preciso'] = 1
+
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})

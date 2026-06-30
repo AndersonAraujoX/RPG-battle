@@ -114,5 +114,40 @@
         "velocidade": 8, "alcance": 2, "tipo_dano": "Eletrico",
         "resistencias": { "Eletrico": 1.0, "Fogo": 0.5 },
         "imunidades": ["Paralisia", "Atordoado"]
+    },
+    "Aquele": {
+        "stats": { "forca": 17, "constituicao": 15, "destreza": 15 },
+        "dado_vida": [1, 10], "hp": 48, "ac": 17, "dado_dano": [1, 10],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Cortante"
+    },
+    "Stark": {
+        "stats": { "forca": 18, "constituicao": 16, "destreza": 12 },
+        "dado_vida": [1, 10], "hp": 55, "ac": 19, "dado_dano": [1, 10],
+        "velocidade": 3, "alcance": 1, "tipo_dano": "Cortante"
+    },
+    "Elden": {
+        "stats": { "inteligencia": 18, "sabedoria": 14, "constituicao": 12 },
+        "dado_vida": [1, 6], "hp": 32, "ac": 12, "dado_dano": [1, 6],
+        "velocidade": 3, "alcance": 8, "tipo_dano": "Magico"
+    },
+    "Doom": {
+        "stats": { "destreza": 18, "forca": 14, "constituicao": 12 },
+        "dado_vida": [1, 8], "hp": 36, "ac": 15, "dado_dano": [1, 8],
+        "velocidade": 5, "alcance": 1, "tipo_dano": "Necrotico"
+    },
+    "Gruu": {
+        "stats": { "forca": 20, "constituicao": 18 },
+        "dado_vida": [1, 12], "hp": 60, "ac": 12, "dado_dano": [1, 12],
+        "velocidade": 4, "alcance": 1, "tipo_dano": "Esmagamento"
+    },
+    "Kuro": {
+        "stats": { "destreza": 18, "forca": 14, "inteligencia": 12 },
+        "dado_vida": [1, 8], "hp": 40, "ac": 16, "dado_dano": [1, 8],
+        "velocidade": 5, "alcance": 1, "tipo_dano": "Perfurante"
+    },
+    "Darwin": {
+        "stats": { "sabedoria": 18, "constituicao": 14 },
+        "dado_vida": [1, 8], "hp": 44, "ac": 14, "dado_dano": [1, 8],
+        "velocidade": 4, "alcance": 6, "tipo_dano": "Natural"
     }
 }

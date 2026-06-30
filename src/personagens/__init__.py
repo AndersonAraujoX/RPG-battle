@@ -13,8 +13,9 @@ from .dragao_anciao import DragaoAnciao
 from .druida import Druida
 from .bruxo import Bruxo
 from .minions import Goblin, Esqueleto, Kobold
-from .protagonistas import Novak, Koema, Rilem, Yukito
+from .protagonistas import Novak, Koema, Rilem, Yukito, Aquele
 from .sienna import Sienna, SiennaPhoenix
+from .novos_personagens import Stark, Elden, Doom, Gruu, Kuro, Darwin
 
 def get_class_by_name(name):
     cls_map = {
@@ -37,7 +38,14 @@ def get_class_by_name(name):
         "Koema": Koema,
         "Rilem": Rilem,
         "Yukito": Yukito,
+        "Aquele": Aquele,
         "Sienna": Sienna,
-        "SiennaPhoenix": SiennaPhoenix
+        "SiennaPhoenix": SiennaPhoenix,
+        "Stark": Stark,
+        "Elden": Elden,
+        "Doom": Doom,
+        "Gruu": Gruu,
+        "Kuro": Kuro,
+        "Darwin": Darwin
     }
     return cls_map.get(name)

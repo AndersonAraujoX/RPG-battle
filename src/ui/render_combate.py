@@ -147,8 +147,24 @@ def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
         pygame.draw.polygon(tela, cor_base, top_points)
         pygame.draw.polygon(tela, (60, 60, 60) if visibilidade == 2 else (35, 35, 35), top_points, 1)
 
-def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True):
+def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, animacoes_sprites=None, estado_animacao=None):
     personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
+    classe_nome = personagem.__class__.__name__
+
+    if animacoes_sprites and classe_nome in animacoes_sprites:
+        p_id = id(personagem)
+        if estado_animacao and p_id in estado_animacao and estado_animacao[p_id]["andando"]:
+            estado = estado_animacao[p_id]
+            anim_data = animacoes_sprites[classe_nome]
+            cols = anim_data["cols"]
+            frame_idx = estado["direcao"] * cols + estado["quadro"]
+            if frame_idx < len(anim_data["frames"]):
+                frame = anim_data["frames"][frame_idx]
+                if mostrar:
+                    scaled = pygame.transform.scale(frame, (rect.width, rect.height))
+                    tela.blit(scaled, rect.topleft)
+                return
+
     if mostrar and personagem_img_key in game_images and game_images[personagem_img_key]:
         scaled_img = pygame.transform.scale(game_images[personagem_img_key], (rect.width, rect.height))
         tela.blit(scaled_img, rect.topleft)
@@ -193,7 +209,7 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True):
             pygame.draw.polygon(tela, cor, points)
         else: pygame.draw.rect(tela, cor, rect)
 
-def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, imagens, offset_y, visibilidade_map=None, mostrar=True):
+def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_atual, imagens, offset_y, visibilidade_map=None, mostrar=True, animacoes_sprites=None, estado_animacao=None):
     theta = getattr(motor, 'angulo_rotacao', 0.0)
     
     # Dead characters first
@@ -245,10 +261,10 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
                 escala = 1.0 + 0.15 * abs(math.sin(tick * 0.1))
                 largura, altura = int(30 * escala), int(30 * escala)
                 sprite_rect = pygame.Rect(rect.centerx - largura // 2, rect.centery - altura // 2, largura, altura)
-                desenhar_sprite(tela, p, sprite_rect, cor, imagens, mostrar)
+                desenhar_sprite(tela, p, sprite_rect, cor, imagens, mostrar, animacoes_sprites, estado_animacao)
             else:
-                desenhar_sprite(tela, p, rect, cor, imagens, mostrar)
-            
+                desenhar_sprite(tela, p, rect, cor, imagens, mostrar, animacoes_sprites, estado_animacao)
+
             if p.status_efeitos:
                 status_x_offset = 0
                 for efeito in p.status_efeitos:
@@ -267,7 +283,7 @@ def desenhar_personagens(tela, motor, fonte, personagem_ativo, tick, animacao_at
                 p_final = pygame.Vector2(alvo_cx, alvo_cy - 10)
                 pos_interp = p_inicial.lerp(p_final, progresso * 2) if progresso <= 0.5 else p_final.lerp(p_inicial, (progresso - 0.5) * 2)
                 rect.center = pos_interp
-            desenhar_sprite(tela, p, rect, cor, imagens, mostrar)
+            desenhar_sprite(tela, p, rect, cor, imagens, mostrar, animacoes_sprites, estado_animacao)
 
         hp_percent = p.hp_atual / p.hp_max
         hp_bar_bg = pygame.Rect(rect.left, rect.top - 8, 30, 4)

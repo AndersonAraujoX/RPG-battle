@@ -53,7 +53,17 @@ class GameSetup:
         imagens = {}
         for nome_personagem, caminho in IMAGE_PERSONAGENS.items():
             try:
-                imagens[f"personagem_{nome_personagem.lower()}"] = pygame.image.load(resource_path(caminho)).convert_alpha()
+                img_path = resource_path(caminho)
+                if nome_personagem in ANIMACAO_QUADROS:
+                    config = ANIMACAO_QUADROS[nome_personagem]
+                    spritesheet = pygame.image.load(img_path).convert_alpha()
+                    # Calcula o tamanho do quadro dinamicamente
+                    fw = spritesheet.get_width() // config["colunas"]
+                    fh = spritesheet.get_height() // config["linhas"]
+                    frame_estatico = spritesheet.subsurface((0, 0, fw, fh))
+                    imagens[f"personagem_{nome_personagem.lower()}"] = frame_estatico
+                else:
+                    imagens[f"personagem_{nome_personagem.lower()}"] = pygame.image.load(img_path).convert_alpha()
             except pygame.error as e:
                 print(f"Não foi possível carregar a imagem do personagem {nome_personagem} em {caminho}: {e}")
                 imagens[f"personagem_{nome_personagem.lower()}"] = None
@@ -65,6 +75,36 @@ class GameSetup:
                 print(f"Não foi possível carregar a imagem do terreno {tipo_terreno} em {caminho}: {e}")
                 imagens[f"terreno_{tipo_terreno.lower()}"] = None
         return imagens
+
+    @staticmethod
+    def carregar_animacoes():
+        quadros = {}
+        for nome, config in ANIMACAO_QUADROS.items():
+            caminho = resource_path(image_path_animation + config["arquivo"])
+            try:
+                spritesheet = pygame.image.load(caminho).convert_alpha()
+            except (pygame.error, FileNotFoundError) as e:
+                print(f"Não foi possível carregar a spritesheet de {nome} em {caminho}: {e}")
+                continue
+
+            cols = config["colunas"]
+            rows = config["linhas"]
+            # Calcula o tamanho do quadro dinamicamente para evitar ValueError caso a imagem tenha tamanho diferente
+            fw = spritesheet.get_width() // cols
+            fh = spritesheet.get_height() // rows
+            frames = []
+            for row in range(rows):
+                for col in range(cols):
+                    frame = spritesheet.subsurface((col * fw, row * fh, fw, fh))
+                    frames.append(frame)
+            quadros[nome] = {
+                "frames": frames,
+                "cols": cols,
+                "rows": rows,
+                "fw": fw,
+                "fh": fh,
+            }
+        return quadros
 
     @staticmethod
     def setup_ui(game):
