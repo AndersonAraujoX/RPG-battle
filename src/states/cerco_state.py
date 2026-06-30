@@ -238,6 +238,30 @@ class CercoState(GameState):
         self._setup_fonts()
         self._setup_layout()
         self.terrain_iso_cache = {}
+
+        # Carrega o spritesheet das cartas do baralho
+        from ..utils import resource_path
+        caminho_card = resource_path("assets/images/environment/card/pixelCardAssest.png")
+        try:
+            self.spritesheet_cartas = pygame.image.load(caminho_card).convert_alpha()
+            # Fatiar as cartas da primeira linha
+            w_sheet, h_sheet = self.spritesheet_cartas.get_size()
+            cw_temp = w_sheet // 6
+            ch_temp = h_sheet // 2
+            self.card_sprites = {
+                "azul":      self.spritesheet_cartas.subsurface((0,         0, cw_temp, ch_temp)),
+                "vermelha":  self.spritesheet_cartas.subsurface((cw_temp,   0, cw_temp, ch_temp)),
+                "cinza":     self.spritesheet_cartas.subsurface((cw_temp*2, 0, cw_temp, ch_temp)),
+                "verde":     self.spritesheet_cartas.subsurface((cw_temp*3, 0, cw_temp, ch_temp)),
+                "amarela":   self.spritesheet_cartas.subsurface((cw_temp*4, 0, cw_temp, ch_temp)),
+                "pedra":     self.spritesheet_cartas.subsurface((cw_temp*5, 0, cw_temp, ch_temp)),
+            }
+        except Exception as e:
+            print(f"Erro ao carregar spritesheet de cartas: {e}")
+            self.spritesheet_cartas = None
+            self.card_sprites = {}
+        
+        self.animacoes_cartas_compra = []
         self._init_terrain_textures()
         self._comprar_mao()
         nomes_herois = ", ".join(h.nome for h in self.herois)
@@ -321,6 +345,69 @@ class CercoState(GameState):
         # Rects das cartas na mão
         self.carta_rects = []  # list[pygame.Rect]
 
+    def _draw_alpha_polygon(self, tela, color, points):
+        xs = [p[0] for p in points]
+        ys = [p[1] for p in points]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        w = max_x - min_x + 1
+        h = max_y - min_y + 1
+        
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        translated_points = [(p[0] - min_x, p[1] - min_y) for p in points]
+        pygame.draw.polygon(surf, color, translated_points)
+        tela.blit(surf, (min_x, min_y))
+
+    def _draw_celula_tactica(self, tela, cx, cy, w, h, cor_base, cor_borda, estilo='movimento'):
+        pulso = (math.sin(self.timer * 0.1) + 1.0) / 2.0  # 0.0 a 1.0
+        
+        alpha_base = cor_base[3] if len(cor_base) > 3 else 70
+        alpha = int(alpha_base - 20 + 40 * pulso)
+        alpha = max(20, min(230, alpha))
+        
+        fill_color = (cor_base[0], cor_base[1], cor_base[2], alpha)
+        
+        pts_outer = [
+            (cx, cy - h // 2),
+            (cx + w // 2, cy),
+            (cx, cy + h // 2),
+            (cx - w // 2, cy)
+        ]
+        self._draw_alpha_polygon(tela, fill_color, pts_outer)
+        
+        r_b, g_b, b_b = cor_borda[:3]
+        cor_borda_pulsante = (
+            max(0, min(255, int(r_b * (0.8 + 0.3 * pulso)))),
+            max(0, min(255, int(g_b * (0.8 + 0.3 * pulso)))),
+            max(0, min(255, int(b_b * (0.8 + 0.3 * pulso))))
+        )
+        pygame.draw.polygon(tela, cor_borda_pulsante, pts_outer, 2)
+        
+        w_inner = int(w * 0.7)
+        h_inner = int(h * 0.7)
+        pts_inner = [
+            (cx, cy - h_inner // 2),
+            (cx + w_inner // 2, cy),
+            (cx, cy + h_inner // 2),
+            (cx - w_inner // 2, cy)
+        ]
+        cor_inner = (cor_borda[0], cor_borda[1], cor_borda[2], int(40 + 20 * pulso))
+        self._draw_alpha_polygon(tela, cor_inner, pts_inner)
+        pygame.draw.polygon(tela, cor_borda, pts_inner, 1)
+
+        # Cantoneiras
+        bracket_w = max(2, w // 7)
+        bracket_h = max(1, h // 7)
+        
+        pygame.draw.line(tela, (255, 255, 255), (cx, cy - h // 2), (cx - bracket_w, cy - h // 2 + bracket_h), 2)
+        pygame.draw.line(tela, (255, 255, 255), (cx, cy - h // 2), (cx + bracket_w, cy - h // 2 + bracket_h), 2)
+        pygame.draw.line(tela, (255, 255, 255), (cx, cy + h // 2), (cx - bracket_w, cy + h // 2 - bracket_h), 2)
+        pygame.draw.line(tela, (255, 255, 255), (cx, cy + h // 2), (cx + bracket_w, cy + h // 2 - bracket_h), 2)
+        pygame.draw.line(tela, (255, 255, 255), (cx - w // 2, cy), (cx - w // 2 + bracket_w, cy - bracket_h), 2)
+        pygame.draw.line(tela, (255, 255, 255), (cx - w // 2, cy), (cx - w // 2 + bracket_w, cy + bracket_h), 2)
+        pygame.draw.line(tela, (255, 255, 255), (cx + w // 2, cy), (cx + w // 2 - bracket_w, cy - bracket_h), 2)
+        pygame.draw.line(tela, (255, 255, 255), (cx + w // 2, cy), (cx + w // 2 - bracket_w, cy + bracket_h), 2)
+
     # ── SPRITES DE TERRENO ────────────────────────────────────────────
     def _init_terrain_textures(self):
         self.terrain_iso_cache.clear()
@@ -378,10 +465,14 @@ class CercoState(GameState):
 
     # ── DECK DO HERÓI ────────────────────────────────────────────────────
     def _comprar_mao(self):
-        """Compra até TAM_MAO cartas do deck do herói para a mão."""
-        mao    = list(self.estado["mao"])
-        deck   = list(self.estado["deck_heroi"])
+        """Compra até TAM_MAO cartas do deck do herói para a mão com animação."""
+        mao = list(self.estado["mao"])
+        deck = list(self.estado["deck_heroi"])
         discard = list(self.estado["descarte"])
+        
+        cartas_anteriores = len(mao)
+        cartas_adicionadas = []
+
         while len(mao) < self.TAM_MAO:
             if not deck:
                 if not discard:
@@ -390,10 +481,37 @@ class CercoState(GameState):
                 random.shuffle(deck)
                 discard = []
                 self._push("SISTEMA", "Deck embaralhado do descarte.")
-            mao.append(deck.pop())
+            carta = deck.pop()
+            mao.append(carta)
+            cartas_adicionadas.append(carta)
+
         self.estado = aplicar_delta(self.estado, {
             "mao": mao, "deck_heroi": deck, "descarte": discard
         })
+
+        # Dispara animações de compra para as cartas adicionadas
+        if not hasattr(self, 'animacoes_cartas_compra'):
+            self.animacoes_cartas_compra = []
+
+        mr = self.mao_rect
+        deck_x = mr.right - 76
+        deck_y = mr.y + 6
+
+        for idx_adicionado, carta in enumerate(cartas_adicionadas):
+            idx_mao = cartas_anteriores + idx_adicionado
+            cx, cy, cw_f, ch_f = self._calcular_pos_carta_na_mao(idx_mao, len(mao))
+            
+            self.animacoes_cartas_compra.append({
+                'idx_mao': idx_mao,
+                'carta': carta,
+                'start_pos': (deck_x, deck_y),
+                'end_pos': (cx, cy),
+                'cw': cw_f,
+                'ch': ch_f,
+                'progresso': 0.0,
+                'delay': idx_adicionado * 8, # delay de 8 frames (~130ms) entre as cartas
+                'finalizada': False
+            })
 
     def _jogar_carta(self, idx):
         """Aplica os pontos de ação de uma carta da mão."""
@@ -928,6 +1046,19 @@ class CercoState(GameState):
         # Sincroniza rotação com o motor do tabuleiro
         self.motor.angulo_rotacao = self.game.angulo_rotacao
 
+        # Atualiza a animação de comprar cartas
+        if hasattr(self, 'animacoes_cartas_compra') and self.animacoes_cartas_compra:
+            for anim in self.animacoes_cartas_compra:
+                if anim.get('finalizada', False):
+                    continue
+                if anim.get('delay', 0) > 0:
+                    anim['delay'] -= 1
+                    continue
+                anim['progresso'] += 0.05  # progresso a 5% por frame (~20 frames = ~330ms de voo)
+                if anim['progresso'] >= 1.0:
+                    anim['progresso'] = 1.0
+                    anim['finalizada'] = True
+
     # ═══════════════════════════════════════════════════════════════════
     # DRAW
     # ═══════════════════════════════════════════════════════════════════
@@ -1369,24 +1500,20 @@ class CercoState(GameState):
 
             # Overlay de hover (brilho)
             if is_hover:
-                hl = pygame.Surface((TW, TH), pygame.SRCALPHA)
-                hl.fill((255, 255, 255, 40))
-                tela.blit(hl, (cx_ - TW // 2, cy_ - TH // 2))
+                hl_color = (255, 255, 255, 30)
+                self._draw_alpha_polygon(tela, hl_color, top_pts)
+                pygame.draw.polygon(tela, (255, 255, 255), top_pts, 1)
 
             # Overlay de movimento
             if is_move_hl:
-                hl = pygame.Surface((TW, TH), pygame.SRCALPHA)
-                hl.fill((0, 180, 0, 70))
-                tela.blit(hl, (cx_ - TW // 2, cy_ - TH // 2))
+                self._draw_celula_tactica(tela, cx_, cy_, TW, TH, (0, 150, 0, 45), (100, 255, 100), estilo='movimento')
 
             # Overlay de campo com invasores
             if campo_dir and zona_key == "_campo":
                 inv_campo = e.get(campo_dir, 0)
                 if inv_campo > 0:
                     pulso = abs((self.timer % 90) - 45) / 45.0
-                    hl = pygame.Surface((TW, TH), pygame.SRCALPHA)
-                    hl.fill((255, 0, 0, int(50 * pulso)))
-                    tela.blit(hl, (cx_ - TW // 2, cy_ - TH // 2))
+                    self._draw_celula_tactica(tela, cx_, cy_, TW, TH, (255, 0, 0, int(35 + 25 * pulso)), (255, 50, 50), estilo='ataque')
 
             pygame.draw.polygon(tela, (10, 12, 20), top_pts, 1)
 
@@ -1617,6 +1744,17 @@ class CercoState(GameState):
     def _slot_rect(self, slot_id):
         return self._slot_rects_cache.get(slot_id)
 
+    def _calcular_pos_carta_na_mao(self, idx, total_cartas):
+        mr = self.mao_rect
+        total_cartas = max(1, total_cartas)
+        # Largura da carta 64px para proporção vertical tática
+        cw = min(64, (mr.width - 90) // total_cartas)
+        gap = max(2, (mr.width - 90 - cw * total_cartas) // (total_cartas + 1))
+        cx = mr.x + gap + idx * (cw + gap)
+        cy = mr.y + 4
+        ch = mr.height - 8
+        return cx, cy, cw, ch
+
     # ── MÃO DO HERÓI (bottom strip) ──────────────────────────────────────
     def _draw_mao(self, tela):
         mr = self.mao_rect
@@ -1625,93 +1763,162 @@ class CercoState(GameState):
 
         mao = self.estado["mao"]
         self.carta_rects = []
+        
+        # 1. Desenhar o Deck (Baralho) no canto direito do rodapé
+        deck_cartas_qtd = len(self.estado["deck_heroi"])
+        deck_rect = pygame.Rect(mr.right - 76, mr.y + 6, 64, mr.height - 12)
+        
+        # Efeito de pilha 3D para o deck
+        for offset in range(min(4, max(1, deck_cartas_qtd // 3))):
+            d_rect = deck_rect.move(-offset * 2, -offset * 2)
+            sprite_verso = None
+            if hasattr(self, 'card_sprites') and self.card_sprites:
+                sprite_verso = self.card_sprites.get("pedra")
+            if sprite_verso:
+                scaled_verso = pygame.transform.smoothscale(sprite_verso, (d_rect.width, d_rect.height))
+                tela.blit(scaled_verso, d_rect.topleft)
+            else:
+                pygame.draw.rect(tela, (40, 30, 20), d_rect, border_radius=6)
+                pygame.draw.rect(tela, C_BORDA, d_rect, 1, border_radius=6)
+
+        # Texto do Deck por cima da pilha
+        if deck_cartas_qtd > 0:
+            top_deck_rect = deck_rect.move(-min(4, max(1, deck_cartas_qtd // 3)) * 2, -min(4, max(1, deck_cartas_qtd // 3)) * 2)
+            lbl_deck1 = self.fMi.render("BARALHO", True, C_OURO)
+            lbl_deck2 = self.fMi.render(str(deck_cartas_qtd), True, C_TEXTO)
+            tela.blit(lbl_deck1, (top_deck_rect.centerx - lbl_deck1.get_width() // 2, top_deck_rect.y + 20))
+            tela.blit(lbl_deck2, (top_deck_rect.centerx - lbl_deck2.get_width() // 2, top_deck_rect.y + 36))
 
         if not mao:
             nt = self.fP.render("Sem cartas na mão — jogue cartas ou passe o turno", True, C_DIM)
-            tela.blit(nt, (mr.centerx - nt.get_width() // 2, mr.centery - 8))
+            tela.blit(nt, (mr.centerx - 45 - nt.get_width() // 2, mr.centery - 8))
             return
 
-        cw    = min(120, (mr.width - 10) // max(1, len(mao)))
-        gap   = max(2, (mr.width - cw * len(mao)) // (len(mao) + 1))
         mouse = pygame.mouse.get_pos()
-
         GEMAS_COR = {
             "movimento": (100, 200, 255),  # Azul
             "trabalho":  (120, 220, 100),  # Verde
             "escavacao": (255, 195, 40),   # Dourado
         }
 
+        # Rastreia quais cartas na mão têm animações ativas (não concluídas)
+        anims_ativas = {}
+        if hasattr(self, 'animacoes_cartas_compra') and self.animacoes_cartas_compra:
+            for anim in self.animacoes_cartas_compra:
+                if not anim.get('finalizada', False):
+                    anims_ativas[anim['idx_mao']] = anim
+
+        # Desenhar as cartas
         for i, carta in enumerate(mao):
-            cx = mr.x + gap + i * (cw + gap)
-            cy = mr.y + 4
-            ch = mr.height - 8
-            crect = pygame.Rect(cx, cy, cw, ch)
-            self.carta_rects.append(crect)
-
-            hover = crect.collidepoint(mouse)
-            sel   = (i == self.idx_carta_queimar)
+            cx, cy, cw, ch = self._calcular_pos_carta_na_mao(i, len(mao))
             
-            # Fundo Gradiente Místico
-            grad = pygame.Surface((2, 2))
-            c_top = (14, 20, 36) if not hover else (26, 34, 58)
-            c_bot = (32, 18, 48) if not hover else (50, 28, 75)
-            grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
-            grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
-            grad_scaled = pygame.transform.smoothscale(grad, (cw, ch))
-            tela.blit(grad_scaled, (cx, cy))
+            # Se a carta está sendo animada, calculamos a posição interpolada
+            if i in anims_ativas:
+                anim = anims_ativas[i]
+                if anim.get('delay', 0) > 0:
+                    # Ainda está no deck (delay), não desenha voando ainda
+                    self.carta_rects.append(pygame.Rect(cx, cy, cw, ch))
+                    continue
+                
+                prog = anim['progresso']
+                sx, sy = anim['start_pos']
+                ex, ey = anim['end_pos']
+                
+                # Interpolação linear + arco de parábola
+                curr_x = sx + (ex - sx) * prog
+                curr_y = sy + (ey - sy) * prog
+                # Arco de subida: sobe até 35 pixels no meio do voo
+                curr_y -= math.sin(prog * math.pi) * 35
+                
+                crect = pygame.Rect(int(curr_x), int(curr_y), cw, ch)
+                self.carta_rects.append(crect)
+                hover = False
+                sel = False
+            else:
+                # Carta normal na mão
+                temp_rect = pygame.Rect(cx, cy, cw, ch)
+                hover = temp_rect.collidepoint(mouse)
+                sel   = (i == self.idx_carta_queimar)
+                
+                # Animação suave de hover (sobe 8 pixels)
+                deslocamento_y = -8 if hover else 0
+                crect = pygame.Rect(cx, cy + deslocamento_y, cw, ch)
+                self.carta_rects.append(crect)
 
-            # Borda externa com brilho místico no hover
-            borda_cor = C_ACENTO if sel else (C_OURO if hover else C_BORDA)
-            pygame.draw.rect(tela, borda_cor, crect, 1, border_radius=7)
-            
-            # Borda interna (card frame)
-            inner_rect = crect.inflate(-6, -6)
-            pygame.draw.rect(tela, (borda_cor[0]//2, borda_cor[1]//2, borda_cor[2]//2), inner_rect, 1, border_radius=5)
+            # --- DESENHO DE UMA CARTA ---
+            sprite = None
+            if hasattr(self, 'card_sprites') and self.card_sprites:
+                if carta.get("movimento"):
+                    sprite = self.card_sprites.get("azul")
+                elif carta.get("trabalho"):
+                    sprite = self.card_sprites.get("verde")
+                elif carta.get("escavacao"):
+                    sprite = self.card_sprites.get("amarela")
+                else:
+                    sprite = self.card_sprites.get("cinza")
 
-            # Moldura interna para a gema de ação
-            gem_frame = pygame.Rect(cx + 8, cy + 8, cw - 16, 28)
-            pygame.draw.rect(tela, (8, 9, 16), gem_frame, border_radius=4)
-            pygame.draw.rect(tela, (28, 30, 48), gem_frame, 1, border_radius=4)
+            if sprite:
+                scaled_sprite = pygame.transform.smoothscale(sprite, (cw, ch))
+                tela.blit(scaled_sprite, crect.topleft)
+                if sel:
+                    pygame.draw.rect(tela, C_ACENTO, crect, 2, border_radius=7)
+                elif hover:
+                    pygame.draw.rect(tela, C_OURO, crect, 2, border_radius=7)
+            else:
+                grad = pygame.Surface((2, 2))
+                c_top = (14, 20, 36) if not hover else (26, 34, 58)
+                c_bot = (32, 18, 48) if not hover else (50, 28, 75)
+                grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
+                grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
+                grad_scaled = pygame.transform.smoothscale(grad, (cw, ch))
+                tela.blit(grad_scaled, crect.topleft)
+                borda_cor = C_ACENTO if sel else (C_OURO if hover else C_BORDA)
+                pygame.draw.rect(tela, borda_cor, crect, 1, border_radius=7)
 
-            # Determina o tipo de gema de ação
+            # Melhoria de Design da Carta (Mais minimalista, sem gem_frame retangular gigante)
             tipo_gema = "movimento"
             if carta.get("trabalho"):  tipo_gema = "trabalho"
             if carta.get("escavacao"): tipo_gema = "escavacao"
             cor_gema = GEMAS_COR.get(tipo_gema, (200, 200, 200))
             
-            # Desenha losango da gema (sem unicode/tofus!)
-            gx_center = gem_frame.centerx
-            gy_center = gem_frame.centery
+            # Círculo/Aura de runa pequena no topo centro
+            rx_center = crect.centerx
+            ry_center = crect.y + 14
+            pygame.draw.circle(tela, (8, 9, 16), (rx_center, ry_center), 8)
+            
+            # Desenha runa losango interna
             gem_pts = [
-                (gx_center, gy_center - 7),
-                (gx_center + 7, gy_center),
-                (gx_center, gy_center + 7),
-                (gx_center - 7, gy_center)
+                (rx_center, ry_center - 4),
+                (rx_center + 4, ry_center),
+                (rx_center, ry_center + 4),
+                (rx_center - 4, ry_center)
             ]
             pygame.draw.polygon(tela, cor_gema, gem_pts)
             pygame.draw.polygon(tela, C_TEXTO, gem_pts, 1)
 
-            # Nome da carta
-            nt = self.fMi.render(carta["nome"][:14], True, C_TEXTO)
-            tela.blit(nt, (crect.centerx - nt.get_width() // 2, cy + 42))
+            # Nome da carta com fonte menor e centralizado
+            nome_cortado = carta["nome"][:12]
+            nt = self.fMi.render(nome_cortado, True, C_TEXTO)
+            tela.blit(nt, (crect.centerx - nt.get_width() // 2, crect.y + 26))
 
-            # Stats (PM, PT, PE) formatados
+            # Stats formatados em uma caixinha discreta no rodapé
             stats = []
-            if carta.get("movimento"): stats.append(f"PM:{carta['movimento']}")
-            if carta.get("trabalho"):  stats.append(f"PT:{carta['trabalho']}")
-            if carta.get("escavacao"): stats.append(f"PE:{carta['escavacao']}")
-            
+            if carta.get("movimento"): stats.append(f"M{carta['movimento']}")
+            if carta.get("trabalho"):  stats.append(f"T{carta['trabalho']}")
+            if carta.get("escavacao"): stats.append(f"E{carta['escavacao']}")
             st_text = " ".join(stats)
             st2 = self.fMi.render(st_text, True, cor_gema)
             
-            # Caixa de fundo para destacar os status
-            stat_bg = pygame.Rect(crect.centerx - st2.get_width() // 2 - 4, cy + 58, st2.get_width() + 8, 14)
-            pygame.draw.rect(tela, (18, 20, 32), stat_bg, border_radius=3)
-            tela.blit(st2, (crect.centerx - st2.get_width() // 2, cy + 58))
+            stat_bg = pygame.Rect(crect.centerx - st2.get_width() // 2 - 3, crect.y + ch - 22, st2.get_width() + 6, 14)
+            pygame.draw.rect(tela, (12, 14, 24), stat_bg, border_radius=3)
+            pygame.draw.rect(tela, (28, 30, 48), stat_bg, 1, border_radius=3)
+            tela.blit(st2, (crect.centerx - st2.get_width() // 2, crect.y + ch - 22))
 
             if sel:
                 ql = self.fMi.render("DESCARTE", True, C_PERIGO)
-                tela.blit(ql, (crect.centerx - ql.get_width() // 2, cy + 74))
+                ql_bg = pygame.Rect(crect.centerx - ql.get_width() // 2 - 2, crect.y + 44, ql.get_width() + 4, 12)
+                pygame.draw.rect(tela, (30, 10, 10), ql_bg, border_radius=2)
+                tela.blit(ql, (crect.centerx - ql.get_width() // 2, crect.y + 44))
 
     # ── BOTÕES DE AÇÃO ───────────────────────────────────────────────────
     def _draw_botoes_acao(self, tela, W, H):
@@ -1807,8 +2014,18 @@ class CercoState(GameState):
         nivel = carta.get("nivel", 1)
         cor_niv = [C_VERDE, (100, 200, 255), C_OURO, C_CERCO, C_PERIGO][min(nivel - 1, 4)]
 
-        pygame.draw.rect(tela, (10, 12, 26), pygame.Rect(cx, cy, cw, ch), border_radius=14)
-        pygame.draw.rect(tela, cor_niv,      pygame.Rect(cx, cy, cw, ch), 3, border_radius=14)
+        # Fundo da carta de ameaça vermelha do spritesheet
+        sprite_ameaca = None
+        if hasattr(self, 'card_sprites') and self.card_sprites:
+            sprite_ameaca = self.card_sprites.get("vermelha")
+            
+        if sprite_ameaca:
+            scaled_sprite = pygame.transform.smoothscale(sprite_ameaca, (cw, ch))
+            tela.blit(scaled_sprite, (cx, cy))
+            pygame.draw.rect(tela, cor_niv, pygame.Rect(cx, cy, cw, ch), 3, border_radius=14)
+        else:
+            pygame.draw.rect(tela, (10, 12, 26), pygame.Rect(cx, cy, cw, ch), border_radius=14)
+            pygame.draw.rect(tela, cor_niv,      pygame.Rect(cx, cy, cw, ch), 3, border_radius=14)
 
         pulse = abs(self.timer - 60) / 60.0
         gs = pygame.Surface((cw + 20, ch + 20), pygame.SRCALPHA)

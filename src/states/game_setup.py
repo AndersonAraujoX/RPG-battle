@@ -71,7 +71,7 @@ class GameSetup:
         for tipo_terreno, caminho in IMAGE_TERRENOS.items():
             try:
                 imagens[f"terreno_{tipo_terreno.lower()}"] = pygame.image.load(resource_path(caminho)).convert()
-            except pygame.error as e:
+            except (pygame.error, FileNotFoundError, OSError) as e:
                 print(f"Não foi possível carregar a imagem do terreno {tipo_terreno} em {caminho}: {e}")
                 imagens[f"terreno_{tipo_terreno.lower()}"] = None
         return imagens
