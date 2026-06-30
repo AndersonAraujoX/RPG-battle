@@ -51,7 +51,47 @@ class GameSetup:
     @staticmethod
     def carregar_imagens():
         imagens = {}
+        
+        # Carrega o spritesheet de monstros insetos para o modo Cerco contra Isectum
+        insetos_fatiados = {}
+        caminho_insetos = resource_path("assets/images/characters/monsters/ItemsInsectA.png")
+        try:
+            insetos_spritesheet = pygame.image.load(caminho_insetos).convert_alpha()
+            w_in, h_in = insetos_spritesheet.get_size()
+            col_w = w_in // 15
+            row_h = h_in // 2
+            
+            # Mapeamento e fatiamento dos monstros insetos
+            insetos_fatiados = {
+                "verme":              insetos_spritesheet.subsurface((0,         0,     col_w, row_h)),
+                "mosca_abelha":       insetos_spritesheet.subsurface((col_w,     0,     col_w, row_h)),
+                "joaninha":           insetos_spritesheet.subsurface((col_w * 2, 0,     col_w, row_h)),
+                "formigueiro":        insetos_spritesheet.subsurface((col_w * 3, 0,     col_w, row_h)),
+                "casulo_roxo":        insetos_spritesheet.subsurface((col_w * 7, 0,     col_w, row_h)),
+                "centopeia_vermelha": insetos_spritesheet.subsurface((0,         row_h, col_w, row_h)),
+                "casulo_terra":       insetos_spritesheet.subsurface((col_w,     row_h, col_w, row_h)),
+                "centopeia_marrom":   insetos_spritesheet.subsurface((col_w * 2, row_h, col_w, row_h)),
+            }
+        except Exception as e:
+            print(f"Não foi possível carregar o spritesheet de insetos em {caminho_insetos}: {e}")
+
+        MONSTROS_INSETOS_MAP = {
+            "Goblin": "joaninha",
+            "Esqueleto": "centopeia_vermelha",
+            "Kobold": "verme",
+            "ReiGoblin": "mosca_abelha",
+            "LordeLich": "centopeia_marrom",
+            "DragaoAnciao": "formigueiro",
+            "Chefe": "casulo_terra"
+        }
+
         for nome_personagem, caminho in IMAGE_PERSONAGENS.items():
+            # Intercepta monstros para associar aos sprites de insetos
+            if nome_personagem in MONSTROS_INSETOS_MAP and insetos_fatiados:
+                key_inseto = MONSTROS_INSETOS_MAP[nome_personagem]
+                imagens[f"personagem_{nome_personagem.lower()}"] = insetos_fatiados[key_inseto]
+                continue
+
             try:
                 img_path = resource_path(caminho)
                 if nome_personagem in ANIMACAO_QUADROS:
