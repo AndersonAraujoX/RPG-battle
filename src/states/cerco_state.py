@@ -792,8 +792,8 @@ class CercoState(GameState):
                 if rect.collidepoint(mouse):
                     if i < len(e["mao"]):
                         carta = e["mao"][i]
-                        if carta.get("tipo") == "orc":
-                            self._feedback("Orcs nao podem ser jogados voluntariamente!", C_PERIGO)
+                        if carta.get("tipo") in ("orc", "invasor"):
+                            self._jogar_carta_invasao(i)
                             return
                         if self.modo_acao == MODO_UPGRADE and self.idx_slot_upgrade >= 0:
                             self.idx_carta_queimar = i
@@ -1134,6 +1134,14 @@ class CercoState(GameState):
 
     # ── FIM DE TURNO DO HERÓI ────────────────────────────────────────────
     def _fim_turno_heroi(self):
+        # Validação: É obrigatório usar todas as cartas (incluindo as de invasão) antes de encerrar o turno
+        if self.estado["mao"]:
+            self._feedback("Use todas as cartas da mao para encerrar o turno!", C_PERIGO)
+            try:
+                self.game.play_sound('invalid_action')
+            except:
+                pass
+            return
         # Reseta pontos
         self.estado = aplicar_delta(self.estado, {
             "pontos_movimento": 0,
@@ -2687,4 +2695,34 @@ class CercoState(GameState):
                 self._selecionar_modo(MODO_ATACAR)
                 
         self.idx_carta_sendo_jogada = -1
+
+    def _jogar_carta_invasao(self, idx):
+        mao = list(self.estado["mao"])
+        if idx < 0 or idx >= len(mao):
+            return
+        carta = mao.pop(idx)
+        discard = list(self.estado["descarte"]) + [carta]
+        
+        # Invoca inimigo
+        import random
+        from src.cerco_isectum import NOMES_ZONA
+        zona_spawn = random.choice(["campo_norte", "campo_sul", "campo_leste", "campo_oeste"])
+        
+        novos_invasores = dict(self.estado["invasores"])
+        novos_invasores[zona_spawn] = novos_invasores.get(zona_spawn, 0) + 1
+        
+        delta = {
+            "mao": mao,
+            "descarte": discard,
+            "invasores": novos_invasores
+        }
+        
+        self.estado = aplicar_delta(self.estado, delta)
+        
+        self._push("AMEACA", f"Invasão: Invasor Orc jogado da mão! Spawn em {NOMES_ZONA.get(zona_spawn, zona_spawn)}!")
+        self._feedback("Orc Invocado da Mão!", C_PERIGO)
+        try:
+            self.game.play_sound('invalid_action')
+        except:
+            pass
 
