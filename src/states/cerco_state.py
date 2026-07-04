@@ -568,18 +568,26 @@ class CercoState(GameState):
                 # Clique do mouse
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     print(f"[DEBUG CLIQUE MODAL] mouse={mouse} ticks={pygame.time.get_ticks()} dt={pygame.time.get_ticks() - getattr(self, 'fase_aberta_tick', 0)}")
-                    print(f"[DEBUG CLIQUE RECTS] andar={getattr(self, 'btn_andar_rect', None)} coletar={getattr(self, 'btn_coletar_rect', None)} atacar={getattr(self, 'btn_atacar_rect', None)}")
+                    print(f"[DEBUG CLIQUE RECTS] andar={getattr(self, 'btn_andar_rect', None)} coletar={getattr(self, 'btn_coletar_rect', None)} ambos={getattr(self, 'btn_ambos_rect', None)} atacar={getattr(self, 'btn_atacar_rect', None)}")
                     if getattr(self, 'btn_andar_rect', None) and self.btn_andar_rect.collidepoint(mouse):
                         self._aplicar_acao_carta(self.idx_carta_sendo_jogada, "andar")
                         self.fase = "ACAO_LIVRE"
+                        self.bloqueio_clique_tick = pygame.time.get_ticks()
                         return
                     elif getattr(self, 'btn_coletar_rect', None) and self.btn_coletar_rect.collidepoint(mouse):
                         self._aplicar_acao_carta(self.idx_carta_sendo_jogada, "coletar")
                         self.fase = "ACAO_LIVRE"
+                        self.bloqueio_clique_tick = pygame.time.get_ticks()
+                        return
+                    elif getattr(self, 'btn_ambos_rect', None) and self.btn_ambos_rect.collidepoint(mouse):
+                        self._aplicar_acao_carta(self.idx_carta_sendo_jogada, "ambos")
+                        self.fase = "ACAO_LIVRE"
+                        self.bloqueio_clique_tick = pygame.time.get_ticks()
                         return
                     elif getattr(self, 'btn_atacar_rect', None) and self.btn_atacar_rect.collidepoint(mouse):
                         self._aplicar_acao_carta(self.idx_carta_sendo_jogada, "atacar")
                         self.fase = "ACAO_LIVRE"
+                        self.bloqueio_clique_tick = pygame.time.get_ticks()
                         return
                 continue
 
@@ -750,6 +758,8 @@ class CercoState(GameState):
         return cx, cy
 
     def _on_click(self, mouse):
+        if pygame.time.get_ticks() - getattr(self, 'bloqueio_clique_tick', 0) < 150:
+            return
         print(f"[DEBUG ON_CLICK] mouse={mouse} fase={self.fase} mao_len={len(self.estado['mao'])} mao={self.estado['mao']} deck_len={len(self.estado['deck_heroi'])} descarte_len={len(self.estado['descarte'])} cartas_rects={getattr(self, 'carta_rects', [])}")
         e = self.estado
 
@@ -981,6 +991,7 @@ class CercoState(GameState):
                 }
                 self.estado = aplicar_delta(e, delta)
                 self._push("HEROI", f"Moveu para ({cx}, {cy})")
+                self._processar_acoes_automaticas(mostrar_erro_se_falhar=False)
             self._start_walk(self.heroi_atual, from_pos, (cx, cy), on_done=_finalize_free)
 
         elif self.modo_acao == MODO_MOVER:
@@ -1000,6 +1011,7 @@ class CercoState(GameState):
                     )
                     self._feedback(f"Moveu para ({cx}, {cy})", C_VERDE)
                     self.modo_acao = MODO_NENHUM
+                    self._processar_acoes_automaticas(mostrar_erro_se_falhar=False)
                 self._start_walk(self.heroi_atual, from_pos, (cx, cy), on_done=_finalize)
             else:
                 self._feedback(msg, C_PERIGO)
@@ -2452,68 +2464,116 @@ class CercoState(GameState):
         overlay.fill((8, 9, 16, 210))
         tela.blit(overlay, (0, 0))
 
+        carta = self.estado["mao"][self.idx_carta_sendo_jogada]
+        pm = carta.get("movimento", 0)
+        pt = carta.get("trabalho", 0)
+        pe = carta.get("escavacao", 0)
+
+        is_hibrida = (pm > 0) and (pt > 0 or pe > 0)
+
         # 2. Caixa central do modal
-        mw, mh = 440, 240
+        mw = 580 if is_hibrida else 440
+        mh = 240
         mx, my = W // 2 - mw // 2, H // 2 - mh // 2
         modal_rect = pygame.Rect(mx, my, mw, mh)
         pygame.draw.rect(tela, (18, 20, 32), modal_rect, border_radius=8)
         pygame.draw.rect(tela, C_BORDA, modal_rect, 2, border_radius=8)
 
         # 3. Título e nome da carta
-        carta = self.estado["mao"][self.idx_carta_sendo_jogada]
         tit = self.fG.render("ESCOLHA A ACAO DA CARTA", True, C_ACENTO)
         tela.blit(tit, (modal_rect.centerx - tit.get_width() // 2, my + 20))
         
         sub = self.fMi.render(carta["nome"].upper(), True, C_OURO)
         tela.blit(sub, (modal_rect.centerx - sub.get_width() // 2, my + 44))
 
-        pm = carta.get("movimento", 0)
-        pt = carta.get("trabalho", 0)
-        pe = carta.get("escavacao", 0)
-
-        # 4. Três Botões de Ação
+        # 4. Botões de Ação
         btn_w, btn_h = 120, 80
         mouse = pygame.mouse.get_pos()
         
-        # Botão Andar
-        self.btn_andar_rect = pygame.Rect(mx + 20, my + 90, btn_w, btn_h)
-        b_andar_cor = (30, 80, 30) if self.btn_andar_rect.collidepoint(mouse) else (20, 50, 20)
-        pygame.draw.rect(tela, b_andar_cor, self.btn_andar_rect, border_radius=6)
-        pygame.draw.rect(tela, (85, 205, 85), self.btn_andar_rect, 1, border_radius=6)
-        
-        lbl_a1 = self.fMi.render("ANDAR", True, (200, 255, 200))
-        lbl_a2 = self.fP.render(f"+{pm} PM", True, C_TEXTO)
-        tela.blit(lbl_a1, (self.btn_andar_rect.centerx - lbl_a1.get_width() // 2, self.btn_andar_rect.y + 20))
-        tela.blit(lbl_a2, (self.btn_andar_rect.centerx - lbl_a2.get_width() // 2, self.btn_andar_rect.y + 44))
+        if is_hibrida:
+            # 4 botões: Andar, Coletar, Ambos, Atacar
+            self.btn_andar_rect = pygame.Rect(mx + 20, my + 90, btn_w, btn_h)
+            self.btn_coletar_rect = pygame.Rect(mx + 160, my + 90, btn_w, btn_h)
+            self.btn_ambos_rect = pygame.Rect(mx + 300, my + 90, btn_w, btn_h)
+            self.btn_atacar_rect = pygame.Rect(mx + 440, my + 90, btn_w, btn_h)
+            
+            # Desenha Andar
+            b_andar_cor = (30, 80, 30) if self.btn_andar_rect.collidepoint(mouse) else (20, 50, 20)
+            pygame.draw.rect(tela, b_andar_cor, self.btn_andar_rect, border_radius=6)
+            pygame.draw.rect(tela, (85, 205, 85), self.btn_andar_rect, 1, border_radius=6)
+            lbl_a1 = self.fMi.render("ANDAR", True, (200, 255, 200))
+            lbl_a2 = self.fP.render(f"+{pm} PM", True, C_TEXTO)
+            tela.blit(lbl_a1, (self.btn_andar_rect.centerx - lbl_a1.get_width() // 2, self.btn_andar_rect.y + 20))
+            tela.blit(lbl_a2, (self.btn_andar_rect.centerx - lbl_a2.get_width() // 2, self.btn_andar_rect.y + 44))
 
-        # Botão Coletar
-        self.btn_coletar_rect = pygame.Rect(mx + 160, my + 90, btn_w, btn_h)
-        b_coletar_cor = (80, 50, 15) if self.btn_coletar_rect.collidepoint(mouse) else (50, 30, 10)
-        pygame.draw.rect(tela, b_coletar_cor, self.btn_coletar_rect, border_radius=6)
-        pygame.draw.rect(tela, (215, 165, 85), self.btn_coletar_rect, 1, border_radius=6)
-        
-        lbl_c1 = self.fMi.render("COLETAR", True, (255, 220, 180))
-        
-        # Monta string de recursos dinâmica
-        textos_recurso = []
-        if pt > 0: textos_recurso.append(f"+{pt}PT")
-        if pe > 0: textos_recurso.append(f"+{pe}PE")
-        lbl_c2_str = " ".join(textos_recurso) if textos_recurso else "+0 Rec"
-        lbl_c2 = self.fP.render(lbl_c2_str, True, C_TEXTO)
-        
-        tela.blit(lbl_c1, (self.btn_coletar_rect.centerx - lbl_c1.get_width() // 2, self.btn_coletar_rect.y + 20))
-        tela.blit(lbl_c2, (self.btn_coletar_rect.centerx - lbl_c2.get_width() // 2, self.btn_coletar_rect.y + 44))
+            # Desenha Coletar
+            b_coletar_cor = (80, 50, 15) if self.btn_coletar_rect.collidepoint(mouse) else (50, 30, 10)
+            pygame.draw.rect(tela, b_coletar_cor, self.btn_coletar_rect, border_radius=6)
+            pygame.draw.rect(tela, (215, 165, 85), self.btn_coletar_rect, 1, border_radius=6)
+            lbl_c1 = self.fMi.render("COLETAR", True, (255, 220, 180))
+            textos_recurso = []
+            if pt > 0: textos_recurso.append(f"+{pt}PT")
+            if pe > 0: textos_recurso.append(f"+{pe}PE")
+            lbl_c2_str = " ".join(textos_recurso) if textos_recurso else "+0 Rec"
+            lbl_c2 = self.fP.render(lbl_c2_str, True, C_TEXTO)
+            tela.blit(lbl_c1, (self.btn_coletar_rect.centerx - lbl_c1.get_width() // 2, self.btn_coletar_rect.y + 20))
+            tela.blit(lbl_c2, (self.btn_coletar_rect.centerx - lbl_c2.get_width() // 2, self.btn_coletar_rect.y + 44))
 
-        # Botão Atacar
-        self.btn_atacar_rect = pygame.Rect(mx + 300, my + 90, btn_w, btn_h)
-        b_atacar_cor = (80, 20, 20) if self.btn_atacar_rect.collidepoint(mouse) else (50, 10, 10)
-        pygame.draw.rect(tela, b_atacar_cor, self.btn_atacar_rect, border_radius=6)
-        pygame.draw.rect(tela, (255, 100, 100), self.btn_atacar_rect, 1, border_radius=6)
-        
-        lbl_at1 = self.fMi.render("ATACAR", True, (255, 200, 200))
-        lbl_at2 = self.fP.render("COMBATE", True, C_DIM)
-        tela.blit(lbl_at1, (self.btn_atacar_rect.centerx - lbl_at1.get_width() // 2, self.btn_atacar_rect.y + 20))
-        tela.blit(lbl_at2, (self.btn_atacar_rect.centerx - lbl_at2.get_width() // 2, self.btn_atacar_rect.y + 44))
+            # Desenha Ambos
+            b_ambos_cor = (30, 70, 80) if self.btn_ambos_rect.collidepoint(mouse) else (20, 45, 50)
+            pygame.draw.rect(tela, b_ambos_cor, self.btn_ambos_rect, border_radius=6)
+            pygame.draw.rect(tela, (100, 220, 240), self.btn_ambos_rect, 1, border_radius=6)
+            lbl_ab1 = self.fMi.render("AMBOS", True, (200, 240, 255))
+            lbl_ab2 = self.fP.render("ANDAR+COL", True, C_TEXTO)
+            tela.blit(lbl_ab1, (self.btn_ambos_rect.centerx - lbl_ab1.get_width() // 2, self.btn_ambos_rect.y + 20))
+            tela.blit(lbl_ab2, (self.btn_ambos_rect.centerx - lbl_ab2.get_width() // 2, self.btn_ambos_rect.y + 44))
+
+            # Desenha Atacar
+            b_atacar_cor = (80, 20, 20) if self.btn_atacar_rect.collidepoint(mouse) else (50, 10, 10)
+            pygame.draw.rect(tela, b_atacar_cor, self.btn_atacar_rect, border_radius=6)
+            pygame.draw.rect(tela, (255, 100, 100), self.btn_atacar_rect, 1, border_radius=6)
+            lbl_at1 = self.fMi.render("ATACAR", True, (255, 200, 200))
+            lbl_at2 = self.fP.render("COMBATE", True, C_DIM)
+            tela.blit(lbl_at1, (self.btn_atacar_rect.centerx - lbl_at1.get_width() // 2, self.btn_atacar_rect.y + 20))
+            tela.blit(lbl_at2, (self.btn_atacar_rect.centerx - lbl_at2.get_width() // 2, self.btn_atacar_rect.y + 44))
+
+        else:
+            # 3 botões clássicos
+            self.btn_ambos_rect = None
+            self.btn_andar_rect = pygame.Rect(mx + 20, my + 90, btn_w, btn_h)
+            self.btn_coletar_rect = pygame.Rect(mx + 160, my + 90, btn_w, btn_h)
+            self.btn_atacar_rect = pygame.Rect(mx + 300, my + 90, btn_w, btn_h)
+            
+            # Desenha Andar
+            b_andar_cor = (30, 80, 30) if self.btn_andar_rect.collidepoint(mouse) else (20, 50, 20)
+            pygame.draw.rect(tela, b_andar_cor, self.btn_andar_rect, border_radius=6)
+            pygame.draw.rect(tela, (85, 205, 85), self.btn_andar_rect, 1, border_radius=6)
+            lbl_a1 = self.fMi.render("ANDAR", True, (200, 255, 200))
+            lbl_a2 = self.fP.render(f"+{pm} PM", True, C_TEXTO)
+            tela.blit(lbl_a1, (self.btn_andar_rect.centerx - lbl_a1.get_width() // 2, self.btn_andar_rect.y + 20))
+            tela.blit(lbl_a2, (self.btn_andar_rect.centerx - lbl_a2.get_width() // 2, self.btn_andar_rect.y + 44))
+
+            # Desenha Coletar
+            b_coletar_cor = (80, 50, 15) if self.btn_coletar_rect.collidepoint(mouse) else (50, 30, 10)
+            pygame.draw.rect(tela, b_coletar_cor, self.btn_coletar_rect, border_radius=6)
+            pygame.draw.rect(tela, (215, 165, 85), self.btn_coletar_rect, 1, border_radius=6)
+            lbl_c1 = self.fMi.render("COLETAR", True, (255, 220, 180))
+            textos_recurso = []
+            if pt > 0: textos_recurso.append(f"+{pt}PT")
+            if pe > 0: textos_recurso.append(f"+{pe}PE")
+            lbl_c2_str = " ".join(textos_recurso) if textos_recurso else "+0 Rec"
+            lbl_c2 = self.fP.render(lbl_c2_str, True, C_TEXTO)
+            tela.blit(lbl_c1, (self.btn_coletar_rect.centerx - lbl_c1.get_width() // 2, self.btn_coletar_rect.y + 20))
+            tela.blit(lbl_c2, (self.btn_coletar_rect.centerx - lbl_c2.get_width() // 2, self.btn_coletar_rect.y + 44))
+
+            # Desenha Atacar
+            b_atacar_cor = (80, 20, 20) if self.btn_atacar_rect.collidepoint(mouse) else (50, 10, 10)
+            pygame.draw.rect(tela, b_atacar_cor, self.btn_atacar_rect, border_radius=6)
+            pygame.draw.rect(tela, (255, 100, 100), self.btn_atacar_rect, 1, border_radius=6)
+            lbl_at1 = self.fMi.render("ATACAR", True, (255, 200, 200))
+            lbl_at2 = self.fP.render("COMBATE", True, C_DIM)
+            tela.blit(lbl_at1, (self.btn_atacar_rect.centerx - lbl_at1.get_width() // 2, self.btn_atacar_rect.y + 20))
+            tela.blit(lbl_at2, (self.btn_atacar_rect.centerx - lbl_at2.get_width() // 2, self.btn_atacar_rect.y + 44))
 
         lbl_esc = self.fMi.render("Pressione [ESC] para cancelar", True, C_DIM)
         tela.blit(lbl_esc, (modal_rect.centerx - lbl_esc.get_width() // 2, my + 194))
@@ -2591,6 +2651,29 @@ class CercoState(GameState):
                 self.modo_acao = MODO_ESCAVAR
                 
             self._processar_acoes_automaticas(mostrar_erro_se_falhar=True)
+            
+        elif acao == "ambos":
+            delta["pontos_movimento"] = self.estado["pontos_movimento"] + val_mov
+            delta["pontos_trabalho"] = self.estado["pontos_trabalho"] + val_trab
+            delta["pontos_escavacao"] = self.estado["pontos_escavacao"] + val_esc
+            self.estado = aplicar_delta(self.estado, delta)
+            
+            recursos_adicionados = []
+            if val_trab > 0: recursos_adicionados.append(f"+{val_trab}PT")
+            if val_esc > 0: recursos_adicionados.append(f"+{val_esc}PE")
+            rec_str = " ".join(recursos_adicionados) if recursos_adicionados else "+0 Rec"
+            
+            self._push("HEROI", f"Jogou [{carta['nome']}] para AMBOS: +{val_mov} PM e {rec_str}")
+            self._feedback(f"Ambos: +{val_mov} PM e {rec_str}", C_VERDE)
+            
+            # Atualiza células alcançáveis
+            from ..resolvedor_acoes import obter_celulas_alcancaveis
+            self.alcancaveis = obter_celulas_alcancaveis(
+                self.motor, (self.estado.get("heroi_x", 9), self.estado.get("heroi_y", 9)),
+                self.estado["pontos_movimento"]
+            )
+            self._selecionar_modo(MODO_MOVER)
+            self._processar_acoes_automaticas(mostrar_erro_se_falhar=False)
             
         elif acao == "atacar":
             self.estado = aplicar_delta(self.estado, delta)

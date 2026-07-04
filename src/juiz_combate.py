@@ -75,6 +75,16 @@ def rolar_d6_customizado(num_dados: int = 1) -> dict:
         "detalhes": texto descritivo dos resultados
     """
     faces = [random.randint(1, 6) for _ in range(num_dados)]
+    
+    # Roda animação 3D do D6 se a tela estiver ativa
+    try:
+        import pygame
+        tela = pygame.display.get_surface()
+        if tela is not None:
+            from src.ui.dado_3d import animar_rolagem_dado
+            animar_rolagem_dado(tela, tipo_dado="d6", resultado=faces)
+    except Exception as e:
+        print("Erro ao renderizar dado 3D D6:", e)
     impactos_total = 0
     disparos_total = 0
     detalhes = []

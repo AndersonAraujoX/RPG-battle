@@ -638,7 +638,7 @@ class Personagem:
                  logger((f"  Alvo tem +2 AC por Meia Cobertura!", (200, 200, 255)))
         
         # Execute Attack Roll
-        rolagem_ataque, msg_dado = rolar_d20(vantagem=vantagem, desvantagem=desvantagem)
+        rolagem_ataque, msg_dado = rolar_d20(vantagem=vantagem, desvantagem=desvantagem, animar=(self.time == TIME_A))
         
         total_ataque = rolagem_ataque + self.bonus_ataque
         
@@ -768,7 +768,7 @@ class Personagem:
     def realizar_teste_morte(self, logger=print):
         from src.config import COR_TEXTO, COR_XP, COR_DANO, COR_CURA
         
-        rolagem = rolar_d20()[0]
+        rolagem = rolar_d20(animar=(self.time == TIME_A))[0]
         msg = f"Teste de Morte: {rolagem}"
         
         if rolagem == 20: 
@@ -841,7 +841,7 @@ class Personagem:
         }
         
         mod = modificadores.get(atributo.lower(), 0)
-        rolagem = rolar_d20()[0] # Standard roll, NO advantage/disadvantage implemented for saves yet
+        rolagem = rolar_d20(animar=(self.time == TIME_A))[0] # Standard roll, NO advantage/disadvantage implemented for saves yet
         total = rolagem + mod + self.bonus_proficiencia # Assuming proficient? Or just mod? 
         # 5e: Saves use proficiency ONLY if class is proficient in that save.
         # For simplicity in this project, let's add proficiency to all saves OR checks?

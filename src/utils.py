@@ -57,7 +57,7 @@ import random
 def rolar_dado(faces=20):
     return random.randint(1, faces)
 
-def rolar_d20(vantagem=False, desvantagem=False, logger=None):
+def rolar_d20(vantagem=False, desvantagem=False, logger=None, animar=False):
     """
     Rola um d20 considerando vantagem e desvantagem.
     Retorna o valor final do dado.
@@ -84,6 +84,17 @@ def rolar_d20(vantagem=False, desvantagem=False, logger=None):
     else:
         # Standard Roll
         final_roll = r1
+        
+    if animar:
+        try:
+            import pygame
+            tela = pygame.display.get_surface()
+            if tela is not None:
+                from src.ui.dado_3d import animar_rolagem_dado
+                res_anim = [r1, r2] if (vantagem or desvantagem) else final_roll
+                animar_rolagem_dado(tela, tipo_dado="d20", resultado=res_anim)
+        except Exception as e:
+            print("Erro ao renderizar dado 3D:", e)
     
     return final_roll, msg
 
