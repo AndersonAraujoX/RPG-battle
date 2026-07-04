@@ -276,6 +276,61 @@ def executar_subornar(estado, recurso: str) -> tuple[dict, list]:
     return delta, logs
 
 
+CUSTO_ADICIONAL_SLOT = {
+    0: {},
+    1: {"couro": 1},
+    2: {"metal": 1},
+    3: {"madeira": 1},
+    4: {"madeira": 1, "couro": 1}
+}
+
+
+def validar_alocar_recurso(estado, slot_id: int, pontos: int):
+    # Primeiro valida se pode trabalhar e qual o recurso gerado
+    ok, recurso, msg = validar_trabalhar(estado, pontos)
+    if not ok:
+        return False, None, msg
+
+    slots = estado.get("slots_upgrade", [])
+    if slot_id < 0 or slot_id >= len(slots):
+        return False, None, "Slot inválido."
+        
+    slot = slots[slot_id]
+    if slot.get("bloqueado"):
+        return False, None, "Slot destruído!"
+    if slot.get("adquirido"):
+        return False, None, "Slot já adquirido!"
+
+    # Verifica se o recurso atual da oficina ainda é necessário no custo total do slot
+    custo_base = slot.get("custo", {})
+    custo_adicional = CUSTO_ADICIONAL_SLOT.get(slot_id, {})
+    total_requerido = custo_base.get(recurso, 0) + custo_adicional.get(recurso, 0)
+    
+    alocados = slot.get("recursos_alocados", {"madeira": 0, "couro": 0, "metal": 0})
+    if alocados.get(recurso, 0) >= total_requerido:
+        return False, None, f"Upgrade já tem o máximo necessário de {NOME_RECURSO.get(recurso, recurso)}!"
+
+    return True, recurso, ""
+
+
+def executar_alocar_recurso(estado, slot_id: int, recurso: str, qtd: int = 1) -> tuple[dict, list]:
+    slots = [dict(s) for s in estado.get("slots_upgrade", [])]
+    slot = slots[slot_id]
+    
+    # Inicializa recursos_alocados se não existir
+    alocados = dict(slot.get("recursos_alocados", {"madeira": 0, "couro": 0, "metal": 0}))
+    alocados[recurso] = alocados.get(recurso, 0) + qtd
+    slot["recursos_alocados"] = alocados
+    
+    delta = {
+        "slots_upgrade": slots,
+        "pontos_trabalho": max(0, estado["pontos_trabalho"] - qtd),
+    }
+    
+    logs = [("HEROI", f"+{qtd}x {NOME_RECURSO.get(recurso, recurso)} alocado sobre [{slot['nome']}].")]
+    return delta, logs
+
+
 def validar_comprar_upgrade(estado, slot_id: int, idx_carta_queimar: int, mao: list):
     slots = estado.get("slots_upgrade", [])
     if slot_id < 0 or slot_id >= len(slots):
@@ -286,10 +341,16 @@ def validar_comprar_upgrade(estado, slot_id: int, idx_carta_queimar: int, mao: l
     if slot.get("adquirido"):
         return False, "Já comprado."
 
-    dep = estado.get("recursos_depositados", {})
-    for res, qtd in slot.get("custo", {}).items():
-        if dep.get(res, 0) < qtd:
-            return False, f"Falta {NOME_RECURSO.get(res, res)}."
+    # Verifica se os recursos alocados atendem ao custo total (custo_base + custo_adicional_slot)
+    custo_base = slot.get("custo", {})
+    custo_adicional = CUSTO_ADICIONAL_SLOT.get(slot_id, {})
+    
+    alocados = slot.get("recursos_alocados", {"madeira": 0, "couro": 0, "metal": 0})
+    
+    for res in ["madeira", "couro", "metal"]:
+        requerido = custo_base.get(res, 0) + custo_adicional.get(res, 0)
+        if alocados.get(res, 0) < requerido:
+            return False, f"Upgrade incompleto. Falta alocar recursos."
 
     if idx_carta_queimar < 0 or idx_carta_queimar >= len(mao):
         return False, "Escolha carta para queimar."
@@ -304,19 +365,18 @@ def executar_comprar_upgrade(estado, slot_id: int, idx_carta_queimar: int,
     slots = [dict(s) for s in estado.get("slots_upgrade", [])]
     slot = slots[slot_id]
 
-    dep = dict(estado.get("recursos_depositados", {}))
-    for res, qtd in slot.get("custo", {}).items():
-        dep[res] = max(0, dep.get(res, 0) - qtd)
-
+    # Zera os recursos alocados e marca como adquirido
+    slots[slot_id]["recursos_alocados"] = {"madeira": 0, "couro": 0, "metal": 0}
     slots[slot_id]["adquirido"] = True
+    
+    # Remove permanentemente da mão
     nova_mao = [c for i, c in enumerate(mao) if i != idx_carta_queimar]
 
     delta = {
-        "slots_upgrade":        slots,
-        "recursos_depositados": dep,
+        "slots_upgrade": slots,
     }
     logs = [
         ("HEROI", f"Upgrade comprado: [{slot['nome']}]!"),
-        ("HEROI", f"Queimou '{mao[idx_carta_queimar]['nome']}'. Deck total: {deck_total - 1}."),
+        ("HEROI", f"Carta '{mao[idx_carta_queimar]['nome']}' sacrificada permanentemente."),
     ]
     return delta, logs, nova_mao

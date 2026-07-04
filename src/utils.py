@@ -2,6 +2,8 @@ import json
 import os
 import sys
 
+_BACKGROUNDS_CACHE = {}
+
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
@@ -11,6 +13,37 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
+
+def obter_background_cacheado(caminho_relativo, largura, altura, overlay_opacidade=None):
+    """
+    Retorna uma imagem de fundo convertida e escalada a partir de um cache global
+    para evitar carregamento de arquivo e redimensionamento a cada frame.
+    Permite opcionalmente aplicar um overlay escuro de opacidade (0-255).
+    """
+    chave = (caminho_relativo, largura, altura, overlay_opacidade)
+    if chave in _BACKGROUNDS_CACHE:
+        return _BACKGROUNDS_CACHE[chave]
+    
+    import pygame
+    try:
+        img_path = resource_path(caminho_relativo)
+        img = pygame.image.load(img_path).convert()
+        img_scaled = pygame.transform.scale(img, (largura, altura))
+        
+        # Aplica o overlay escuro apenas uma vez
+        if overlay_opacidade is not None:
+            overlay = pygame.Surface((largura, altura), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, overlay_opacidade))
+            img_scaled.blit(overlay, (0, 0))
+            
+        _BACKGROUNDS_CACHE[chave] = img_scaled
+        return img_scaled
+    except Exception as e:
+        print(f"Erro ao carregar e cachear background {caminho_relativo}: {e}")
+        fallback = pygame.Surface((largura, altura))
+        fallback.fill((20, 20, 30))
+        _BACKGROUNDS_CACHE[chave] = fallback
+        return fallback
 
 def calcular_distancia(p1, p2):
     return max(abs(p1.pos_x - p2.pos_x), abs(p1.pos_y - p2.pos_y))

@@ -5,7 +5,7 @@ from src.config import (
     RECT_BARRA_ACOES, RECT_PAINEL_INFO, RECT_LOG, RECT_INVENTARIO
 )
 from src.perks import PERKS
-from src.utils import resource_path
+from src.utils import resource_path, obter_background_cacheado
 
 # Helper para desenhar caixas estilo Retro
 class PainelUI:
@@ -50,14 +50,9 @@ def draw_text_with_outline(surface, text, font, color, pos, outline_color=(0,0,0
     surface.blit(text_surface, pos)
 
 def desenhar_menu_principal(tela, fonte, botoes, mouse_pos=None):
-    # Fundo
-    try:
-        bg_img = pygame.image.load(resource_path("assets/images/ui/menu_background.png")).convert()
-        bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
-        tela.blit(bg_img, (0, 0))
-    except Exception as e:
-        print(f"Erro ao carregar background: {e}")
-        tela.fill((20, 20, 30))
+    # Fundo cacheado para economizar memória e CPU
+    bg_img = obter_background_cacheado("assets/images/ui/menu_background.png", LARGURA_TELA, ALTURA_TELA)
+    tela.blit(bg_img, (0, 0))
     
     # Título "Cerco contra Isectum"
     # Estilo: Épico com Borda Grossa
@@ -142,17 +137,9 @@ def desenhar_dialogo(tela, fonte, dialogo_sistema, game_images):
         ])
 
 def desenhar_setup_batalha(tela, fonte, config_times, config_chefe, botoes_ui, checkbox_terreno, checkbox_auto, checkbox_chefe, checkbox_autoplay, checkbox_mapa_custom, checkbox_campanha, checkbox_limitadores, checkbox_sprites, bosses, selected_boss_index, game_images, volume_sfx, menu_tabs, active_tab_id, mouse_pos=None):
-    # Fundo (Wallpaper)
-    try:
-        bg_img = pygame.image.load(resource_path("assets/images/ui/menu_background.png")).convert()
-        bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
-        # Escurecer um pouco para legibilidade
-        overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
-        bg_img.blit(overlay, (0,0))
-        tela.blit(bg_img, (0, 0))
-    except:
-        tela.fill(COR_FUNDO)
+    # Fundo cacheado com overlay escuro pré-aplicado para economizar CPU e memória
+    bg_img = obter_background_cacheado("assets/images/ui/menu_background.png", LARGURA_TELA, ALTURA_TELA, overlay_opacidade=150)
+    tela.blit(bg_img, (0, 0))
     
     # Título da Tela de Setup
     titulo_render = fonte.render("CONFIGURAÇÃO DE BATALHA", True, COR_TEXTO)

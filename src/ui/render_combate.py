@@ -210,6 +210,19 @@ def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
         pygame.draw.polygon(tela, cor_base, top_points)
         pygame.draw.polygon(tela, (60, 60, 60) if visibilidade == 2 else (35, 35, 35), top_points, 1)
 
+_SPRITE_SCALE_CACHE = {}
+
+def obter_sprite_escalado(img, w, h):
+    chave = (img, w, h)
+    if chave in _SPRITE_SCALE_CACHE:
+        return _SPRITE_SCALE_CACHE[chave]
+    try:
+        scaled = pygame.transform.scale(img, (w, h))
+        _SPRITE_SCALE_CACHE[chave] = scaled
+        return scaled
+    except Exception:
+        return img
+
 def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, animacoes_sprites=None, estado_animacao=None):
     personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
     classe_nome = personagem.__class__.__name__
@@ -224,12 +237,12 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, anim
             if frame_idx < len(anim_data["frames"]):
                 frame = anim_data["frames"][frame_idx]
                 if mostrar:
-                    scaled = pygame.transform.scale(frame, (rect.width, rect.height))
+                    scaled = obter_sprite_escalado(frame, rect.width, rect.height)
                     tela.blit(scaled, rect.topleft)
                 return
 
     if mostrar and personagem_img_key in game_images and game_images[personagem_img_key]:
-        scaled_img = pygame.transform.scale(game_images[personagem_img_key], (rect.width, rect.height))
+        scaled_img = obter_sprite_escalado(game_images[personagem_img_key], rect.width, rect.height)
         tela.blit(scaled_img, rect.topleft)
     else:
         center = rect.center

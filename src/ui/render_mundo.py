@@ -3,7 +3,7 @@ from src.config import (
     LARGURA_TELA, ALTURA_TELA, COR_TEXTO, COR_FUNDO, COR_LINHA, COR_BOTAO_HOVER,
     LARGURA_TABULEIRO, TAMANHO_CELULA, CORES_TERRENO
 )
-from src.utils import resource_path
+from src.utils import resource_path, obter_background_cacheado
 
 def desenhar_editor(tela, fonte_menu, editor_mapa, botoes, terreno_selecionado, game_images, mouse_pos):
     tela.fill(COR_FUNDO)
@@ -37,15 +37,9 @@ def desenhar_editor(tela, fonte_menu, editor_mapa, botoes, terreno_selecionado, 
         botao.desenhar(tela, fonte_menu)
 
 def desenhar_mapa_mundo(tela, fonte, botoes, campaign_manager, nivel_atual, game_images, mouse_pos):
-    # Fundo (Mapa Mundi)
-    try:
-        bg_img = pygame.image.load(resource_path("assets/images/ui/mapa_mundo.png")).convert()
-        bg_img = pygame.transform.scale(bg_img, (LARGURA_TELA, ALTURA_TELA))
-        tela.blit(bg_img, (0, 0))
-    except:
-        tela.fill((20, 20, 30))
-        texto = fonte.render("Mapa Mundi (Imagem não encontrada)", True, (255, 255, 255))
-        tela.blit(texto, (LARGURA_TELA//2 - 100, ALTURA_TELA//2))
+    # Fundo (Mapa Mundi) cacheado para economizar CPU e memória
+    bg_img = obter_background_cacheado("assets/images/ui/mapa_mundo.png", LARGURA_TELA, ALTURA_TELA)
+    tela.blit(bg_img, (0, 0))
 
     # Título
     fonte_titulo = pygame.font.Font(None, 60)

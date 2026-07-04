@@ -240,23 +240,31 @@ class CercoSetupState(GameState):
             avatar_rect = pygame.Rect(hx + 12, hy + (ch - avatar_size) // 2, avatar_size, avatar_size)
             pygame.draw.rect(tela, (10, 10, 20), avatar_rect, border_radius=6)
             
-            img_key = f"personagem_{nome.lower()}"
-            img = self.game.imagens.get(img_key)
-            if img:
-                img_scaled = pygame.transform.scale(img, (avatar_size - 4, avatar_size - 4))
-                tela.blit(img_scaled, (avatar_rect.x + 2, avatar_rect.y + 2))
-            else:
+            if nome == "Aquele":
                 pygame.draw.rect(tela, C_BORDA, avatar_rect, 1, border_radius=6)
-                fallback = self.fP.render(nome[:2].upper(), True, C_DIM)
+                fallback = self.fT.render("🌑", True, C_DIM)
                 tela.blit(fallback, (avatar_rect.centerx - fallback.get_width() // 2, avatar_rect.centery - fallback.get_height() // 2))
+            else:
+                img_key = f"personagem_{nome.lower()}"
+                img = self.game.imagens.get(img_key)
+                if img:
+                    img_scaled = pygame.transform.scale(img, (avatar_size - 4, avatar_size - 4))
+                    tela.blit(img_scaled, (avatar_rect.x + 2, avatar_rect.y + 2))
+                else:
+                    pygame.draw.rect(tela, C_BORDA, avatar_rect, 1, border_radius=6)
+                    fallback = self.fP.render(nome[:2].upper(), True, C_DIM)
+                    tela.blit(fallback, (avatar_rect.centerx - fallback.get_width() // 2, avatar_rect.centery - fallback.get_height() // 2))
 
             # Textos alinhados à direita do avatar
             text_x = hx + 12 + avatar_size + 12
             
-            nt = self.fG.render(nome, True, C_OURO if selecionado else C_TEXTO)
+            nome_exibido = "?????" if nome == "Aquele" else nome
+            classe_exibida = "?????" if nome == "Aquele" else classe
+
+            nt = self.fG.render(nome_exibido, True, C_OURO if selecionado else C_TEXTO)
             tela.blit(nt, (text_x, hy + 20))
 
-            ct = self.fP.render(classe, True, C_DIM)
+            ct = self.fP.render(classe_exibida, True, C_DIM)
             tela.blit(ct, (text_x, hy + 48))
 
             # Indicador bolinha verde discreto
