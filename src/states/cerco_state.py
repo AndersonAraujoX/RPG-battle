@@ -182,6 +182,7 @@ class CercoState(GameState):
         self.map_backbuffer_sujo = True
         # Animação de caminhada
         self.walk_anim          = None  # {char, from_pos, to_pos, progress,速度}
+        self.monster_walk_anims = {}
         
         # Cria um motor de combate simulado para renderizar o cenário e calcular as distâncias na grade
         from ..motor_combate import MotorCombate
@@ -710,28 +711,51 @@ class CercoState(GameState):
             "on_done": on_done,
         }
 
-    def _update_walk(self):
-        if not self.walk_anim:
-            return False
-        a = self.walk_anim
-        a["progress"] += a["speed"]
-        if a["progress"] >= 1.0:
-            a["progress"] = 1.0
-            on_done = a.get("on_done")
-            self.walk_anim = None
-            if on_done:
-                on_done()
-            return True
-        return False
+    def _start_monster_walk(self, char, from_pos, to_pos):
+        self.monster_walk_anims[char] = {
+            "char": char,
+            "from_pos": from_pos,
+            "to_pos": to_pos,
+            "progress": 0.0,
+            "speed": 0.04,
+        }
 
-    def _get_walk_screen_pos(self, gx, gy, el):
-        a = self.walk_anim
+    def _update_walk(self):
+        heroi_movendo = False
+        if self.walk_anim:
+            a = self.walk_anim
+            a["progress"] += a["speed"]
+            if a["progress"] >= 1.0:
+                a["progress"] = 1.0
+                on_done = a.get("on_done")
+                self.walk_anim = None
+                if on_done:
+                    on_done()
+                heroi_movendo = True
+            else:
+                heroi_movendo = True
+
+        remover_anims = []
+        for char, a in list(self.monster_walk_anims.items()):
+            a["progress"] += a["speed"]
+            if a["progress"] >= 1.0:
+                remover_anims.append(char)
+        for char in remover_anims:
+            if char in self.monster_walk_anims:
+                del self.monster_walk_anims[char]
+
+        return heroi_movendo
+
+    def _get_char_screen_pos(self, char, gx, gy, el, default_cx, default_cy):
+        a = None
+        if self.walk_anim and self.walk_anim["char"] is char:
+            a = self.walk_anim
+        elif char in self.monster_walk_anims:
+            a = self.monster_walk_anims[char]
+
         if a is None:
-            return None
-        if (gx, gy) != a["from_pos"]:
-            return None
-        if a["char"] is not self.heroi_atual:
-            return None
+            return default_cx, default_cy
+
         from_gx, from_gy = a["from_pos"]
         to_gx, to_gy = a["to_pos"]
         theta = self.game.angulo_rotacao
@@ -754,7 +778,8 @@ class CercoState(GameState):
         cx = int((rx - ry) * (TW // 2) + CX)
         cy = int(cy_coord + CY)
         if p < 1.0:
-            cy -= int(abs(math.sin(p * math.pi)) * 8 * self.zoom)
+            # Efeito suave de pulo/quique ao caminhar
+            cy -= int(abs(math.sin(p * math.pi)) * 6 * self.zoom)
         return cx, cy
 
     def _on_click(self, mouse):
@@ -1262,62 +1287,126 @@ class CercoState(GameState):
                 if zona in inimigos_por_zona:
                     inimigos_por_zona[zona].append(p)
 
-        # 2. Sincronizar cada zona
+        # 2. Identificar excessos (de onde sairão monstros) e faltas (onde entrarão)
+        excessos = [] # lista de combatentes que estão sobrando
+        faltas = []   # lista de tuplas (zona, qtd_em_falta)
+
         for zona, (x1, y1, x2, y2) in ZONAS_GRID.items():
             esperados = e["invasores"].get(zona, 0)
             if zona == "patio":
                 esperados += e.get("brutamontes", 0)
 
             atuais = inimigos_por_zona[zona]
+            if len(atuais) > esperados:
+                sobrando = len(atuais) - esperados
+                for _ in range(sobrando):
+                    if atuais:
+                        excessos.append((zona, atuais.pop()))
+            elif len(atuais) < esperados:
+                faltas.append((zona, esperados - len(atuais)))
 
-            if len(atuais) < esperados:
-                qtd_a_criar = esperados - len(atuais)
-                x1_c = max(0, min(19, x1))
-                x2_c = max(0, min(19, x2))
-                y1_c = max(0, min(19, y1))
-                y2_c = max(0, min(19, y2))
+        # 3. Transferir combatentes em excesso para as zonas com falta (Movimento)
+        faltas_atualizadas = []
+        for zona_dest, qtd in faltas:
+            x1, y1, x2, y2 = ZONAS_GRID[zona_dest]
+            x1_c = max(0, min(19, x1))
+            x2_c = max(0, min(19, x2))
+            y1_c = max(0, min(19, y1))
+            y2_c = max(0, min(19, y2))
 
-                celulas_candidatas = []
-                for cy in range(y1_c, y2_c + 1):
-                    for cx in range(x1_c, x2_c + 1):
-                        if tab.get_terrain_em(cx, cy) != "parede" and tab.grid[cy][cx] is None:
-                            celulas_candidatas.append((cx, cy))
+            # Encontra células livres na zona de destino
+            celulas_candidatas = []
+            for cy in range(y1_c, y2_c + 1):
+                for cx in range(x1_c, x2_c + 1):
+                    if tab.get_terrain_em(cx, cy) != "parede" and tab.grid[cy][cx] is None:
+                        celulas_candidatas.append((cx, cy))
+            random.shuffle(celulas_candidatas)
 
+            transferidos = 0
+            for _ in range(qtd):
                 if not celulas_candidatas:
-                    for cy in range(20):
-                        for cx in range(20):
-                            if tab.get_terrain_em(cx, cy) != "parede" and tab.grid[cy][cx] is None:
-                                celulas_candidatas.append((cx, cy))
-
-                random.shuffle(celulas_candidatas)
-
-                for _ in range(qtd_a_criar):
-                    if not celulas_candidatas:
-                        break
+                    break
+                
+                # Se tivermos combatentes em excesso em qualquer zona, transferimos um!
+                if excessos:
+                    zona_origem, monstro = excessos.pop(0)
                     cx, cy = celulas_candidatas.pop()
                     
-                    classe_inseto = random.choice([Goblin, Esqueleto, Kobold])
-                    nome_inimigo = f"Inseto {classe_inseto.__name__}"
-                    inimigo = classe_inseto(nome_inimigo, "B", nivel=3)
+                    # Salva posição antiga
+                    old_x, old_y = monstro.pos_x, monstro.pos_y
                     
-                    sucesso = tab.adicionar_personagem(inimigo, cx, cy)
-                    if sucesso:
-                        self.motor.combatentes.append(inimigo)
-                        if not hasattr(self.motor, 'time_b'):
-                            self.motor.time_b = []
-                        self.motor.time_b.append(inimigo)
+                    # Atualiza posição no tabuleiro
+                    if 0 <= old_y < len(tab.grid) and 0 <= old_x < len(tab.grid[0]):
+                        tab.grid[old_y][old_x] = None
+                    tab.grid[cy][cx] = monstro
+                    monstro.pos_x = cx
+                    monstro.pos_y = cy
+                    
+                    # Dispara animação de caminhada
+                    self._start_monster_walk(monstro, (old_x, old_y), (cx, cy))
+                    transferidos += 1
+                else:
+                    break
+            
+            restante = qtd - transferidos
+            if restante > 0:
+                faltas_atualizadas.append((zona_dest, restante))
 
-            elif len(atuais) > esperados:
-                qtd_a_remover = len(atuais) - esperados
-                for _ in range(qtd_a_remover):
-                    if atuais:
-                        p_remover = atuais.pop()
-                        if 0 <= p_remover.pos_y < len(tab.grid) and 0 <= p_remover.pos_x < len(tab.grid[0]):
-                            tab.grid[p_remover.pos_y][p_remover.pos_x] = None
-                        if p_remover in self.motor.combatentes:
-                            self.motor.combatentes.remove(p_remover)
-                        if hasattr(self.motor, 'time_b') and p_remover in self.motor.time_b:
-                            self.motor.time_b.remove(p_remover)
+        # 4. Criar novos monstros para as faltas restantes (ex: spawn)
+        for zona_dest, qtd in faltas_atualizadas:
+            x1, y1, x2, y2 = ZONAS_GRID[zona_dest]
+            x1_c = max(0, min(19, x1))
+            x2_c = max(0, min(19, x2))
+            y1_c = max(0, min(19, y1))
+            y2_c = max(0, min(19, y2))
+
+            celulas_candidatas = []
+            for cy in range(y1_c, y2_c + 1):
+                for cx in range(x1_c, x2_c + 1):
+                    if tab.get_terrain_em(cx, cy) != "parede" and tab.grid[cy][cx] is None:
+                        celulas_candidatas.append((cx, cy))
+
+            if not celulas_candidatas:
+                for cy in range(20):
+                    for cx in range(20):
+                        if tab.get_terrain_em(cx, cy) != "parede" and tab.grid[cy][cx] is None:
+                            celulas_candidatas.append((cx, cy))
+            random.shuffle(celulas_candidatas)
+
+            for _ in range(qtd):
+                if not celulas_candidatas:
+                    break
+                cx, cy = celulas_candidatas.pop()
+                
+                classe_inseto = random.choice([Goblin, Esqueleto, Kobold])
+                nome_inimigo = f"Inseto {classe_inseto.__name__}"
+                inimigo = classe_inseto(nome_inimigo, "B", nivel=3)
+                
+                sucesso = tab.adicionar_personagem(inimigo, cx, cy)
+                if sucesso:
+                    self.motor.combatentes.append(inimigo)
+                    if not hasattr(self.motor, 'time_b'):
+                        self.motor.time_b = []
+                    self.motor.time_b.append(inimigo)
+                    
+                    # Efeito de invasão: surge na borda correspondente
+                    origem_x, origem_y = cx, cy
+                    if "norte" in zona_dest: origem_y = 0
+                    elif "sul" in zona_dest: origem_y = 19
+                    elif "oeste" in zona_dest: origem_x = 0
+                    elif "leste" in zona_dest: origem_x = 19
+                    
+                    if (origem_x, origem_y) != (cx, cy):
+                        self._start_monster_walk(inimigo, (origem_x, origem_y), (cx, cy))
+
+        # 5. Remover monstros que restaram em excesso (ex: mortos ou roubaram tesouro)
+        for zona_origem, monstro in excessos:
+            if 0 <= monstro.pos_y < len(tab.grid) and 0 <= monstro.pos_x < len(tab.grid[0]):
+                tab.grid[monstro.pos_y][monstro.pos_x] = None
+            if monstro in self.motor.combatentes:
+                self.motor.combatentes.remove(monstro)
+            if hasattr(self.motor, 'time_b') and monstro in self.motor.time_b:
+                self.motor.time_b.remove(monstro)
 
     # ═══════════════════════════════════════════════════════════════════
     # UPDATE
@@ -1827,9 +1916,7 @@ class CercoState(GameState):
                 if char:
                     from src.ui.render_combate import desenhar_sprite
                     sw, sh = max(10, int(24 * self.zoom)), max(10, int(24 * self.zoom))
-                    walk_pos = self._get_walk_screen_pos(gx, gy, el)
-                    if walk_pos:
-                        cx_, cy_ = walk_pos
+                    cx_, cy_ = self._get_char_screen_pos(char, gx, gy, el, cx_, cy_)
                     rect_char = pygame.Rect(cx_ - sw // 2, cy_ - sh + 2, sw, sh)
                     eh_atual = char is self.heroi_atual
                     cor_char = (100, 215, 255) if eh_atual else (200, 180, 255)
