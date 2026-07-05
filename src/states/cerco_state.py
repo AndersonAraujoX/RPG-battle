@@ -1389,12 +1389,26 @@ class CercoState(GameState):
                         self.motor.time_b = []
                     self.motor.time_b.append(inimigo)
                     
-                    # Efeito de invasão: surge na borda correspondente
+                    # Efeito de invasão: surge fora da borda do grid e entra no tabuleiro
                     origem_x, origem_y = cx, cy
-                    if "norte" in zona_dest: origem_y = 0
-                    elif "sul" in zona_dest: origem_y = 19
-                    elif "oeste" in zona_dest: origem_x = 0
-                    elif "leste" in zona_dest: origem_x = 19
+                    if "campo" in zona_dest:
+                        # Surge bem além da borda — coordenada virtual para animação
+                        if "norte" in zona_dest:
+                            origem_y = -3   # acima do grid
+                        elif "sul" in zona_dest:
+                            origem_y = 22   # abaixo do grid
+                        elif "oeste" in zona_dest:
+                            origem_x = -3   # à esquerda do grid
+                        elif "leste" in zona_dest:
+                            origem_x = 22   # à direita do grid
+                    elif "norte" in zona_dest:
+                        origem_y = 0
+                    elif "sul" in zona_dest:
+                        origem_y = 19
+                    elif "oeste" in zona_dest:
+                        origem_x = 0
+                    elif "leste" in zona_dest:
+                        origem_x = 19
                     
                     if (origem_x, origem_y) != (cx, cy):
                         self._start_monster_walk(inimigo, (origem_x, origem_y), (cx, cy))
@@ -2781,6 +2795,7 @@ class CercoState(GameState):
             else:
                 self._selecionar_modo(MODO_ATACAR)
                 
+        self._avancar_inimigos_carta()
         self.idx_carta_sendo_jogada = -1
 
     def _jogar_carta_invasao(self, idx):
@@ -2813,3 +2828,89 @@ class CercoState(GameState):
         except:
             pass
 
+    def _avancar_inimigos_carta(self):
+        """Toda vez que uma carta é jogada, os inimigos avançam 1 passo em direção ao ouro (camara_central).
+        
+        Fluxo de zonas:
+          campos externos  → muralhas  → oficinas  → camara_central
+        Invasores na camara_central roubam 1 moeda do tesouro e voltam à reserva.
+        """
+        from ..cerco_isectum import NOMES_ZONA
+
+        # Mapeamento de avanço: zona_atual -> proxima_zona
+        FLUXO = {
+            "campo_norte": "muralha_norte",
+            "campo_sul":   "muralha_sul",
+            "campo_oeste": "muralha_oeste",
+            "campo_leste": "muralha_leste",
+            "muralha_norte": "carpintaria",
+            "muralha_sul":   "curtume",
+            "muralha_oeste": "fundicao",
+            "muralha_leste": "patio",
+            "carpintaria":   "camara_central",
+            "curtume":       "camara_central",
+            "fundicao":      "camara_central",
+            "patio":         "camara_central",
+        }
+
+        e = self.estado
+        novos = dict(e["invasores"])
+        tesouro = e["tesouro"]
+        reserva = e["reserva"]
+        logs_avanco = []
+        derrota = False
+
+        # Ordem de processamento: do mais profundo ao mais externo,
+        # para evitar dupla contagem no mesmo passo.
+        ordem = [
+            "camara_central",
+            "carpintaria", "curtume", "fundicao", "patio",
+            "muralha_norte", "muralha_sul", "muralha_oeste", "muralha_leste",
+            "campo_norte", "campo_sul", "campo_oeste", "campo_leste",
+        ]
+
+        for zona in ordem:
+            qtd = novos.get(zona, 0)
+            if qtd <= 0:
+                continue
+
+            if zona == "camara_central":
+                # Inimigos na câmara roubam tesouro e voltam à reserva
+                roubado = min(qtd, tesouro)
+                if roubado > 0:
+                    tesouro -= roubado
+                    reserva = min(10, reserva + roubado)
+                    nome_zona = NOMES_ZONA.get(zona, zona)
+                    logs_avanco.append(
+                        ("AMEACA", f"{qtd}x invasor no {nome_zona} rouba {roubado}🪙 do tesouro!")
+                    )
+                novos[zona] = 0
+                if tesouro <= 0:
+                    derrota = True
+            elif zona in FLUXO:
+                proxima = FLUXO[zona]
+                novos[zona] = 0
+                novos[proxima] = novos.get(proxima, 0) + qtd
+                nome_atual = NOMES_ZONA.get(zona, zona)
+                nome_prox = NOMES_ZONA.get(proxima, proxima)
+                logs_avanco.append(
+                    ("AMEACA", f"{qtd}x invasor avança: {nome_atual} → {nome_prox}")
+                )
+
+        # Aplica as mudanças de estado
+        delta = {"invasores": novos, "tesouro": tesouro, "reserva": reserva}
+        if derrota:
+            delta["derrota"] = True
+            delta["msg_derrota"] = "Tesouro saqueado pelos invasores — DERROTA!"
+
+        self.estado = aplicar_delta(self.estado, delta)
+
+        # Log dos avanços
+        if logs_avanco:
+            self._push("AMEACA", "🏃 Inimigos avançam ao jogar a carta!")
+            for tag, msg in logs_avanco:
+                self._push(tag, msg)
+
+        if derrota:
+            self._push("DERROTA", self.estado.get("msg_derrota", "DERROTA!"))
+            self.fase = "FIM"

@@ -36,12 +36,17 @@ ZONAS_GRID = {
     "torre_ne":       (16, 0,  19,  3),  # Torre Nordeste
     "torre_sw":       (0, 16,   3, 19),  # Torre Sudoeste
     "torre_se":       (16,16,  19, 19),  # Torre Sudeste
-    # ── Campos Externos (Spawn e alvos de tiro) ─────────────────────────────
-    "campo_norte":    (-5, -5, 24, -1),
-    "campo_sul":      (-5, 20, 24, 24),
-    "campo_oeste":    (-5,  0, -1, 19),
-    "campo_leste":    (20,  0, 24, 19),
+    # ── Campos Externos (Spawn — borda exterior do grid) ────────────────────
+    # As células da borda y=0/y=19 são ocupadas por torres e muralhas.
+    # Os campos mapeiam para as 2 primeiras/últimas linhas do grid para efeito de spawn.
+    # obter_zona_por_coordenada retorna muralha/torre primeiro (definidas antes), portanto
+    # os campos só são usados pelo sistema de spawn com animação de "entrada da borda".
+    "campo_norte":    (0,  0, 19,  1),   # 2 linhas top — borda exterior norte
+    "campo_sul":      (0, 18, 19, 19),   # 2 linhas bot — borda exterior sul
+    "campo_oeste":    (0,  0,  1, 19),   # 2 colunas left — borda exterior oeste
+    "campo_leste":    (18, 0, 19, 19),   # 2 colunas right — borda exterior leste
 }
+
 
 
 # Zonas de Produção e o recurso que geram
