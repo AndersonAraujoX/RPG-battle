@@ -746,6 +746,18 @@ class CercoState(GameState):
 
         return heroi_movendo
 
+    def _obter_posicao_virtual(self, char, gx, gy):
+        zona = getattr(char, "_zona_campo", None)
+        if zona == "campo_norte":
+            return gx, -2
+        elif zona == "campo_sul":
+            return gx, 21
+        elif zona == "campo_oeste":
+            return -2, gy
+        elif zona == "campo_leste":
+            return 21, gy
+        return gx, gy
+
     def _get_char_screen_pos(self, char, gx, gy, el, default_cx, default_cy):
         a = None
         if self.walk_anim and self.walk_anim["char"] is char:
@@ -1283,7 +1295,10 @@ class CercoState(GameState):
 
         for p in list(self.motor.combatentes):
             if getattr(p, "time", "A") == "B" and p.hp_atual > 0:
-                zona = obter_zona_por_coordenada(p.pos_x, p.pos_y)
+                # Prioriza a flag _zona_campo se o monstro estiver em zona externa
+                zona = getattr(p, "_zona_campo", None)
+                if not zona:
+                    zona = obter_zona_por_coordenada(p.pos_x, p.pos_y)
                 if zona in inimigos_por_zona:
                     inimigos_por_zona[zona].append(p)
 
@@ -1332,18 +1347,25 @@ class CercoState(GameState):
                     zona_origem, monstro = excessos.pop(0)
                     cx, cy = celulas_candidatas.pop()
                     
-                    # Salva posição antiga
-                    old_x, old_y = monstro.pos_x, monstro.pos_y
+                    # Salva posição antiga virtual
+                    old_vx, old_vy = self._obter_posicao_virtual(monstro, monstro.pos_x, monstro.pos_y)
                     
-                    # Atualiza posição no tabuleiro
+                    # Atualiza a zona de destino no monstro
+                    monstro._zona_campo = zona_dest if "campo" in zona_dest else None
+                    
+                    # Nova posição virtual
+                    new_vx, new_vy = self._obter_posicao_virtual(monstro, cx, cy)
+                    
+                    # Atualiza posição real no tabuleiro
+                    old_x, old_y = monstro.pos_x, monstro.pos_y
                     if 0 <= old_y < len(tab.grid) and 0 <= old_x < len(tab.grid[0]):
                         tab.grid[old_y][old_x] = None
                     tab.grid[cy][cx] = monstro
                     monstro.pos_x = cx
                     monstro.pos_y = cy
                     
-                    # Dispara animação de caminhada
-                    self._start_monster_walk(monstro, (old_x, old_y), (cx, cy))
+                    # Dispara animação de caminhada usando posições virtuais
+                    self._start_monster_walk(monstro, (old_vx, old_vy), (new_vx, new_vy))
                     transferidos += 1
                 else:
                     break
@@ -1389,29 +1411,36 @@ class CercoState(GameState):
                         self.motor.time_b = []
                     self.motor.time_b.append(inimigo)
                     
-                    # Efeito de invasão: surge fora da borda do grid e entra no tabuleiro
-                    origem_x, origem_y = cx, cy
-                    if "campo" in zona_dest:
-                        # Surge bem além da borda — coordenada virtual para animação
-                        if "norte" in zona_dest:
-                            origem_y = -3   # acima do grid
-                        elif "sul" in zona_dest:
-                            origem_y = 22   # abaixo do grid
-                        elif "oeste" in zona_dest:
-                            origem_x = -3   # à esquerda do grid
-                        elif "leste" in zona_dest:
-                            origem_x = 22   # à direita do grid
-                    elif "norte" in zona_dest:
-                        origem_y = 0
-                    elif "sul" in zona_dest:
-                        origem_y = 19
-                    elif "oeste" in zona_dest:
-                        origem_x = 0
-                    elif "leste" in zona_dest:
-                        origem_x = 19
+                    # Rastreia que a zona de spawn é externa
+                    inimigo._zona_campo = zona_dest if "campo" in zona_dest else None
                     
-                    if (origem_x, origem_y) != (cx, cy):
-                        self._start_monster_walk(inimigo, (origem_x, origem_y), (cx, cy))
+                    # Define a posição virtual final
+                    new_vx, new_vy = self._obter_posicao_virtual(inimigo, cx, cy)
+                    
+                    # Efeito de invasão: surge fora da borda virtual
+                    origem_x, origem_y = new_vx, new_vy
+                    if "campo" in zona_dest:
+                        if "norte" in zona_dest:
+                            origem_y = -4
+                        elif "sul" in zona_dest:
+                            origem_y = 23
+                        elif "oeste" in zona_dest:
+                            origem_x = -4
+                        elif "leste" in zona_dest:
+                            origem_x = 23
+                    else:
+                        # Se spawnar direto nas muralhas, vem de fora
+                        if "norte" in zona_dest:
+                            origem_y = -2
+                        elif "sul" in zona_dest:
+                            origem_y = 21
+                        elif "oeste" in zona_dest:
+                            origem_x = -2
+                        elif "leste" in zona_dest:
+                            origem_x = 21
+                    
+                    if (origem_x, origem_y) != (new_vx, new_vy):
+                        self._start_monster_walk(inimigo, (origem_x, origem_y), (new_vx, new_vy))
 
         # 5. Remover monstros que restaram em excesso (ex: mortos ou roubaram tesouro)
         for zona_origem, monstro in excessos:
