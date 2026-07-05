@@ -340,14 +340,16 @@ def processar_carta(estado, carta):
                 novos[of] = novos.get(of, 0) + n
                 logs.append(("AMEACA", f"{n}x {NOMES_ZONA[mur]} → {NOMES_ZONA[of]}"))
                 novos[mur] = 0
-        # novos movimentos: campos externos → muralhas
+        # novos movimentos: campos externos → muralhas (Escalada: apenas metade sobe)
         for campo, mur in (("campo_norte", "muralha_norte"), ("campo_sul", "muralha_sul"),
                            ("campo_oeste", "muralha_oeste"), ("campo_leste", "muralha_leste")):
             n = novos.get(campo, 0)
             if n > 0:
-                novos[mur] = novos.get(mur, 0) + n
-                logs.append(("AMEACA", f"{n}x {NOMES_ZONA.get(campo, campo)} → {NOMES_ZONA[mur]}"))
-                novos[campo] = 0
+                subindo = (n + 1) // 2
+                ficando = n - subindo
+                novos[mur] = novos.get(mur, 0) + subindo
+                novos[campo] = ficando
+                logs.append(("AMEACA", f"{subindo}x invasor escala: {NOMES_ZONA.get(campo, campo)} → {NOMES_ZONA[mur]} ({ficando}x ficaram para trás)"))
         nt = max(0, estado["tesouro"] + teso_delta)
         delta["invasores"] = novos
         delta["tesouro"]   = nt

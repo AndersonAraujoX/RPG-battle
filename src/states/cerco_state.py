@@ -1097,7 +1097,12 @@ class CercoState(GameState):
             if invasores_na_zona == 0 and self.estado.get("brutamontes", 0) == 0:
                 self._feedback(f"Sem inimigos em [{zona_alvo}] para atacar!", C_PERIGO)
                 return
-            resultado = resolver_melee(self.estado, zona_alvo, num_dados=2)
+            aliados_na_zona = 0
+            for p in list(self.motor.combatentes):
+                if getattr(p, "time", "B") == "A" and p.hp_atual > 0:
+                    if obter_zona_por_coordenada(p.pos_x, p.pos_y) == zona_alvo:
+                        aliados_na_zona += 1
+            resultado = resolver_melee(self.estado, zona_alvo, num_dados=2, num_aliados_zona=max(1, aliados_na_zona))
             self.estado = aplicar_delta(self.estado, resultado["delta"])
             for t, m in resultado["logs"]:
                 self._push(t, m)
@@ -2943,13 +2948,26 @@ class CercoState(GameState):
                     derrota = True
             elif zona in FLUXO:
                 proxima = FLUXO[zona]
-                novos[zona] = 0
-                novos[proxima] = novos.get(proxima, 0) + qtd
-                nome_atual = NOMES_ZONA.get(zona, zona)
-                nome_prox = NOMES_ZONA.get(proxima, proxima)
-                logs_avanco.append(
-                    ("AMEACA", f"{qtd}x invasor avança: {nome_atual} → {nome_prox}")
-                )
+                if "campo" in zona:
+                    # Escalada: apenas metade dos invasores sobe (arredondado para cima)
+                    subindo = (qtd + 1) // 2
+                    ficando = qtd - subindo
+                    novos[zona] = ficando
+                    novos[proxima] = novos.get(proxima, 0) + subindo
+                    nome_atual = NOMES_ZONA.get(zona, zona)
+                    nome_prox = NOMES_ZONA.get(proxima, proxima)
+                    logs_avanco.append(
+                        ("AMEACA", f"{subindo}x invasor escala a muralha: {nome_atual} → {nome_prox} ({ficando}x ficaram para trás)")
+                    )
+                else:
+                    # Avanço normal nas áreas internas
+                    novos[zona] = 0
+                    novos[proxima] = novos.get(proxima, 0) + qtd
+                    nome_atual = NOMES_ZONA.get(zona, zona)
+                    nome_prox = NOMES_ZONA.get(proxima, proxima)
+                    logs_avanco.append(
+                        ("AMEACA", f"{qtd}x invasor avança: {nome_atual} → {nome_prox}")
+                    )
 
         # Aplica as mudanças de estado
         delta = {"invasores": novos, "tesouro": tesouro, "reserva": reserva}

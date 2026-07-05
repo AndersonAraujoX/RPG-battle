@@ -59,6 +59,26 @@ FACES_D6 = {
     6: (0, 1),  # 1 Disparo de Longa Distância
 }
 
+ELEVACAO_ZONAS = {
+    "camara_central": 3,
+    "curtume": 2,
+    "carpintaria": 2,
+    "fundicao": 2,
+    "patio": 2,
+    "muralha_norte": 4,
+    "muralha_sul": 4,
+    "muralha_oeste": 4,
+    "muralha_leste": 4,
+    "torre_nw": 6,
+    "torre_ne": 6,
+    "torre_sw": 6,
+    "torre_se": 6,
+    "campo_norte": 0,
+    "campo_sul": 0,
+    "campo_oeste": 0,
+    "campo_leste": 0
+}
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # ROLAGEM DE DADOS
@@ -110,7 +130,7 @@ def rolar_d6_customizado(num_dados: int = 1) -> dict:
 # JUIZ DE COMBATE — CORPO-A-CORPO
 # ═══════════════════════════════════════════════════════════════════════════
 
-def resolver_melee(estado: dict, zona_combate: str, num_dados: int = 2) -> dict:
+def resolver_melee(estado: dict, zona_combate: str, num_dados: int = 2, num_aliados_zona: int = 1) -> dict:
     """
     Resolve combate corpo-a-corpo na zona especificada.
     
@@ -119,15 +139,21 @@ def resolver_melee(estado: dict, zona_combate: str, num_dados: int = 2) -> dict:
       - 2 Impactos = 1 Dano; sobras descartadas
       - Invasores comuns morrem com 1 Dano
       - Brutamontes acumulam ferimentos por círculo
+      - Flanqueamento: se houver >= 2 aliados na zona, adiciona +1 D6!
     
     Retorna dict com delta de estado e logs de combate.
     """
+    logs = []
+    if num_aliados_zona >= 2:
+        num_dados += 1
+        logs.append(("SISTEMA", f"⚔️ Flanqueamento ativado! (+1 D6 por ter {num_aliados_zona} aliados na zona)"))
+
     rolagem = rolar_d6_customizado(num_dados)
     impactos = rolagem["impactos"]
     dano = impactos // 2  # 2 impactos = 1 dano, sobras descartadas
 
-    logs = [("HEROI", f"Melee em [{zona_combate}]: rolou {rolagem['faces']} "
-             f"-> {impactos} Impactos -> {dano} Dano")]
+    logs.append(("HEROI", f"Melee em [{zona_combate}]: rolou {rolagem['faces']} "
+             f"-> {impactos} Impactos -> {dano} Dano"))
     for det in rolagem["detalhes"]:
         logs.append(("SISTEMA", det))
 
@@ -170,6 +196,7 @@ def resolver_distancia(estado: dict, zona_defensor: str, zona_alvo: str,
       - Alvos válidos: Muralhas, Catapulta (arma especial), Torre de Assalto (arma especial)
       - Oficinas internas e Câmara Central são alvos INVÁLIDOS
       - 1 Disparo = 1 Dano direto
+      - Vantagem de Altura: se elev(defensor) > elev(alvo) ganha +1 D6; se menor, perde 1 D6.
     
     Retorna dict com delta de estado e logs de combate.
     """
@@ -190,6 +217,17 @@ def resolver_distancia(estado: dict, zona_defensor: str, zona_alvo: str,
             "logs": [("SISTEMA", f"INVALIDO: [{zona_alvo}] e interno — nao pode ser alvo de Balestra.")],
             "rolagem": None,
         }
+
+    # Calcula elevações
+    elev_defensor = ELEVACAO_ZONAS.get(zona_defensor, 1)
+    elev_alvo = ELEVACAO_ZONAS.get(zona_alvo, 0) # Catapultas/Torre assalto inimigas no chão tem elevação 0
+
+    if elev_defensor > elev_alvo:
+        num_dados += 1
+        logs.append(("SISTEMA", f"📐 Vantagem de Altura: +1 D6! [{zona_defensor} Elev {elev_defensor} > {zona_alvo} Elev {elev_alvo}]"))
+    elif elev_defensor < elev_alvo:
+        num_dados = max(1, num_dados - 1)
+        logs.append(("SISTEMA", f"📐 Desvantagem de Altura: -1 D6! [{zona_defensor} Elev {elev_defensor} < {zona_alvo} Elev {elev_alvo}]"))
 
     rolagem = rolar_d6_customizado(num_dados)
     disparos = rolagem["disparos"]
