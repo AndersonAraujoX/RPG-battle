@@ -204,7 +204,7 @@ def validar_trabalhar(estado, pontos: int):
     if zona not in OFICINAS:
         return False, None, "Você precisa estar fisicamente na Carpintaria, Curtume ou Fundição!"
     if estado["invasores"].get(zona, 0) > 0:
-        return False, None, f"Bloqueado! Há invasores atacando esta oficina."
+        return False, None, f"Bloqueado! Há Orcs presentes nesta oficina."
     if pontos <= 0:
         return False, None, "Sem pontos de trabalho."
 
@@ -231,7 +231,7 @@ def validar_escavar(estado, pontos: int):
     if zona != ZONA_ESCAVACAO:
         return False, 0, "Vá até o Pátio / Área de Escavação para cavar!"
     if estado["brutamontes"] > 0 or estado.get("infiltradores", 0) > 0:
-        return False, 0, "Bloqueado! Limpe o Pátio de inimigos primeiro."
+        return False, 0, "Bloqueado! Há Goblins ou Trolls presentes no Pátio."
     if estado["pedregulhos"] <= 0:
         return False, 0, "Sem pedregulhos."
     if pontos <= 0:
