@@ -1455,6 +1455,13 @@ class CercoState(GameState):
     # UPDATE
     # ═══════════════════════════════════════════════════════════════════
     def update(self):
+        # Depuração: imprime a lista de monstros time B e suas flags
+        time_b_debug = [p for p in self.motor.combatentes if getattr(p, "time", "A") == "B"]
+        if time_b_debug and random.random() < 0.05: # Imprime ocasionalmente (~1 em cada 20 frames) para não inundar o console
+            print("--- STATUS DOS INIMIGOS ---")
+            for p in time_b_debug:
+                print(f"  {p.nome}: pos=({p.pos_x}, {p.pos_y}) | _zona_campo={getattr(p, '_zona_campo', None)}")
+        
         # Sincroniza inimigos se o estado de invasores mudou
         e = self.estado
         c_invasores = dict(e["invasores"])
@@ -1957,24 +1964,42 @@ class CercoState(GameState):
             if GRID_MIN <= gx <= GRID_MAX and GRID_MIN <= gy <= GRID_MAX:
                 char = tab.grid[gy][gx]
                 if char:
+                    # Ajuste de coordenadas se estiver nos campos externos
+                    vgx, vgy, vel = gx, gy, el
+                    if getattr(char, "_zona_campo", None):
+                        zc = char._zona_campo
+                        vel = 0
+                        if zc == "campo_norte":
+                            vgy = -2
+                        elif zc == "campo_sul":
+                            vgy = 21
+                        elif zc == "campo_oeste":
+                            vgx = -2
+                        elif zc == "campo_leste":
+                            vgx = 21
+                        # Recalcula default_cx e default_cy baseados na posição virtual
+                        default_cx, default_cy = _iso(vgx, vgy, vel)
+                    else:
+                        default_cx, default_cy = cx_, cy_
+
                     from src.ui.render_combate import desenhar_sprite
                     sw, sh = max(10, int(24 * self.zoom)), max(10, int(24 * self.zoom))
-                    cx_, cy_ = self._get_char_screen_pos(char, gx, gy, el, cx_, cy_)
-                    rect_char = pygame.Rect(cx_ - sw // 2, cy_ - sh + 2, sw, sh)
+                    cx_draw, cy_draw = self._get_char_screen_pos(char, vgx, vgy, vel, default_cx, default_cy)
+                    rect_char = pygame.Rect(cx_draw - sw // 2, cy_draw - sh + 2, sw, sh)
                     eh_atual = char is self.heroi_atual
                     cor_char = (100, 215, 255) if eh_atual else (200, 180, 255)
                     desenhar_sprite(tela, char, rect_char, cor_char, self.game.imagens, self.game.sprites_visiveis)
                     if eh_atual:
                         pulse = abs(self.timer % 120 - 60) / 60.0
                         pulse_r = max(2, int((4 + 3 * pulse) * self.zoom))
-                        pygame.draw.circle(tela, (120, 220, 255), (cx_, cy_), pulse_r, max(1, int(2 * self.zoom)))
+                        pygame.draw.circle(tela, (120, 220, 255), (cx_draw, cy_draw), pulse_r, max(1, int(2 * self.zoom)))
                     nome_exibido = "?????" if char.nome == "Aquele" else char.nome
                     nome_s = self.fMi.render(nome_exibido, True, C_TEXTO)
                     if self.zoom != 1.0:
                         nome_s = pygame.transform.scale(nome_s,
                             (max(1, int(nome_s.get_width() * self.zoom)),
                              max(1, int(nome_s.get_height() * self.zoom))))
-                    tela.blit(nome_s, (cx_ - nome_s.get_width() // 2, cy_ - int(32 * self.zoom)))
+                    tela.blit(nome_s, (cx_draw - nome_s.get_width() // 2, cy_draw - int(32 * self.zoom)))
 
         # ── Informações Dinâmicas sobre Zonas (Super Minimalista) ────────────────
         e = self.estado
