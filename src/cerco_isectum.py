@@ -197,8 +197,9 @@ def criar_estado(pedregulhos=8, is_solo=True):
         "brutamontes":     0,
         "infiltradores":   0,
         # Armas de cerco
-        "torre_assalto":  {"estado": "reserva", "ciclo": 0},
         "catapulta":      {"estado": "reserva", "ciclo": 0},
+        "deck_catapulta":  [1, 2, 3, 4],
+        "torre_assalto":  {"estado": "reserva", "ciclo": 0},
         # ── Deckbuilding ────────────────────────────────────────────────
         "slots_upgrade":   criar_mercado(),
         "recursos_depositados": {"madeira": 0, "couro": 0, "metal": 0},
@@ -402,10 +403,20 @@ def _ativar_catapulta(estado):
         novos_slots[slot_idx]["bloqueado"] = True
         logs.append(("CERCO", f"CATAPULTA! Slot [{novos_slots[slot_idx]['nome']}] destruído!"))
     nt = max(0, estado["tesouro"] - 1)
+    # Consome munição do deck de Catapulta
+    deck_catapulta = list(estado.get("deck_catapulta", [1, 2, 3, 4]))
+    if deck_catapulta:
+        deck_catapulta.pop()
+    
     delta = {"tesouro": nt, "catapulta": {"estado": "reserva", "ciclo": 0},
-             "slots_upgrade": novos_slots}
-    logs.append(("CERCO", f"Catapulta remove 1🪙 (Tesouro: {nt})"))
-    if nt == 0:
+             "slots_upgrade": novos_slots, "deck_catapulta": deck_catapulta}
+    logs.append(("CERCO", f"Catapulta remove 1🪙 (Tesouro: {nt}) [Catapulta Restantes: {len(deck_catapulta)}]"))
+    
+    if len(deck_catapulta) <= 0:
+        delta["derrota"] = True
+        delta["msg_derrota"] = "O deck de munição de Catapulta esgotou! DERROTA!"
+        logs.append(("DERROTA", delta["msg_derrota"]))
+    elif nt == 0:
         delta["derrota"]     = True
         delta["msg_derrota"] = "Tesouro zerado pela Catapulta — DERROTA"
         logs.append(("DERROTA", delta["msg_derrota"]))

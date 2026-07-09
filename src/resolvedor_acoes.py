@@ -250,9 +250,9 @@ def executar_escavar(estado, qtd: int) -> tuple[dict, list]:
     logs = [("HEROI", f"⛏️ Escavou {qtd}x pedregulho no Pátio.")]
 
     if novo <= 0:
-        delta["vitoria"] = True
-        delta["msg_vitoria"] = "Túnel finalizado! Os anões escaparam!"
-        logs.append(("VITORIA", "VITÓRIA! Túnel concluído!"))
+        delta["desafio_final_ativo"] = True
+        delta["infiltradores"] = estado.get("infiltradores", 0) + 2
+        logs.append(("CERCO", "O túnel foi concluído! Mas a saída está bloqueada por 2 Goblins de Elite perigosos! Derrote-os para vencer!"))
     elif novo % 4 == 0 and novo < estado["pedregulhos_max"]:
         delta["infiltradores"] = estado.get("infiltradores", 0) + 2
         logs.append(("CERCO", "Emboscada! Seção de túnel de madeira limpa. 2 Goblins invadiram o Pátio!"))

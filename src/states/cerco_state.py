@@ -1120,7 +1120,8 @@ class CercoState(GameState):
                 self._feedback("Clique em uma zona válida do mapa!", C_PERIGO)
                 return
             invasores_na_zona = self.estado["invasores"].get(zona_alvo, 0)
-            if invasores_na_zona == 0 and self.estado.get("brutamontes", 0) == 0:
+            infiltradores = self.estado.get("infiltradores", 0)
+            if invasores_na_zona == 0 and self.estado.get("brutamontes", 0) == 0 and (zona_alvo != "patio" or infiltradores == 0):
                 self._feedback(f"Sem inimigos em [{zona_alvo}] para atacar!", C_PERIGO)
                 return
             aliados_na_zona = 0
@@ -1130,6 +1131,13 @@ class CercoState(GameState):
                         aliados_na_zona += 1
             resultado = resolver_melee(self.estado, zona_alvo, num_dados=2, num_aliados_zona=max(1, aliados_na_zona))
             self.estado = aplicar_delta(self.estado, resultado["delta"])
+            if self.estado.get("desafio_final_ativo") and self.estado.get("infiltradores", 0) == 0:
+                self.estado = aplicar_delta(self.estado, {
+                    "vitoria": True,
+                    "msg_vitoria": "Desafio Final concluído! Os Goblins de Elite foram derrotados e os anões escaparam!"
+                })
+                self._push("VITORIA", "Desafio Final concluído! Vitória!")
+                self.fase = "FIM"
             for t, m in resultado["logs"]:
                 self._push(t, m)
             if resultado["rolagem"]:
@@ -1309,16 +1317,52 @@ class CercoState(GameState):
                     self._push(t, m)
                 self._feedback(f"Escavou! -{qtd} pedregulhos.", C_VERDE)
                 self.modo_acao = MODO_NENHUM
-                if self.estado.get("vitoria"):
+                if self.estado.get("desafio_final_ativo") and self.estado.get("infiltradores", 0) == 0:
+                    self.estado = aplicar_delta(self.estado, {
+                        "vitoria": True,
+                        "msg_vitoria": "Desafio Final concluído! Os Goblins de Elite foram derrotados e os anões escaparam!"
+                    })
+                    self._push("VITORIA", "Desafio Final concluído! Vitória!")
                     self.fase = "FIM"
             elif mostrar_erro_se_falhar:
                 self._feedback(msg, C_PERIGO)
+                
+        # Verifica derrota imediata ao final do processamento
+        self._verificar_derrota_imediata()
+
+    def _verificar_derrota_imediata(self):
+        e = self.estado
+        derrota = False
+        msg = ""
+
+        if e.get("tesouro", 10) <= 0:
+            derrota = True
+            msg = "Todo o ouro da Câmara foi roubado! DERROTA!"
+        elif e.get("reserva", 10) <= 0:
+            derrota = True
+            msg = "Orcs da reserva esgotados! DERROTA!"
+        elif e.get("brutamontes", 0) >= 3:
+            derrota = True
+            msg = "3 Brutamontes/Trolls invadiram o túnel! DERROTA!"
+        elif not self.deck:
+            derrota = True
+            msg = "O deck de Cerco de Ameaças acabou! DERROTA!"
+        elif len(e.get("deck_catapulta", [1, 2, 3, 4])) <= 0:
+            derrota = True
+            msg = "O deck de munição de Catapulta esgotou! DERROTA!"
+
+        if derrota:
+            self.estado = aplicar_delta(self.estado, {
+                "derrota": True,
+                "msg_derrota": msg
+            })
+            self._push("DERROTA", msg)
+            self.fase = "FIM"
+            return True
+        return False
 
     def _iniciar_fase_ameaca(self):
-        if not self.deck:
-            self.estado = aplicar_delta(self.estado, {"vitoria": True})
-            self._push("VITORIA", "Deck de cerco esgotado! VITÓRIA!")
-            self.fase = "FIM"
+        if self._verificar_derrota_imediata():
             return
         self.fase = "FASE_AMEACA"
         self.carta_cerco = self.deck.pop()
@@ -1341,6 +1385,9 @@ class CercoState(GameState):
 
         self.carta_cerco = None
         self.estado = aplicar_delta(self.estado, {"rodada": self.estado["rodada"] + 1})
+
+        if self._verificar_derrota_imediata():
+            return
 
         if self.estado.get("derrota") or self.estado.get("vitoria"):
             self.fase = "FIM"
