@@ -1119,6 +1119,10 @@ class CercoState(GameState):
             if not zona_alvo:
                 self._feedback("Clique em uma zona válida do mapa!", C_PERIGO)
                 return
+            zona_heroi = self.estado.get("pos_heroi")
+            if zona_heroi != zona_alvo:
+                self._feedback("Herói precisa estar na mesma zona do inimigo para combate corpo-a-corpo!", C_PERIGO)
+                return
             invasores_na_zona = self.estado["invasores"].get(zona_alvo, 0)
             infiltradores = self.estado.get("infiltradores", 0)
             if invasores_na_zona == 0 and self.estado.get("brutamontes", 0) == 0 and (zona_alvo != "patio" or infiltradores == 0):
@@ -1372,12 +1376,12 @@ class CercoState(GameState):
 
     def _resolver_carta_cerco(self):
         e = self.estado
-        if e["is_solo"]:
-            d, ls = avancar_ciclo_armas(e)
-            if d:
-                self.estado = aplicar_delta(e, d)
-                e = self.estado
-            for t, m in ls: self._push(t, m)
+        # Fase A - Ativação de Máquinas: Sempre avança o ciclo das armas de cerco
+        d, ls = avancar_ciclo_armas(e)
+        if d:
+            self.estado = aplicar_delta(e, d)
+            e = self.estado
+        for t, m in ls: self._push(t, m)
 
         delta, logs = processar_carta(self.estado, self.carta_cerco)
         self.estado = aplicar_delta(self.estado, delta)

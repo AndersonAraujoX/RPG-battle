@@ -143,6 +143,14 @@ def resolver_melee(estado: dict, zona_combate: str, num_dados: int = 2, num_alia
     
     Retorna dict com delta de estado e logs de combate.
     """
+    pos_heroi = estado.get("pos_heroi")
+    if pos_heroi != zona_combate:
+        return {
+            "delta": {},
+            "logs": [("SISTEMA", f"INVALIDO: O heroi nao esta em [{zona_combate}] para atacar melee.")],
+            "rolagem": None,
+        }
+
     logs = []
     if num_aliados_zona >= 2:
         num_dados += 1
@@ -209,19 +217,12 @@ def resolver_distancia(estado: dict, zona_defensor: str, zona_alvo: str,
     """
     logs = []
 
-    # Valida posição do defensor
-    if zona_defensor not in ZONAS_TORRES:
+    # Valida o ataque usando a função centralizada
+    ok, msg_val = validar_pode_atacar_distancia(zona_defensor, zona_alvo)
+    if not ok:
         return {
             "delta": {},
-            "logs": [("SISTEMA", f"INVALIDO: [{zona_defensor}] nao e uma Torre de Vigilancia.")],
-            "rolagem": None,
-        }
-
-    # Valida alvo
-    if zona_alvo in ZONAS_INTERNAS:
-        return {
-            "delta": {},
-            "logs": [("SISTEMA", f"INVALIDO: [{zona_alvo}] e interno — nao pode ser alvo de Balestra.")],
+            "logs": [("SISTEMA", f"INVALIDO: {msg_val}")],
             "rolagem": None,
         }
 
@@ -391,4 +392,20 @@ def validar_pode_atacar_distancia(zona_defensor: str, zona_alvo: str) -> tuple[b
         return False, f"[{zona_defensor}] nao e uma Torre de Vigilancia."
     if zona_alvo in ZONAS_INTERNAS:
         return False, f"[{zona_alvo}] e uma zona interna — nao pode ser alvo de Balestra."
+
+    # Restrição de alvejar apenas muralhas adjacentes, espaços externos ou máquinas de cerco
+    TORRE_MURALHAS_ADJACENTES = {
+        "torre_nw": {"muralha_norte", "muralha_oeste"},
+        "torre_ne": {"muralha_norte", "muralha_leste"},
+        "torre_sw": {"muralha_sul", "muralha_oeste"},
+        "torre_se": {"muralha_sul", "muralha_leste"},
+    }
+
+    if "muralha" in zona_alvo:
+        muralhas_permitidas = TORRE_MURALHAS_ADJACENTES.get(zona_defensor, set())
+        if zona_alvo not in muralhas_permitidas:
+            return False, f"A partir de [{zona_defensor}], voce so pode alvejar as muralhas adjacentes."
+    elif not (zona_alvo.startswith("campo_") or "catapulta" in zona_alvo or "torre_assalto" in zona_alvo):
+        return False, "Alvo invalido! A partir das Torres, voce so pode alvejar muralhas adjacentes, espaços externos ou maquinas de cerco."
+
     return True, "Alvo valido para ataque de Balestra."
