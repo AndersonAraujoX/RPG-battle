@@ -1043,8 +1043,39 @@ class CercoState(GameState):
                             self._feedback("Esta melhoria foi destruída pela catapulta!", C_PERIGO)
                             return
                         
-                        # Verifica se todos os recursos necessários estão alocados
+                        # --- ALOCAÇÃO AUTOMÁTICA DE RECURSOS DO DEPÓSITO PARA O SLOT ---
+                        dep = dict(e.get("recursos_depositados", {"madeira": 0, "couro": 0, "metal": 0}))
                         from ..resolvedor_acoes import CUSTO_ADICIONAL_SLOT
+                        custo_base = slot.get("custo", {})
+                        custo_adicional = CUSTO_ADICIONAL_SLOT.get(sid, {})
+                        alocados = dict(slot.get("recursos_alocados", {"madeira": 0, "couro": 0, "metal": 0}))
+                        
+                        transferido_algum = False
+                        for r_type in ["madeira", "couro", "metal"]:
+                            total_req = custo_base.get(r_type, 0) + custo_adicional.get(r_type, 0)
+                            alocado_atual = alocados.get(r_type, 0)
+                            falta = total_req - alocado_atual
+                            if falta > 0 and dep.get(r_type, 0) > 0:
+                                transferir = min(falta, dep.get(r_type, 0))
+                                dep[r_type] -= transferir
+                                alocados[r_type] += transferir
+                                transferido_algum = True
+                                self._push("HEROI", f"Alocado {transferir}x {r_type.upper()} no upgrade [{slot['nome']}].")
+                        
+                        if transferido_algum:
+                            slots = [dict(s) for s in e["slots_upgrade"]]
+                            slots[sid]["recursos_alocados"] = alocados
+                            self.estado = aplicar_delta(e, {
+                                "recursos_depositados": dep,
+                                "slots_upgrade": slots
+                            })
+                            # Atualiza a referência de e e slot para refletir a mudança
+                            e = self.estado
+                            slot = e["slots_upgrade"][sid]
+                            self.map_backbuffer_sujo = True
+                            self._feedback("Recursos alocados do depósito!", C_VERDE)
+                        
+                        # Verifica se todos os recursos necessários estão alocados
                         custo_base = slot.get("custo", {})
                         custo_adicional = CUSTO_ADICIONAL_SLOT.get(sid, {})
                         
@@ -1069,7 +1100,7 @@ class CercoState(GameState):
                         else:
                             # Faltam recursos
                             recs_txt = ", ".join(f"{q}x {r.upper()}" for r, q in faltam.items())
-                            self._feedback(f"Falta alocar: {recs_txt}. Vá a uma oficina e use Trabalhar!", C_PERIGO)
+                            self._feedback(f"Falta alocar: {recs_txt}. Colete mais recursos!", C_PERIGO)
                     return
 
             # Clique em célula do tabuleiro tático
@@ -2321,7 +2352,7 @@ class CercoState(GameState):
                             pygame.draw.polygon(self.map_backbuffer, (50, 50, 60), left_pts, 1)
                             pygame.draw.line(self.map_backbuffer, (245, 245, 255), (bx - w//2 + 1, by + h//2 - thickness), (bx + w//2 - 1, by + h//2 - thickness), 1)
 
-                # 3. Curtume (Couro/Lã)
+                # 3. Curtume (Couro)
                 elif zona_key == "curtume" and gx == 9 and gy == 5:
                     qtd_dep = dep.get("couro", 0)
                     remaining = max(0, 10 - qtd_dep)
@@ -2445,7 +2476,7 @@ class CercoState(GameState):
                                 pygame.draw.line(self.map_backbuffer, (245, 245, 255), (bx - w//2 + 1, by + h//2 - thickness), (bx + w//2 - 1, by + h//2 - thickness), 1)
                                 
                     elif gx == 11 and gy == 8:
-                        # Pilha de Lã depositada
+                        # Pilha de Couro depositado
                         qtd = dep.get("couro", 0)
                         if qtd > 0:
                             r_w = max(2, int(3.5 * self.zoom))
