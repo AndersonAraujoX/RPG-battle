@@ -168,6 +168,105 @@ def criar_mercado():
     return slots_base
 
 
+DADOS_INIMIGOS = {
+    "vespa_cacadora": {
+        "nome": "Vespa-Caçadora", "emoji": "🐝", "antigo": "Amazon", "classe": "Goblin",
+        "efeito": "Todos os jogadores devem lhe dar uma carta da mão que você pediu. Se eles não tiverem, você perdeu sua chance."
+    },
+    "louva_deus": {
+        "nome": "Louva-a-Deus Mimético", "emoji": "🦗", "antigo": "Boogeyman", "classe": "Kobold",
+        "efeito": "Troque de mãos com outro jogador."
+    },
+    "viuva_canibal": {
+        "nome": "Viúva-Canibal", "emoji": "🕷️", "antigo": "The Bride", "classe": "Esqueleto",
+        "efeito": "Pegue qualquer inseto macho já jogado e ative o efeito daquela carta imediatamente."
+    },
+    "escaravelho_necrofago": {
+        "nome": "Escaravelho Necrófago", "emoji": "🪲", "antigo": "Centaur", "classe": "Goblin",
+        "efeito": "Pegue a carta do topo da pilha de descarte e jogue-a imediatamente."
+    },
+    "besouro_unicornio": {
+        "nome": "Besouro-Unicórnio Negro", "emoji": "🪳", "antigo": "Dark Unicorn", "classe": "Kobold",
+        "efeito": "Uma onda de feromônios atordoa a todos. Faça todos os jogadores descartarem uma carta de sua mão, escolhida por você aleatoriamente."
+    },
+    "gafanhoto_praga": {
+        "nome": "Gafanhoto-da-Praga", "emoji": "🦟", "antigo": "Demon", "classe": "Esqueleto",
+        "efeito": "Envie qualquer combo ou conjunto de cartas do tabuleiro para a pilha de descarte."
+    },
+    "carrapato_vampiro": {
+        "nome": "Carrapato-Vampiro", "emoji": "🩸", "antigo": "Dracula", "classe": "Goblin",
+        "efeito": "Roube duas cartas diretamente da mão de um jogador."
+    },
+    "libelula_blindada": {
+        "nome": "Libélula-Blindada", "emoji": "🛡️", "antigo": "Dragon", "classe": "DragaoAnciao",
+        "efeito": "Protege o conjunto de cartas de que faz parte, tornando-o imune a poderes especiais. Depois de jogada, nenhuma carta nova pode ser adicionada a esse conjunto."
+    },
+    "besouro_gorgulho": {
+        "nome": "Besouro-Gorgulho", "emoji": "🐜", "antigo": "Dwarf", "classe": "Kobold",
+        "efeito": "Cave na pilha de descarte e no deck. Pegue a carta do topo da pilha de descarte e a do topo do baralho; escolha uma para guardar e descarte a outra."
+    },
+    "cigarra_ressonante": {
+        "nome": "Cigarra-Ressonante", "emoji": "🪰", "antigo": "Elf", "classe": "Esqueleto",
+        "efeito": "Reative o poder de qualquer criatura inseto sob o seu controle neste turno."
+    },
+    "enxame_rainha": {
+        "nome": "Enxame da Rainha", "emoji": "🐝", "antigo": "The Eternals", "classe": "ReiGoblin",
+        "efeito": "Complete sua mão até ter exatamente 7 cartas, puxando-as da pilha de compra ou roubando-as diretamente da mão de alguém."
+    },
+    "vagalume_sombras": {
+        "nome": "Vagalumes das Sombras", "emoji": "🦋", "antigo": "Faeries", "classe": "Goblin",
+        "efeito": "Pegue quaisquer duas cartas da pilha de descarte para a sua mão e jogue uma delas imediatamente."
+    },
+    "larva_carniceira": {
+        "nome": "Larvas Carniceiras", "emoji": "🪱", "antigo": "Ghouls", "classe": "Kobold",
+        "efeito": "Você pode optar por comprar cartas do baralho ou roubá-las da mão de um jogador."
+    },
+    "tarantula_golias": {
+        "nome": "Tarântula-Golias", "emoji": "🕷️", "antigo": "Giant", "classe": "Esqueleto",
+        "efeito": "Resgate qualquer carta da pilha de descarte e jogue-as imediatamente."
+    },
+    "formiga_correicao": {
+        "nome": "Formigas-Correição", "emoji": "🐜", "antigo": "Goblins", "classe": "Goblin",
+        "efeito": "Uma investida militar que limpa recursos. Roube 3 cartas divididas entre um ou mais jogadores."
+    },
+    "aranha_clepto": {
+        "nome": "Aranha-Cleptoparasita", "emoji": "🕷️", "antigo": "Highwayman", "classe": "Kobold",
+        "efeito": "Roube o território alheio. Troque seus combos com os de outro jogador."
+    },
+    "centopeia_olhos": {
+        "nome": "Centopeia dos Cem Olhos", "emoji": "🐛", "antigo": "Hydra", "classe": "Esqueleto",
+        "efeito": "Olhe fixamente e revele a mão inteira de um jogador à sua escolha."
+    },
+    "abelha_tecela": {
+        "nome": "Abelha-Tecelã", "emoji": "🐝", "antigo": "The Laraki", "classe": "Goblin",
+        "efeito": "Pegue um número de cartas da pilha igual ao número de jogadores. Escolha 1 para a sua mão e distribua 1 carta virada para cima para cada um dos outros jogadores."
+    },
+    "mariposa_esfinge": {
+        "nome": "Mariposa-Esfinge", "emoji": "🦋", "antigo": "Mage", "classe": "Kobold",
+        "efeito": "Compre duas cartas diretamente do baralho."
+    },
+    "efemera_mimetica": {
+        "nome": "Efêmera Mimética", "emoji": "🦟", "antigo": "Nymph", "classe": "Esqueleto",
+        "efeito": "Pegue qualquer carta de inseto sobrenatural que já tenha sido jogada na mesa e ative o efeito dela de novo."
+    },
+    "vespa_joia": {
+        "nome": "Vespa-Joia Rainha", "emoji": "🐝", "antigo": "Shadow Queen", "classe": "Goblin",
+        "efeito": "Olhe secretamente a mão de cada jogador da mesa e roube uma carta sem olhar da mão de um deles."
+    },
+    "viuva_negra": {
+        "nome": "Viúva-Negra Tecelã", "emoji": "🕷️", "antigo": "Sorceress", "classe": "Esqueleto",
+        "efeito": "Sacrifique um conjunto de corujas ou corvos para reivindicar e escolher qualquer combo do jogo como seu."
+    },
+    "besouro_rinoceronte": {
+        "nome": "Besouro-Rinoceronte", "emoji": "🪲", "antigo": "Troll", "classe": "Troll",
+        "efeito": "Força o jogador alvo a descartar uma carta de sua mão, escolhida aleatoriamente por você."
+    },
+    "mosca_tse_tse": {
+        "nome": "Mosca-Tsé-Tsé", "emoji": "🪰", "antigo": "Werewolf", "classe": "Esqueleto",
+        "efeito": "Pica um oponente injetando uma toxina sonífera. Escolha um jogador para perder completamente a sua vez."
+    }
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 # ESTADO INICIAL DO JOGO
 # ═══════════════════════════════════════════════════════════════════════════
@@ -175,9 +274,7 @@ def criar_estado(pedregulhos=8, is_solo=True):
     deck_heroi = copy.deepcopy(CARTAS_BASICAS)
     random.shuffle(deck_heroi)
 
-    deck_ini = ["goblin", "goblin", "goblin", "goblin", "goblin",
-                "esqueleto", "esqueleto", "esqueleto", "esqueleto", "esqueleto",
-                "kobold", "kobold", "kobold", "kobold", "kobold"]
+    deck_ini = list(DADOS_INIMIGOS.keys()) * 2
     random.shuffle(deck_ini)
 
     return {

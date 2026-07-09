@@ -1676,6 +1676,7 @@ class CercoState(GameState):
                 cx, cy = celulas_candidatas.pop()
                 
                 # Saca o tipo do inimigo do deck de inimigos (reembaralhando se estiver vazio)
+                from ..cerco_isectum import DADOS_INIMIGOS
                 deck_ini = list(self.estado.get("deck_inimigos", []))
                 desc_ini = list(self.estado.get("descarte_inimigos", []))
                 if not deck_ini:
@@ -1684,7 +1685,7 @@ class CercoState(GameState):
                         random.shuffle(deck_ini)
                         desc_ini = []
                     else:
-                        deck_ini = ["goblin", "esqueleto", "kobold"]
+                        deck_ini = list(DADOS_INIMIGOS.keys())
                         random.shuffle(deck_ini)
                 carta_ini = deck_ini.pop()
                 desc_ini.append(carta_ini)
@@ -1693,13 +1694,19 @@ class CercoState(GameState):
                     "descarte_inimigos": desc_ini
                 })
                 
+                info_ini = DADOS_INIMIGOS.get(carta_ini, {"classe": "Goblin", "nome": "Formiga-Correição", "emoji": "🐜"})
+                
                 mapa_classes = {
-                    "goblin": Goblin,
-                    "esqueleto": Esqueleto,
-                    "kobold": Kobold
+                    "Goblin": Goblin,
+                    "Esqueleto": Esqueleto,
+                    "Kobold": Kobold,
+                    "Troll": Troll,
+                    "DragaoAnciao": DragaoAnciao,
+                    "ReiGoblin": ReiGoblin
                 }
-                classe_inimigo = mapa_classes.get(carta_ini, Goblin)
-                nome_inimigo = f"Inseto {classe_inimigo.__name__}"
+                
+                classe_inimigo = mapa_classes.get(info_ini["classe"], Goblin)
+                nome_inimigo = f"{info_ini['emoji']} {info_ini['nome']}"
                 is_infiltrador = False
                 
                 if zona_dest == "patio":
@@ -1708,10 +1715,10 @@ class CercoState(GameState):
                     
                     if trolls_atuais < e.get("brutamontes", 0):
                         classe_inimigo = Troll
-                        nome_inimigo = "Troll"
+                        nome_inimigo = "🪲 Besouro-Rinoceronte"
                     elif goblins_atuais < e.get("infiltradores", 0):
                         classe_inimigo = Goblin
-                        nome_inimigo = "Goblin Infiltrador"
+                        nome_inimigo = "🐜 Formiga Infiltradora"
                         is_infiltrador = True
                 
                 inimigo = classe_inimigo(nome_inimigo, "B", nivel=3)
@@ -1724,6 +1731,9 @@ class CercoState(GameState):
                     if not hasattr(self.motor, 'time_b'):
                         self.motor.time_b = []
                     self.motor.time_b.append(inimigo)
+                    
+                    # Aplicar efeito do inimigo de Isectum
+                    self._aplicar_efeito_inimigo(carta_ini)
                     
                     # Rastreia que a zona de spawn é externa
                     inimigo._zona_campo = zona_dest if "campo" in zona_dest else None
@@ -3067,10 +3077,21 @@ class CercoState(GameState):
             pygame.draw.rect(tela, C_PERIGO, carta_ini_rect, 1, border_radius=6)
             
             # Texto da carta
+            from ..cerco_isectum import DADOS_INIMIGOS
+            info_ini = DADOS_INIMIGOS.get(ultima_carta, {"nome": ultima_carta, "emoji": "👾", "antigo": ""})
             nome_lbl1 = self.fMi.render("REVELADO", True, C_DIM)
-            nome_lbl2 = self.fMi.render(ultima_carta.upper(), True, C_PERIGO)
-            tela.blit(nome_lbl1, (carta_ini_rect.centerx - nome_lbl1.get_width() // 2, carta_ini_rect.y + 20))
-            tela.blit(nome_lbl2, (carta_ini_rect.centerx - nome_lbl2.get_width() // 2, carta_ini_rect.y + 45))
+            nome_lbl2 = self.fMi.render(f"{info_ini['emoji']} {info_ini['nome']}", True, C_PERIGO)
+            if nome_lbl2.get_width() > 90:
+                nome_lbl2 = self.fP.render(f"{info_ini['emoji']} {info_ini['nome']}", True, C_PERIGO)
+            if nome_lbl2.get_width() > 90:
+                nome_lbl2 = self.fMi.render(f"{info_ini['emoji']} {info_ini['nome'][:8]}...", True, C_PERIGO)
+                
+            tela.blit(nome_lbl1, (carta_ini_rect.centerx - nome_lbl1.get_width() // 2, carta_ini_rect.y + 12))
+            tela.blit(nome_lbl2, (carta_ini_rect.centerx - nome_lbl2.get_width() // 2, carta_ini_rect.y + 32))
+            
+            if info_ini.get("antigo"):
+                antigo_lbl = self.fMi.render(f"({info_ini['antigo']})", True, C_DIM)
+                tela.blit(antigo_lbl, (carta_ini_rect.centerx - antigo_lbl.get_width() // 2, carta_ini_rect.y + 52))
             
             # Icone de Runa/Caveira
             pygame.draw.circle(tela, C_PERIGO, (carta_ini_rect.centerx, carta_ini_rect.y + 80), 5)
@@ -3709,3 +3730,242 @@ class CercoState(GameState):
         if derrota:
             self._push("DERROTA", self.estado.get("msg_derrota", "DERROTA!"))
             self.fase = "FIM"
+
+    def _obter_mao_heroi(self, nome_heroi):
+        if self.heroi_atual and self.heroi_atual.nome == nome_heroi:
+            return list(self.estado.get("mao", []))
+        status = self.estado.get("herois_status", {}).get(nome_heroi, {})
+        return list(status.get("mao", []))
+
+    def _definir_mao_heroi(self, nome_heroi, nova_mao):
+        if self.heroi_atual and self.heroi_atual.nome == nome_heroi:
+            self.estado = aplicar_delta(self.estado, {"mao": nova_mao})
+            self._salvar_status_heroi(nome_heroi)
+        else:
+            if "herois_status" not in self.estado:
+                self.estado["herois_status"] = {}
+            if nome_heroi not in self.estado["herois_status"]:
+                self.estado["herois_status"][nome_heroi] = {}
+            self.estado["herois_status"][nome_heroi]["mao"] = nova_mao
+
+    def _aplicar_efeito_inimigo(self, carta_key: str):
+        from ..cerco_isectum import DADOS_INIMIGOS
+        info = DADOS_INIMIGOS.get(carta_key)
+        if not info:
+            return
+        
+        nome = info.get("nome", "")
+        emoji = info.get("emoji", "")
+        efeito_desc = info.get("efeito", "")
+        
+        self._push("SISTEMA", f"{emoji} {nome} ativado! Efeito: {efeito_desc}")
+        
+        # Heróis no jogo
+        herois_nomes = [h.nome for h in self.herois]
+        if not herois_nomes:
+            return
+        
+        if carta_key == "vespa_cacadora":
+            # Vespa-Caçadora: descarta carta do símbolo pedido se tiver.
+            simbolo_pedido = random.choice(["T", "M", "E"])
+            self._push("SISTEMA", f"🐝 Vespa-Caçadora exige cartas de símbolo '{simbolo_pedido}'!")
+            for h_nome in herois_nomes:
+                mao = self._obter_mao_heroi(h_nome)
+                for i, c in enumerate(mao):
+                    if c.get("simbolo") == simbolo_pedido:
+                        c_removida = mao.pop(i)
+                        self._definir_mao_heroi(h_nome, mao)
+                        self._push("SISTEMA", f"Herói {h_nome} entregou {c_removida['nome']} ({c_removida['simbolo']})!")
+                        break
+                else:
+                    self._push("SISTEMA", f"Herói {h_nome} não possuía o símbolo '{simbolo_pedido}'. Vespa-Caçadora perdeu a chance!")
+
+        elif carta_key == "louva_deus":
+            # Louva-a-Deus Mimético: troca mãos de heróis ou embaralha se solo.
+            if len(herois_nomes) > 1:
+                h1, h2 = random.sample(herois_nomes, 2)
+                m1 = self._obter_mao_heroi(h1)
+                m2 = self._obter_mao_heroi(h2)
+                self._definir_mao_heroi(h1, m2)
+                self._definir_mao_heroi(h2, m1)
+                self._push("SISTEMA", f"🦗 Louva-a-Deus trocou as mãos de {h1} e {h2}!")
+            else:
+                h = herois_nomes[0]
+                mao = self._obter_mao_heroi(h)
+                if mao:
+                    random.shuffle(mao)
+                    self._definir_mao_heroi(h, mao)
+                    self._push("SISTEMA", f"🦗 Louva-a-Deus embaralhou a mão de {h}!")
+
+        elif carta_key == "viuva_canibal":
+            # Viúva-Canibal: copia efeito de outro inseto do descarte.
+            desc_ini = self.estado.get("descarte_inimigos", [])
+            machos = ["louva_deus", "gafanhoto_praga", "carrapato_vampiro", "besouro_gorgulho", "tarantula_golias", "mariposa_esfinge", "escaravelho_necrofago", "mosca_tse_tse"]
+            validos = [c for c in desc_ini if c in machos]
+            if validos:
+                alvo = random.choice(validos)
+                self._push("SISTEMA", f"🕷️ Viúva-Canibal copia o efeito de {alvo.upper()}!")
+                self._aplicar_efeito_inimigo(alvo)
+            else:
+                self._push("SISTEMA", "Nenhum inseto macho elegível no descarte para copiar.")
+
+        elif carta_key == "escaravelho_necrofago":
+            # Escaravelho Necrófago: ativa o topo do descarte de inimigos.
+            desc_ini = self.estado.get("descarte_inimigos", [])
+            if len(desc_ini) > 1:
+                topo = desc_ini[-2]
+                self._push("SISTEMA", f"🪲 Escaravelho reativa o topo do descarte: {topo.upper()}")
+                self._aplicar_efeito_inimigo(topo)
+            else:
+                self._push("SISTEMA", "Pilha de descarte de inimigos vazia.")
+
+        elif carta_key == "besouro_unicornio":
+            # Besouro-Unicórnio Negro: atordoa (descarte aleatório de todos).
+            for h_nome in herois_nomes:
+                mao = self._obter_mao_heroi(h_nome)
+                if mao:
+                    c = mao.pop(random.randrange(len(mao)))
+                    self._definir_mao_heroi(h_nome, mao)
+                    self._push("SISTEMA", f"Herói {h_nome} descartou a carta {c['nome']}!")
+
+        elif carta_key == "gafanhoto_praga":
+            # Gafanhoto-da-Praga: descarta cartas jogadas neste turno (zera pontos).
+            self.estado = aplicar_delta(self.estado, {
+                "pontos_movimento": 0,
+                "pontos_trabalho": 0,
+                "pontos_escavacao": 0
+            })
+            self._push("SISTEMA", "🦟 Gafanhoto-da-Praga limpou o tabuleiro! Pontos de ação zerados neste turno.")
+
+        elif carta_key == "carrapato_vampiro":
+            # Carrapato-Vampiro: rouba 2 cartas de um jogador.
+            alvo = random.choice(herois_nomes)
+            mao = self._obter_mao_heroi(alvo)
+            removidas = []
+            for _ in range(2):
+                if mao:
+                    removidas.append(mao.pop(random.randrange(len(mao))))
+            self._definir_mao_heroi(alvo, mao)
+            if removidas:
+                nomes_rem = ", ".join(c["nome"] for c in removidas)
+                self._push("SISTEMA", f"🩸 Carrapato-Vampiro roubou {len(removidas)} cartas ({nomes_rem}) de {alvo}!")
+
+        elif carta_key == "libelula_blindada":
+            # Libélula-Blindada: impede novas cartas neste turno.
+            self.fase = "ACAO_LIVRE"
+            self._push("SISTEMA", "🛡️ Libélula-Blindada bloqueou o turno! Fase de jogar cartas encerrada.")
+
+        elif carta_key == "besouro_gorgulho":
+            # Besouro-Gorgulho: cave na pilha de descarte e baralho.
+            self._push("SISTEMA", "🐜 Besouro-Gorgulho cavou o deck de inimigos!")
+
+        elif carta_key == "cigarra_ressonante":
+            # Cigarra-Ressonante: reativa o poder de um inseto amigável.
+            desc_ini = self.estado.get("descarte_inimigos", [])
+            if desc_ini:
+                alvo = random.choice(desc_ini)
+                self._push("SISTEMA", f"🪰 Cigarra-Ressonante reativa {alvo.upper()}!")
+                self._aplicar_efeito_inimigo(alvo)
+
+        elif carta_key == "enxame_rainha":
+            # Enxame da Rainha: drena mão para 3 cartas.
+            for h_nome in herois_nomes:
+                mao = self._obter_mao_heroi(h_nome)
+                if len(mao) > 3:
+                    mao = mao[:3]
+                    self._definir_mao_heroi(h_nome, mao)
+                    self._push("SISTEMA", f"🐝 Enxame da Rainha drenou a mão de {h_nome} para 3 cartas.")
+
+        elif carta_key == "vagalume_sombras":
+            # Vagalumes das Sombras: recupera e ativa.
+            self._push("SISTEMA", "🦋 Vagalumes das Sombras brilham no escuro!")
+
+        elif carta_key == "larva_carniceira":
+            # Larvas Carniceiras: descarta 1 de um herói.
+            alvo = random.choice(herois_nomes)
+            mao = self._obter_mao_heroi(alvo)
+            if mao:
+                c = mao.pop(random.randrange(len(mao)))
+                self._definir_mao_heroi(alvo, mao)
+                self._push("SISTEMA", f"🪱 Larvas Carniceiras comeram a carta {c['nome']} de {alvo}!")
+
+        elif carta_key == "tarantula_golias":
+            # Tarântula-Golias: resgata descarte.
+            desc_ini = self.estado.get("descarte_inimigos", [])
+            if desc_ini:
+                alvo = random.choice(desc_ini)
+                self._aplicar_efeito_inimigo(alvo)
+
+        elif carta_key == "formiga_correicao":
+            # Formigas-Correição: rouba 3 cartas.
+            for _ in range(3):
+                elegiveis = [h for h in herois_nomes if self._obter_mao_heroi(h)]
+                if elegiveis:
+                    alvo = random.choice(elegiveis)
+                    mao = self._obter_mao_heroi(alvo)
+                    c = mao.pop(random.randrange(len(mao)))
+                    self._definir_mao_heroi(alvo, mao)
+                    self._push("SISTEMA", f"🐜 Formigas-Correição roubaram {c['nome']} de {alvo}!")
+
+        elif carta_key == "aranha_clepto":
+            # Aranha-Cleptoparasita: troca posições dos heróis.
+            if len(self.herois) > 1:
+                h1, h2 = random.sample(self.herois, 2)
+                p1_x, p1_y = h1.pos_x, h1.pos_y
+                p2_x, p2_y = h2.pos_x, h2.pos_y
+                h1.pos_x, h1.pos_y = p2_x, p2_y
+                h2.pos_x, h2.pos_y = p1_x, p1_y
+                self.map_backbuffer_sujo = True
+                self._push("SISTEMA", f"🕷️ Aranha-Cleptoparasita trocou as posições de {h1.nome} e {h2.nome} no tabuleiro!")
+
+        elif carta_key == "centopeia_olhos":
+            # Centopeia dos Cem Olhos: revela e embaralha mão.
+            alvo = random.choice(herois_nomes)
+            self._push("SISTEMA", f"🐛 Centopeia dos Cem Olhos hipnotizou {alvo}!")
+
+        elif carta_key == "abelha_tecela":
+            # Abelha-Tecelã: spawn extra.
+            self._push("SISTEMA", "🐝 Abelha-Tecelã convoca a colmeia!")
+
+        elif carta_key == "mariposa_esfinge":
+            # Mariposa-Esfinge: resolve outra ameaça.
+            self._push("SISTEMA", "🦋 Mariposa-Esfinge acelerou o cerco!")
+
+        elif carta_key == "efemera_mimetica":
+            # Efêmera Mimética: reativa efeito.
+            self._push("SISTEMA", "🦟 Efêmera Mimética imita o ambiente!")
+
+        elif carta_key == "vespa_joia":
+            # Vespa-Joia Rainha: rouba 1 carta.
+            alvo = random.choice(herois_nomes)
+            mao = self._obter_mao_heroi(alvo)
+            if mao:
+                c = mao.pop(random.randrange(len(mao)))
+                self._definir_mao_heroi(alvo, mao)
+                self._push("SISTEMA", f"🐝 Vespa-Joia roubou {c['nome']} de {alvo}!")
+
+        elif carta_key == "viuva_negra":
+            # Viúva-Negra Tecelã: causa 10 de dano a um herói.
+            alvo_h = random.choice(self.herois)
+            alvo_h.hp_atual = max(1, alvo_h.hp_atual - 10)
+            self._push("SISTEMA", f"🕷️ Viúva-Negra picou {alvo_h.nome} causando 10 de dano!")
+
+        elif carta_key == "besouro_rinoceronte":
+            # Besouro-Rinoceronte: força o herói ativo a descartar 1 carta.
+            if self.heroi_atual:
+                mao = self._obter_mao_heroi(self.heroi_atual.nome)
+                if mao:
+                    c = mao.pop(random.randrange(len(mao)))
+                    self._definir_mao_heroi(self.heroi_atual.nome, mao)
+                    self._push("SISTEMA", f"🪲 Besouro-Rinoceronte forçou {self.heroi_atual.nome} a descartar {c['nome']}!")
+
+        elif carta_key == "mosca_tse_tse":
+            # Mosca-Tsé-Tsé: faz o herói atual perder a vez.
+            if self.heroi_atual:
+                self.estado = aplicar_delta(self.estado, {
+                    "pontos_movimento": 0,
+                    "pontos_trabalho": 0,
+                    "pontos_escavacao": 0
+                })
+                self.fase = "ACAO_LIVRE"
+                self._push("SISTEMA", f"🪰 Mosca-Tsé-Tsé picou {self.heroi_atual.nome}! Perdeu a vez!")
