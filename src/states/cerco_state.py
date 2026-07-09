@@ -237,7 +237,40 @@ class CercoState(GameState):
             self.motor.time_a.append(heroi)
             self.motor.combatentes.append(heroi)
             self.motor.tabuleiro.adicionar_personagem(heroi, pos[0], pos[1])
-
+        # Inicializa o status individual para cada herói no estado do jogo
+        self.estado["herois_status"] = {}
+        self.estado["herois_jogaram"] = []
+        import copy
+        import random
+        from src.cerco_isectum import CARTAS_BASICAS
+        
+        # O primeiro herói herda o deck/descarte/mão inicial do estado geral
+        p_heroi = self.herois[0]
+        self.estado["herois_status"][p_heroi.nome] = {
+            "mao":              list(self.estado.get("mao", [])),
+            "deck_heroi":       list(self.estado.get("deck_heroi", [])),
+            "descarte":         list(self.estado.get("descarte", [])),
+            "excluidas_ciclo":  list(self.estado.get("excluidas_ciclo", [])),
+            "pontos_movimento": self.estado.get("pontos_movimento", 0),
+            "pontos_trabalho":  self.estado.get("pontos_trabalho", 0),
+            "pontos_escavacao": self.estado.get("pontos_escavacao", 0),
+            "voo_ativo":        self.estado.get("voo_ativo", False)
+        }
+        
+        # Os heróis subsequentes recebem um baralho básico completo próprio embaralhado
+        for h in self.herois[1:]:
+            deck_sub = copy.deepcopy(CARTAS_BASICAS)
+            random.shuffle(deck_sub)
+            self.estado["herois_status"][h.nome] = {
+                "mao":              [],
+                "deck_heroi":       deck_sub,
+                "descarte":         [],
+                "excluidas_ciclo":  [],
+                "pontos_movimento": 0,
+                "pontos_trabalho":  0,
+                "pontos_escavacao": 0,
+                "voo_ativo":        False
+            }
         self._setup_fonts()
         self._setup_layout()
         self.terrain_iso_cache = {}
@@ -280,22 +313,61 @@ class CercoState(GameState):
             self.heroi_atual_idx = 0
         return self.herois[self.heroi_atual_idx]
 
+    def _salvar_status_heroi(self, nome_heroi):
+        if "herois_status" not in self.estado:
+            self.estado["herois_status"] = {}
+        self.estado["herois_status"][nome_heroi] = {
+            "mao":              list(self.estado.get("mao", [])),
+            "deck_heroi":       list(self.estado.get("deck_heroi", [])),
+            "descarte":         list(self.estado.get("descarte", [])),
+            "excluidas_ciclo":  list(self.estado.get("excluidas_ciclo", [])),
+            "pontos_movimento": self.estado.get("pontos_movimento", 0),
+            "pontos_trabalho":  self.estado.get("pontos_trabalho", 0),
+            "pontos_escavacao": self.estado.get("pontos_escavacao", 0),
+            "voo_ativo":        self.estado.get("voo_ativo", False)
+        }
+
+    def _carregar_status_heroi(self, nome_heroi):
+        if "herois_status" not in self.estado or nome_heroi not in self.estado["herois_status"]:
+            return
+        status = self.estado["herois_status"][nome_heroi]
+        self.estado = aplicar_delta(self.estado, {
+            "mao":              list(status.get("mao", [])),
+            "deck_heroi":       list(status.get("deck_heroi", [])),
+            "descarte":         list(status.get("descarte", []),),
+            "excluidas_ciclo":  list(status.get("excluidas_ciclo", [])),
+            "pontos_movimento": status.get("pontos_movimento", 0),
+            "pontos_trabalho":  status.get("pontos_trabalho", 0),
+            "pontos_escavacao": status.get("pontos_escavacao", 0),
+            "voo_ativo":        status.get("voo_ativo", False)
+        })
+
     def _alternar_heroi(self):
-        """Alterna para o próximo herói na lista."""
+        """Alterna para o próximo herói na lista, salvando e carregando o status correspondente."""
         if len(self.herois) <= 1:
             return
+        
+        # Salva o status do herói atual antes de alternar
+        heroi_antigo = self.heroi_atual
+        if heroi_antigo:
+            self._salvar_status_heroi(heroi_antigo.nome)
+            
         self.heroi_atual_idx = (self.heroi_atual_idx + 1) % len(self.herois)
         novo = self.heroi_atual
         if novo:
+            # Carrega o status do novo herói
+            self._carregar_status_heroi(novo.nome)
+            
             # Encontra a posição do herói no grid
             tab = self.motor.tabuleiro
+            from ..resolvedor_acoes import obter_zona_por_coordenada
             for gy in range(tab.altura):
                 for gx in range(tab.largura):
                     if tab.grid[gy][gx] is novo:
                         self.estado = aplicar_delta(self.estado, {
                             "heroi_x": gx,
                             "heroi_y": gy,
-                            "pos_heroi": "camara_central",
+                            "pos_heroi": obter_zona_por_coordenada(gx, gy) or "camara_central",
                         })
                         break
             nome_exibido = "?????" if novo.nome == "Aquele" else novo.nome
@@ -1259,6 +1331,7 @@ class CercoState(GameState):
             except:
                 pass
             return
+        
         # Reseta pontos
         self.estado = aplicar_delta(self.estado, {
             "pontos_movimento": 0,
@@ -1269,19 +1342,64 @@ class CercoState(GameState):
         reset_brute = resetar_dano_turno_brutamonte(self.estado)
         if reset_brute:
             self.estado = aplicar_delta(self.estado, reset_brute)
+            
+        # Salva o status do herói atual
+        self._salvar_status_heroi(self.heroi_atual.nome)
         
-        # Reposição de Mercado: Se terminar na Área Central/Base ("camara_central") e houver slots vazios, entra em modo interativo
-        pos_heroi = self.estado.get("pos_heroi", "camara_central")
-        tem_slot_vazio = any(s.get("adquirido") or s.get("carta_id") is None for s in self.estado["slots_upgrade"])
+        # Registra que este herói já jogou
+        jogaram = list(self.estado.get("herois_jogaram", []))
+        if self.heroi_atual.nome not in jogaram:
+            jogaram.append(self.heroi_atual.nome)
+        self.estado = aplicar_delta(self.estado, {"herois_jogaram": jogaram})
         
-        if pos_heroi == "camara_central" and tem_slot_vazio:
-            self.fase = "REPOVOAR_MERCADO"
-            self._feedback("Reposição: Escolha de qual deck comprar no painel lateral!", C_OURO)
-            self._push("SISTEMA", "Base Central: Escolha de qual deck repovoar cada slot vazio no mercado.")
-            self.alcancaveis = {}
-            self.modo_acao = MODO_NENHUM
+        # Encontra o próximo herói que ainda não jogou
+        proximo_heroi = None
+        for h in self.herois:
+            if h.nome not in jogaram:
+                proximo_heroi = h
+                break
+                
+        if proximo_heroi:
+            # Alterna para o próximo herói aliado que ainda não jogou
+            idx_novo = self.herois.index(proximo_heroi)
+            self.heroi_atual_idx = idx_novo
+            self._carregar_status_heroi(proximo_heroi.nome)
+            
+            # Novo herói compra sua nova mão
+            self._comprar_mao()
+            
+            # Encontra a posição do novo herói no grid
+            tab = self.motor.tabuleiro
+            from ..resolvedor_acoes import obter_zona_por_coordenada
+            for gy in range(tab.altura):
+                for gx in range(tab.largura):
+                    if tab.grid[gy][gx] is proximo_heroi:
+                        self.estado = aplicar_delta(self.estado, {
+                            "heroi_x": gx,
+                            "heroi_y": gy,
+                            "pos_heroi": obter_zona_por_coordenada(gx, gy) or "camara_central",
+                        })
+                        break
+            
+            nome_exibido = "?????" if proximo_heroi.nome == "Aquele" else proximo_heroi.nome
+            self._feedback(f"Turno de {nome_exibido}! Use suas cartas.", C_HEROI)
+            self._push("SISTEMA", f"Início do turno do herói: {nome_exibido}")
         else:
-            self._concluir_fim_turno_completo()
+            # Todos os heróis jogaram na rodada! Reseta a lista e prossegue para a fase de ameaça
+            self.estado = aplicar_delta(self.estado, {"herois_jogaram": []})
+            
+            # Reposição de Mercado: Se terminar na Área Central/Base ("camara_central") e houver slots vazios, entra em modo interativo
+            pos_heroi = self.estado.get("pos_heroi", "camara_central")
+            tem_slot_vazio = any(s.get("adquirido") or s.get("carta_id") is None for s in self.estado["slots_upgrade"])
+            
+            if pos_heroi == "camara_central" and tem_slot_vazio:
+                self.fase = "REPOVOAR_MERCADO"
+                self._feedback("Reposição: Escolha de qual deck comprar no painel lateral!", C_OURO)
+                self._push("SISTEMA", "Base Central: Escolha de qual deck repovoar cada slot vazio no mercado.")
+                self.alcancaveis = {}
+                self.modo_acao = MODO_NENHUM
+            else:
+                self._concluir_fim_turno_completo()
 
     def _concluir_fim_turno_completo(self):
         # Descarta mão restante
