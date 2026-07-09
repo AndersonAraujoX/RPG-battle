@@ -209,6 +209,7 @@ def criar_estado(pedregulhos=8, is_solo=True):
         "deck_heroi":         deck_heroi,
         "mao":                [],
         "descarte":           [],
+        "excluidas_ciclo":    [],
         "pontos_movimento":   0,
         "pontos_trabalho":    0,
         "pontos_escavacao":   0,

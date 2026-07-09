@@ -480,12 +480,30 @@ class CercoState(GameState):
 
         while len(mao) < self.TAM_MAO:
             if not deck:
-                if not discard:
+                if not discard and not self.estado.get("excluidas_ciclo", []):
                     break
-                deck = discard[:]
-                random.shuffle(deck)
+                
+                # Reembaralha as 12 cartas (deck + discard + hand + excluidas)
+                todas = list(discard) + list(mao) + list(deck) + list(self.estado.get("excluidas_ciclo", []))
+                random.shuffle(todas)
+                
+                # Descarta 2 aleatoriamente de face para baixo (excluídas do ciclo)
+                # Para preservar a mão ativa do jogador, as 2 descartadas são tiradas de cartas fora de "mao"
+                candidatas_descarte = [c for c in todas if c not in mao]
+                excluidas = []
+                if len(candidatas_descarte) >= 2:
+                    excluidas.append(candidatas_descarte.pop(random.randrange(len(candidatas_descarte))))
+                    excluidas.append(candidatas_descarte.pop(random.randrange(len(candidatas_descarte))))
+                
+                # As restantes formam o novo Deck de Saque (deck_heroi) menos o que já está na mão
+                deck = [c for c in todas if c not in mao and c not in excluidas]
                 discard = []
-                self._push("SISTEMA", "Deck embaralhado do descarte.")
+                
+                self.estado = aplicar_delta(self.estado, {
+                    "excluidas_ciclo": excluidas
+                })
+                self._push("SISTEMA", "Ciclo do Baralho: 12 cartas reembaralhadas. 2 descartadas face para baixo.")
+            
             carta = deck.pop()
             mao.append(carta)
             cartas_adicionadas.append(carta)

@@ -359,7 +359,12 @@ def validar_comprar_upgrade(estado, slot_id: int, idx_carta_queimar: int, mao: l
 
     if idx_carta_queimar < 0 or idx_carta_queimar >= len(mao):
         return False, "Escolha carta para queimar."
-    if mao[idx_carta_queimar].get("tipo") == "ameaca":
+    
+    carta_queimar = mao[idx_carta_queimar]
+    if carta_queimar.get("id") in ("invocador_1", "invocador_2") or carta_queimar.get("efeito_extra") == "invocar_inimigo":
+        return False, "Proibição estrita: não é permitido remover as 2 Cartas de Orc originais!"
+
+    if carta_queimar.get("tipo") == "ameaca":
         return False, "Não pode queimar ameaça."
 
     return True, ""
