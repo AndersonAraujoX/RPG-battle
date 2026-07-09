@@ -1026,6 +1026,14 @@ class CercoState(GameState):
         if self.walk_anim:
             return
 
+        # Clique em um Goblin Pacífico (Infiltrador) ativa o modo de negociação!
+        char = self.motor.tabuleiro.grid[cy][cx]
+        if self.modo_acao == MODO_NENHUM and char and getattr(char, "_is_infiltrador", False):
+            self.modo_acao = MODO_SUBORNAR
+            self.alvo_negociacao = char
+            self._feedback("Negociar: escolha Recurso no rodapé ou use Escavação para limpar rochas!", C_OURO)
+            return
+
         # ── Movimento livre (MODO_NENHUM) ───────────────────────────────
         if self.modo_acao == MODO_NENHUM:
             from_pos = (e.get("heroi_x", 9), e.get("heroi_y", 9))
@@ -1184,13 +1192,50 @@ class CercoState(GameState):
         e = self.estado
         ok, msg = validar_subornar(e, recurso)
         if ok:
+            # Remove a figura física do Goblin negociado no tabuleiro
+            goblin_alvo = getattr(self, "alvo_negociacao", None)
+            if goblin_alvo and goblin_alvo in self.motor.combatentes:
+                tab = self.motor.tabuleiro
+                if 0 <= goblin_alvo.pos_y < len(tab.grid) and 0 <= goblin_alvo.pos_x < len(tab.grid[0]):
+                    tab.grid[goblin_alvo.pos_y][goblin_alvo.pos_x] = None
+                self.motor.combatentes.remove(goblin_alvo)
+                if hasattr(self.motor, 'time_b') and goblin_alvo in self.motor.time_b:
+                    self.motor.time_b.remove(goblin_alvo)
+
             delta, logs = executar_subornar(e, recurso)
             self.estado = aplicar_delta(e, delta)
             for t, m in logs: self._push(t, m)
-            self._feedback(f"Infiltrador subornado!", C_VERDE)
+            self._feedback(f"Goblin negociou com sucesso!", C_VERDE)
         else:
             self._feedback(msg, C_PERIGO)
         self.modo_acao = MODO_NENHUM
+        self.alvo_negociacao = None
+
+    def _limpar_rocha_goblin(self):
+        e = self.estado
+        if e.get("pontos_escavacao", 0) < 4:
+            self._feedback("Requer 4 Pontos de Escavação (PE)!", C_PERIGO)
+            return
+
+        # Remove o Goblin negociado da grade
+        goblin_alvo = getattr(self, "alvo_negociacao", None)
+        if goblin_alvo and goblin_alvo in self.motor.combatentes:
+            tab = self.motor.tabuleiro
+            if 0 <= goblin_alvo.pos_y < len(tab.grid) and 0 <= goblin_alvo.pos_x < len(tab.grid[0]):
+                tab.grid[goblin_alvo.pos_y][goblin_alvo.pos_x] = None
+            self.motor.combatentes.remove(goblin_alvo)
+            if hasattr(self.motor, 'time_b') and goblin_alvo in self.motor.time_b:
+                self.motor.time_b.remove(goblin_alvo)
+
+        delta = {
+            "infiltradores": max(0, e.get("infiltradores", 0) - 1),
+            "pontos_escavacao": max(0, e.get("pontos_escavacao", 0) - 4),
+        }
+        self.estado = aplicar_delta(e, delta)
+        self._push("HEROI", "⛏️ Ajudou Goblin a limpar rocha bônus (gastou 4 PE)!")
+        self._feedback("Goblin negociou e saiu!", C_VERDE)
+        self.modo_acao = MODO_NENHUM
+        self.alvo_negociacao = None
 
     # ── FIM DE TURNO DO HERÓI ────────────────────────────────────────────
     def _fim_turno_heroi(self):
@@ -1305,7 +1350,7 @@ class CercoState(GameState):
 
     def _sincronizar_inimigos_tabuleiro(self):
         from src.resolvedor_acoes import ZONAS_GRID, obter_zona_por_coordenada
-        from src.personagens.minions import Goblin, Esqueleto, Kobold
+        from src.personagens.minions import Goblin, Esqueleto, Kobold, Troll
         import random
 
         e = self.estado
@@ -1332,7 +1377,7 @@ class CercoState(GameState):
         for zona, (x1, y1, x2, y2) in ZONAS_GRID.items():
             esperados = e["invasores"].get(zona, 0)
             if zona == "patio":
-                esperados += e.get("brutamontes", 0)
+                esperados += e.get("brutamontes", 0) + e.get("infiltradores", 0)
 
             atuais = inimigos_por_zona[zona]
             if len(atuais) > esperados:
@@ -1423,9 +1468,25 @@ class CercoState(GameState):
                     break
                 cx, cy = celulas_candidatas.pop()
                 
-                classe_inseto = random.choice([Goblin, Esqueleto, Kobold])
-                nome_inimigo = f"Inseto {classe_inseto.__name__}"
-                inimigo = classe_inseto(nome_inimigo, "B", nivel=3)
+                classe_inimigo = random.choice([Goblin, Esqueleto, Kobold])
+                nome_inimigo = f"Inseto {classe_inimigo.__name__}"
+                is_infiltrador = False
+                
+                if zona_dest == "patio":
+                    trolls_atuais = sum(1 for p in self.motor.combatentes if getattr(p, "classe_nome", None) == "Troll" and p.hp_atual > 0)
+                    goblins_atuais = sum(1 for p in self.motor.combatentes if getattr(p, "classe_nome", None) == "Goblin" and p.hp_atual > 0 and getattr(p, "_is_infiltrador", False))
+                    
+                    if trolls_atuais < e.get("brutamontes", 0):
+                        classe_inimigo = Troll
+                        nome_inimigo = "Troll"
+                    elif goblins_atuais < e.get("infiltradores", 0):
+                        classe_inimigo = Goblin
+                        nome_inimigo = "Goblin Infiltrador"
+                        is_infiltrador = True
+                
+                inimigo = classe_inimigo(nome_inimigo, "B", nivel=3)
+                if is_infiltrador:
+                    inimigo._is_infiltrador = True
                 
                 sucesso = tab.adicionar_personagem(inimigo, cx, cy)
                 if sucesso:
@@ -2012,6 +2073,22 @@ class CercoState(GameState):
                     eh_atual = char is self.heroi_atual
                     cor_char = (100, 215, 255) if eh_atual else (200, 180, 255)
                     desenhar_sprite(tela, char, rect_char, cor_char, self.game.imagens, self.game.sprites_visiveis)
+                    
+                    # Desenha círculos de vida individuais do Troll (Brutamonte)
+                    if char.nome == "Troll" or getattr(char, "classe_nome", None) == "Troll":
+                        trolls_no_tabuleiro = [p for p in self.motor.combatentes if getattr(p, "classe_nome", None) == "Troll" and p.hp_atual > 0]
+                        circulos_marcados = 0
+                        if trolls_no_tabuleiro and trolls_no_tabuleiro[0] is char:
+                            circulos_marcados = e.get("brutamonte_hp", {}).get("circulos_marcados", 0)
+                        
+                        circle_y = cy_draw - int(24 * self.zoom)
+                        circle_x_start = cx_draw - int(10 * self.zoom)
+                        for c_idx in range(3):
+                            c_x = circle_x_start + c_idx * int(10 * self.zoom)
+                            c_color = (255, 50, 50) if c_idx < circulos_marcados else (50, 200, 50)
+                            pygame.draw.circle(tela, c_color, (c_x, circle_y), int(3 * self.zoom))
+                            pygame.draw.circle(tela, (20, 20, 20), (c_x, circle_y), int(3 * self.zoom), 1)
+
                     if eh_atual:
                         pulse = abs(self.timer % 120 - 60) / 60.0
                         pulse_r = max(2, int((4 + 3 * pulse) * self.zoom))
@@ -2023,6 +2100,9 @@ class CercoState(GameState):
                             (max(1, int(nome_s.get_width() * self.zoom)),
                              max(1, int(nome_s.get_height() * self.zoom))))
                     tela.blit(nome_s, (cx_draw - nome_s.get_width() // 2, cy_draw - int(32 * self.zoom)))
+
+
+
 
         # ── Informações Dinâmicas sobre Zonas (Super Minimalista) ────────────────
         e = self.estado
@@ -2559,6 +2639,15 @@ class CercoState(GameState):
                     if pygame.mouse.get_pressed()[0]:
                         self._subornar_recurso(res)
                 bx += 56
+            
+            # Botão Limpar Rocha (4 PE)
+            br_rocha = pygame.Rect(bx, H - 48, 140, 36)
+            ativo_rocha = e.get("pontos_escavacao", 0) >= 4
+            _btn(br_rocha, "🪨 Limpar Rocha(4PE)", ativo_rocha,
+                 (30, 40, 50), (50, 70, 90), (20, 20, 20))
+            if br_rocha.collidepoint(mouse) and ativo_rocha:
+                if pygame.mouse.get_pressed()[0]:
+                    self._limpar_rocha_goblin()
 
     # ── OVERLAY CARTA DE AMEAÇA ──────────────────────────────────────────
     def _draw_carta_overlay(self, tela, W, H):

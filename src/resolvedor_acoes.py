@@ -255,7 +255,7 @@ def executar_escavar(estado, qtd: int) -> tuple[dict, list]:
         logs.append(("VITORIA", "VITÓRIA! Túnel concluído!"))
     elif novo % 4 == 0 and novo < estado["pedregulhos_max"]:
         delta["infiltradores"] = estado.get("infiltradores", 0) + 2
-        logs.append(("CERCO", "2 Infiltradores invadiram a escavação!"))
+        logs.append(("CERCO", "Emboscada! Seção de túnel de madeira limpa. 2 Goblins invadiram o Pátio!"))
 
     return delta, logs
 
@@ -263,10 +263,10 @@ def executar_escavar(estado, qtd: int) -> tuple[dict, list]:
 def validar_subornar(estado, recurso: str):
     inf = estado.get("infiltradores", 0)
     if inf <= 0:
-        return False, "Nenhum infiltrador para subornar."
+        return False, "Nenhum Goblin pacífico para negociar."
     dep = estado.get("recursos_depositados", {})
     if dep.get(recurso, 0) <= 0:
-        return False, f"Sem {NOME_RECURSO.get(recurso, recurso)}."
+        return False, f"Sem {NOME_RECURSO.get(recurso, recurso)} para entregar."
     return True, ""
 
 
@@ -277,7 +277,7 @@ def executar_subornar(estado, recurso: str) -> tuple[dict, list]:
         "infiltradores":        max(0, estado.get("infiltradores", 0) - 1),
         "recursos_depositados": dep,
     }
-    logs = [("HEROI", f"Infiltrador removido via suborno com {NOME_RECURSO.get(recurso, recurso)}.")]
+    logs = [("HEROI", f"Goblin negociou pacificamente em troca de 1x {NOME_RECURSO.get(recurso, recurso)}!")]
     return delta, logs
 
 
