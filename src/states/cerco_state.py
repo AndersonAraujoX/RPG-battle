@@ -75,8 +75,8 @@ ZONA_TERRENO_MAP = {
     "torre_sw":       "rocha",
     "torre_se":       "rocha",
     "_corredor":      "normal",
-    "_campo":         "floresta",
-    "_exterior":      "floresta",
+    "_campo":         "campo",
+    "_exterior":      "exterior",
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -191,6 +191,8 @@ class CercoState(GameState):
         from ..resolvedor_acoes import ZONAS_GRID
         # Preencher o terrain_grid do tabuleiro com as zonas correspondentes
         for zona_id, (x1, y1, x2, y2) in ZONAS_GRID.items():
+            if zona_id.startswith("campo_"):
+                continue
             for cy in range(y1, y2 + 1):
                 for cx in range(x1, x2 + 1):
                     if not (0 <= cx < self.motor.tabuleiro.largura and 0 <= cy < self.motor.tabuleiro.altura):
@@ -217,7 +219,12 @@ class CercoState(GameState):
                         self.motor.tabuleiro.terrain_grid[cy][cx] = "normal"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 1
                     else:
-                        self.motor.tabuleiro.terrain_grid[cy][cx] = "normal"
+                        # Campos externos (lado de fora)
+                        import random
+                        if random.random() < 0.45:
+                            self.motor.tabuleiro.terrain_grid[cy][cx] = "floresta"
+                        else:
+                            self.motor.tabuleiro.terrain_grid[cy][cx] = "normal"
                         self.motor.tabuleiro.elevation_grid[cy][cx] = 0
 
         # Cria os heróis selecionados e os posiciona no tabuleiro
@@ -1763,6 +1770,12 @@ class CercoState(GameState):
             self._ultimo_zoom = zm
             self.map_backbuffer_sujo = True
 
+        # Invalida o backbuffer se os recursos depositados mudarem
+        curr_dep = self.estado.get("recursos_depositados", {})
+        if not hasattr(self, '_ultimo_recursos') or self._ultimo_recursos != curr_dep:
+            self._ultimo_recursos = dict(curr_dep)
+            self.map_backbuffer_sujo = True
+
         # Atualiza a animação de comprar cartas
         if hasattr(self, 'animacoes_cartas_compra') and self.animacoes_cartas_compra:
             for anim in self.animacoes_cartas_compra:
@@ -2131,6 +2144,41 @@ class CercoState(GameState):
                     cor_top = paleta[0]
                     pygame.draw.polygon(self.map_backbuffer, cor_top, top_pts)
 
+                # --- ÁRVORE 3D PROCEDURAL NO BACKBUFFER (Depth-Sorting Correto) ---
+                import zlib
+                has_tree_outside = False
+                if zona_key in ("_campo", "_exterior"):
+                    val = zlib.adler32(f"tree_{gx}_{gy}".encode())
+                    if val % 100 < 30:
+                        has_tree_outside = True
+                        
+                if has_tree_outside:
+                    trunk_w = max(2, int(6 * self.zoom))
+                    trunk_h = max(4, int(16 * self.zoom))
+                    
+                    # Sombra na base (no backbuffer)
+                    sombra = pygame.Surface((int(24 * self.zoom), int(12 * self.zoom)), pygame.SRCALPHA)
+                    pygame.draw.ellipse(sombra, (0, 0, 0, 70), (0, 0, sombra.get_width(), sombra.get_height()))
+                    self.map_backbuffer.blit(sombra, (cx_ - sombra.get_width() // 2, cy_ - sombra.get_height() // 2))
+                    
+                    # Tronco
+                    pygame.draw.rect(self.map_backbuffer, (85, 55, 30), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h))
+                    pygame.draw.rect(self.map_backbuffer, (55, 35, 20), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h), 1)
+                    
+                    # Copa (3 camadas)
+                    r1 = max(4, int(13 * self.zoom))
+                    r2 = max(3, int(10 * self.zoom))
+                    r3 = max(2, int(7 * self.zoom))
+                    
+                    pygame.draw.circle(self.map_backbuffer, (28, 98, 43), (cx_, cy_ - trunk_h), r1)
+                    pygame.draw.circle(self.map_backbuffer, (18, 68, 28), (cx_, cy_ - trunk_h), r1, 1)
+                    
+                    pygame.draw.circle(self.map_backbuffer, (38, 128, 53), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2)
+                    pygame.draw.circle(self.map_backbuffer, (23, 88, 33), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2, 1)
+                    
+                    pygame.draw.circle(self.map_backbuffer, (48, 158, 63), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3)
+                    pygame.draw.circle(self.map_backbuffer, (33, 108, 43), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3, 1)
+
                 ZONA_CONTORNOS = {
                     "camara_central": (235, 195, 30),  # Dourado (Ouro)
                     "curtume":        (220, 120, 40),  # Âmbar/Laranja (Couro)
@@ -2144,6 +2192,324 @@ class CercoState(GameState):
                     cor_borda = ZONA_CONTORNOS[zona_key]
                     espessura = 2
                 pygame.draw.polygon(self.map_backbuffer, cor_borda, top_pts, espessura)
+
+                # --- ITENS DE RECURSO PROCEDURAIS NO TABULEIRO (Pilhas Empilhadas Realistas de 10) ---
+                dep = self.estado.get("recursos_depositados", {})
+                
+                # 0. Pátio (Pedra/Pedregulhos)
+                if zona_key == "patio" and gx == 13 and gy == 9:
+                    qtd_pedra = self.estado.get("pedregulhos", 8)
+                    if qtd_pedra > 0:
+                        w = max(4, int(10 * self.zoom))
+                        h = max(3, int(8 * self.zoom))
+                        dx = int(5 * self.zoom)
+                        dy = int(4.5 * self.zoom)
+                        posicoes = []
+                        curr = 0
+                        for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                            if curr >= qtd_pedra: break
+                            items_in_layer = min(max_items, qtd_pedra - curr)
+                            for idx in range(items_in_layer):
+                                ox = (idx - (items_in_layer - 1) / 2) * dx
+                                oy = -layer_idx * dy
+                                posicoes.append((ox, oy))
+                                curr += 1
+                                
+                        for ox, oy in posicoes:
+                            bx = cx_ + ox
+                            by = cy_ + oy
+                            sombra = pygame.Surface((w * 1.5, h), pygame.SRCALPHA)
+                            pygame.draw.ellipse(sombra, (0, 0, 0, 40), (0, 0, w * 1.5, h))
+                            self.map_backbuffer.blit(sombra, (bx - w * 0.75, by - h//2))
+                            
+                            pts = [
+                                (bx - w//2, by),
+                                (bx - w//3, by - h//2),
+                                (bx + w//3, by - h//2),
+                                (bx + w//2, by),
+                                (bx + w//4, by + h//3),
+                                (bx - w//4, by + h//3),
+                            ]
+                            pygame.draw.polygon(self.map_backbuffer, (100, 105, 110), pts)
+                            pygame.draw.polygon(self.map_backbuffer, (130, 135, 140), [pts[1], pts[2], (bx, by)])
+                            pygame.draw.polygon(self.map_backbuffer, (80, 85, 90), [pts[0], pts[1], (bx, by), pts[5]])
+                            pygame.draw.polygon(self.map_backbuffer, (40, 40, 40), pts, 1)
+
+                # 1. Carpintaria (Madeira)
+                elif zona_key == "carpintaria" and gx == 9 and gy == 13:
+                    qtd_dep = dep.get("madeira", 0)
+                    remaining = max(0, 10 - qtd_dep)
+                    if remaining > 0:
+                        w = max(4, int(12 * self.zoom))
+                        h = max(2, int(5 * self.zoom))
+                        dx = int(5 * self.zoom)
+                        dy = int(4 * self.zoom)
+                        
+                        posicoes = []
+                        curr = 0
+                        for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                            if curr >= remaining: break
+                            items_in_layer = min(max_items, remaining - curr)
+                            for idx in range(items_in_layer):
+                                ox = (idx - (items_in_layer - 1) / 2) * dx
+                                oy = -layer_idx * dy
+                                posicoes.append((ox, oy))
+                                curr += 1
+                                
+                        for ox, oy in posicoes:
+                            lx = cx_ - w // 2 + ox
+                            ly = cy_ - h // 2 + oy
+                            pygame.draw.rect(self.map_backbuffer, (95, 55, 25), (lx, ly, w, h), border_radius=1)
+                            pygame.draw.line(self.map_backbuffer, (65, 35, 15), (lx + 2, ly + h//3), (lx + w - 2, ly + h//3), 1)
+                            r_cut = h // 2
+                            cut_cx = lx + w - r_cut
+                            cut_cy = ly + h // 2
+                            pygame.draw.circle(self.map_backbuffer, (215, 175, 120), (cut_cx, cut_cy), r_cut)
+                            pygame.draw.circle(self.map_backbuffer, (145, 95, 50), (cut_cx, cut_cy), r_cut, 1)
+                            pygame.draw.rect(self.map_backbuffer, (50, 25, 10), (lx, ly, w, h), 1, border_radius=1)
+
+                # 2. Fundição (Ferro/Metal)
+                elif zona_key == "fundicao" and gx == 5 and gy == 9:
+                    qtd_dep = dep.get("metal", 0)
+                    remaining = max(0, 10 - qtd_dep)
+                    if remaining > 0:
+                        w = max(4, int(10 * self.zoom))
+                        h = max(2, int(5 * self.zoom))
+                        thickness = max(1, int(2.5 * self.zoom))
+                        dx = int(4 * self.zoom)
+                        dy = int(3.5 * self.zoom)
+                        
+                        posicoes = []
+                        curr = 0
+                        for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                            if curr >= remaining: break
+                            items_in_layer = min(max_items, remaining - curr)
+                            for idx in range(items_in_layer):
+                                ox = (idx - (items_in_layer - 1) / 2) * dx
+                                oy = -layer_idx * dy
+                                posicoes.append((ox, oy))
+                                curr += 1
+                                
+                        for ox, oy in posicoes:
+                            bx = cx_ + ox
+                            by = cy_ + oy
+                            top_pts = [
+                                (bx - w//2 + thickness//2, by - h//2),
+                                (bx + w//2 - thickness//2, by - h//2),
+                                (bx + w//2,                by + h//2 - thickness),
+                                (bx - w//2,                by + h//2 - thickness),
+                            ]
+                            right_pts = [
+                                (bx + w//2 - thickness//2, by - h//2),
+                                (bx + w//2,                by - h//2 + thickness),
+                                (bx + w//2,                by + h//2),
+                                (bx + w//2,                by + h//2 - thickness),
+                            ]
+                            left_pts = [
+                                (bx - w//2,                by + h//2 - thickness),
+                                (bx + w//2,                by + h//2 - thickness),
+                                (bx + w//2,                by + h//2),
+                                (bx - w//2,                by + h//2),
+                            ]
+                            c_top = (175, 185, 195)
+                            c_side_l = (120, 125, 135)
+                            c_side_r = (140, 145, 155)
+                            pygame.draw.polygon(self.map_backbuffer, c_side_r, right_pts)
+                            pygame.draw.polygon(self.map_backbuffer, c_side_l, left_pts)
+                            pygame.draw.polygon(self.map_backbuffer, c_top, top_pts)
+                            pygame.draw.polygon(self.map_backbuffer, (50, 50, 60), top_pts, 1)
+                            pygame.draw.polygon(self.map_backbuffer, (50, 50, 60), left_pts, 1)
+                            pygame.draw.line(self.map_backbuffer, (245, 245, 255), (bx - w//2 + 1, by + h//2 - thickness), (bx + w//2 - 1, by + h//2 - thickness), 1)
+
+                # 3. Curtume (Couro/Lã)
+                elif zona_key == "curtume" and gx == 9 and gy == 5:
+                    qtd_dep = dep.get("couro", 0)
+                    remaining = max(0, 10 - qtd_dep)
+                    if remaining > 0:
+                        r_w = max(2, int(3.5 * self.zoom))
+                        dx = int(5 * self.zoom)
+                        dy = int(4 * self.zoom)
+                        
+                        posicoes = []
+                        curr = 0
+                        for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                            if curr >= remaining: break
+                            items_in_layer = min(max_items, remaining - curr)
+                            for idx in range(items_in_layer):
+                                ox = (idx - (items_in_layer - 1) / 2) * dx
+                                oy = -layer_idx * dy
+                                posicoes.append((ox, oy))
+                                curr += 1
+                                
+                        for ox, oy in posicoes:
+                            bx = cx_ + ox
+                            by = cy_ + oy
+                            sombra_l = pygame.Surface((r_w * 3, r_w * 2), pygame.SRCALPHA)
+                            pygame.draw.ellipse(sombra_l, (0, 0, 0, 40), (0, 0, r_w * 3, r_w * 2))
+                            self.map_backbuffer.blit(sombra_l, (bx - r_w * 1.5, by - r_w))
+                            
+                            circles = [
+                                (bx - r_w//2, by + r_w//3, r_w),
+                                (bx + r_w//2, by + r_w//3, r_w),
+                                (bx,          by - r_w//2, r_w),
+                            ]
+                            for px, py, pr in circles:
+                                pygame.draw.circle(self.map_backbuffer, (170, 170, 180), (px, py), pr + 1)
+                            for px, py, pr in circles:
+                                pygame.draw.circle(self.map_backbuffer, (245, 245, 250), (px, py), pr)
+                            for px, py, pr in circles:
+                                pygame.draw.circle(self.map_backbuffer, (220, 220, 230), (px + 1, py + 1), pr - 1)
+                                pygame.draw.circle(self.map_backbuffer, (245, 245, 250), (px, py), pr - 1)
+
+                # --- PILHAS DE DEPÓSITO DE RECURSOS NA CÂMARA CENTRAL (Inventário Visual Crescente) ---
+                elif zona_key == "camara_central":
+                    if gx == 8 and gy == 8:
+                        qtd = dep.get("madeira", 0)
+                        if qtd > 0:
+                            w = max(4, int(12 * self.zoom))
+                            h = max(2, int(5 * self.zoom))
+                            dx = int(5 * self.zoom)
+                            dy = int(4 * self.zoom)
+                            posicoes = []
+                            curr = 0
+                            for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                                if curr >= qtd: break
+                                items_in_layer = min(max_items, qtd - curr)
+                                for idx in range(items_in_layer):
+                                    ox = (idx - (items_in_layer - 1) / 2) * dx
+                                    oy = -layer_idx * dy
+                                    posicoes.append((ox, oy))
+                                    curr += 1
+                                    
+                            for ox, oy in posicoes:
+                                lx = cx_ - w // 2 + ox
+                                ly = cy_ - h // 2 + oy
+                                pygame.draw.rect(self.map_backbuffer, (95, 55, 25), (lx, ly, w, h), border_radius=1)
+                                pygame.draw.line(self.map_backbuffer, (65, 35, 15), (lx + 2, ly + h//3), (lx + w - 2, ly + h//3), 1)
+                                r_cut = h // 2
+                                cut_cx = lx + w - r_cut
+                                cut_cy = ly + h // 2
+                                pygame.draw.circle(self.map_backbuffer, (215, 175, 120), (cut_cx, cut_cy), r_cut)
+                                pygame.draw.circle(self.map_backbuffer, (145, 95, 50), (cut_cx, cut_cy), r_cut, 1)
+                                pygame.draw.rect(self.map_backbuffer, (50, 25, 10), (lx, ly, w, h), 1, border_radius=1)
+                                
+                    elif gx == 8 and gy == 11:
+                        # Pilha de Ferro depositado
+                        qtd = dep.get("metal", 0)
+                        if qtd > 0:
+                            w = max(4, int(10 * self.zoom))
+                            h = max(2, int(5 * self.zoom))
+                            thickness = max(1, int(2.5 * self.zoom))
+                            dx = int(4 * self.zoom)
+                            dy = int(3.5 * self.zoom)
+                            posicoes = []
+                            curr = 0
+                            for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                                if curr >= qtd: break
+                                items_in_layer = min(max_items, qtd - curr)
+                                for idx in range(items_in_layer):
+                                    ox = (idx - (items_in_layer - 1) / 2) * dx
+                                    oy = -layer_idx * dy
+                                    posicoes.append((ox, oy))
+                                    curr += 1
+                                    
+                            for ox, oy in posicoes:
+                                bx = cx_ + ox
+                                by = cy_ + oy
+                                top_pts = [
+                                    (bx - w//2 + thickness//2, by - h//2),
+                                    (bx + w//2 - thickness//2, by - h//2),
+                                    (bx + w//2,                by + h//2 - thickness),
+                                    (bx - w//2,                by + h//2 - thickness),
+                                ]
+                                right_pts = [
+                                    (bx + w//2 - thickness//2, by - h//2),
+                                    (bx + w//2,                by - h//2 + thickness),
+                                    (bx + w//2,                by + h//2),
+                                    (bx + w//2,                by + h//2 - thickness),
+                                ]
+                                left_pts = [
+                                    (bx - w//2,                by + h//2 - thickness),
+                                    (bx + w//2,                by + h//2 - thickness),
+                                    (bx + w//2,                by + h//2),
+                                    (bx - w//2,                by + h//2),
+                                ]
+                                c_top = (175, 185, 195)
+                                c_side_l = (120, 125, 135)
+                                c_side_r = (140, 145, 155)
+                                pygame.draw.polygon(self.map_backbuffer, c_side_r, right_pts)
+                                pygame.draw.polygon(self.map_backbuffer, c_side_l, left_pts)
+                                pygame.draw.polygon(self.map_backbuffer, c_top, top_pts)
+                                pygame.draw.polygon(self.map_backbuffer, (50, 50, 60), top_pts, 1)
+                                pygame.draw.polygon(self.map_backbuffer, (50, 50, 60), left_pts, 1)
+                                pygame.draw.line(self.map_backbuffer, (245, 245, 255), (bx - w//2 + 1, by + h//2 - thickness), (bx + w//2 - 1, by + h//2 - thickness), 1)
+                                
+                    elif gx == 11 and gy == 8:
+                        # Pilha de Lã depositada
+                        qtd = dep.get("couro", 0)
+                        if qtd > 0:
+                            r_w = max(2, int(3.5 * self.zoom))
+                            dx = int(5 * self.zoom)
+                            dy = int(4 * self.zoom)
+                            posicoes = []
+                            curr = 0
+                            for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                                if curr >= qtd: break
+                                items_in_layer = min(max_items, qtd - curr)
+                                for idx in range(items_in_layer):
+                                    ox = (idx - (items_in_layer - 1) / 2) * dx
+                                    oy = -layer_idx * dy
+                                    posicoes.append((ox, oy))
+                                    curr += 1
+                                    
+                            for ox, oy in posicoes:
+                                bx = cx_ + ox
+                                by = cy_ + oy
+                                sombra_l = pygame.Surface((r_w * 3, r_w * 2), pygame.SRCALPHA)
+                                pygame.draw.ellipse(sombra_l, (0, 0, 0, 40), (0, 0, r_w * 3, r_w * 2))
+                                self.map_backbuffer.blit(sombra_l, (bx - r_w * 1.5, by - r_w))
+                                
+                                circles = [
+                                    (bx - r_w//2, by + r_w//3, r_w),
+                                    (bx + r_w//2, by + r_w//3, r_w),
+                                    (bx,          by - r_w//2, r_w),
+                                ]
+                                for px, py, pr in circles:
+                                    pygame.draw.circle(self.map_backbuffer, (170, 170, 180), (px, py), pr + 1)
+                                for px, py, pr in circles:
+                                    pygame.draw.circle(self.map_backbuffer, (245, 245, 250), (px, py), pr)
+                                for px, py, pr in circles:
+                                    pygame.draw.circle(self.map_backbuffer, (220, 220, 230), (px + 1, py + 1), pr - 1)
+                                    pygame.draw.circle(self.map_backbuffer, (245, 245, 250), (px, py), pr - 1)
+                                    
+                    elif gx == 9 and gy == 9:
+                        # Pilha de Ouro depositado
+                        qtd_ouro = self.estado.get("tesouro", 20)
+                        visual_n = (qtd_ouro + 1) // 2
+                        if visual_n > 0:
+                            w = max(4, int(8 * self.zoom))
+                            h = max(2, int(4 * self.zoom))
+                            dx = int(4 * self.zoom)
+                            dy = int(3 * self.zoom)
+                            posicoes = []
+                            curr = 0
+                            for layer_idx, max_items in enumerate([4, 3, 2, 1]):
+                                if curr >= visual_n: break
+                                items_in_layer = min(max_items, visual_n - curr)
+                                for idx in range(items_in_layer):
+                                    ox = (idx - (items_in_layer - 1) / 2) * dx
+                                    oy = -layer_idx * dy
+                                    posicoes.append((ox, oy))
+                                    curr += 1
+                                    
+                            for ox, oy in posicoes:
+                                bx = cx_ + ox
+                                by = cy_ + oy
+                                pygame.draw.ellipse(self.map_backbuffer, (200, 150, 0), (bx - w//2, by - h//2, w, h))
+                                pygame.draw.rect(self.map_backbuffer, (220, 170, 10), (bx - w//2, by - h//2 + 1, w, h//2))
+                                pygame.draw.ellipse(self.map_backbuffer, (255, 220, 50), (bx - w//2, by - h//2, w, h//2))
+                                pygame.draw.ellipse(self.map_backbuffer, (255, 245, 150), (bx - w//4, by - h//2 + 1, w//2, h//4))
+                                pygame.draw.ellipse(self.map_backbuffer, (130, 90, 0), (bx - w//2, by - h//2, w, h), 1)
 
             self.map_backbuffer_sujo = False
 
@@ -2203,6 +2569,8 @@ class CercoState(GameState):
                 continue
 
             top_pts = _losango(cx_, cy_)
+
+
 
             # Destaques dinâmicos de hover e movimento
             mx_draw, my_draw = pygame.mouse.get_pos()
@@ -2317,18 +2685,8 @@ class CercoState(GameState):
                 tela.blit(li, li_rect)
                 y_off += int(15 * self.zoom)
 
-            # 3. Informações Específicas por Zona
             if zona_key == "camara_central":
-                lt = self.fP.render(f"OURO: {e['tesouro']}", True, C_OURO)
-                if self.zoom != 1.0:
-                    lt = pygame.transform.scale(lt,
-                        (max(1, int(lt.get_width() * self.zoom)),
-                         max(1, int(lt.get_height() * self.zoom))))
-                
-                lt_rect = lt.get_rect(center=(lcx, y_off))
-                lt_rect.inflate_ip(4, 2)
-                pygame.draw.rect(tela, (25, 20, 10, 180), lt_rect, border_radius=3)
-                tela.blit(lt, lt_rect)
+                pass
 
             elif zona_key == "patio":
                 gap = max(8, int(13 * self.zoom))
@@ -2359,16 +2717,7 @@ class CercoState(GameState):
                              max(1, int(lif.get_height() * self.zoom))))
                     tela.blit(lif, (lcx - lif.get_width() // 2, y_off)); y_off += gap
                     
-                lp = self.fMi.render(f"PEDRA: {e['pedregulhos']}", True, (120, 160, 255))
-                if self.zoom != 1.0:
-                    lp = pygame.transform.scale(lp,
-                        (max(1, int(lp.get_width() * self.zoom)),
-                         max(1, int(lp.get_height() * self.zoom))))
-                
-                lp_rect = lp.get_rect(center=(lcx, y_off))
-                lp_rect.inflate_ip(4, 2)
-                pygame.draw.rect(tela, (15, 20, 30, 180), lp_rect, border_radius=3)
-                tela.blit(lp, lp_rect)
+
 
         # ── Armas de cerco e narrativa ───────────────────────────────────────
         self._draw_armas_cerco(tela)
