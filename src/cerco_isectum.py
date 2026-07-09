@@ -175,6 +175,11 @@ def criar_estado(pedregulhos=8, is_solo=True):
     deck_heroi = copy.deepcopy(CARTAS_BASICAS)
     random.shuffle(deck_heroi)
 
+    deck_ini = ["goblin", "goblin", "goblin", "goblin", "goblin",
+                "esqueleto", "esqueleto", "esqueleto", "esqueleto", "esqueleto",
+                "kobold", "kobold", "kobold", "kobold", "kobold"]
+    random.shuffle(deck_ini)
+
     return {
         # ── Fortaleza ───────────────────────────────────────────────────
         "rodada":          1,
@@ -200,6 +205,8 @@ def criar_estado(pedregulhos=8, is_solo=True):
         "catapulta":      {"estado": "reserva", "ciclo": 0},
         "deck_catapulta":  [1, 2, 3, 4],
         "torre_assalto":  {"estado": "reserva", "ciclo": 0},
+        "deck_inimigos":   deck_ini,
+        "descarte_inimigos": [],
         # ── Deckbuilding ────────────────────────────────────────────────
         "slots_upgrade":   criar_mercado(),
         "recursos_depositados": {"madeira": 0, "couro": 0, "metal": 0},

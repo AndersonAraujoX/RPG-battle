@@ -1637,7 +1637,30 @@ class CercoState(GameState):
                     break
                 cx, cy = celulas_candidatas.pop()
                 
-                classe_inimigo = random.choice([Goblin, Esqueleto, Kobold])
+                # Saca o tipo do inimigo do deck de inimigos (reembaralhando se estiver vazio)
+                deck_ini = list(self.estado.get("deck_inimigos", []))
+                desc_ini = list(self.estado.get("descarte_inimigos", []))
+                if not deck_ini:
+                    if desc_ini:
+                        deck_ini = list(desc_ini)
+                        random.shuffle(deck_ini)
+                        desc_ini = []
+                    else:
+                        deck_ini = ["goblin", "esqueleto", "kobold"]
+                        random.shuffle(deck_ini)
+                carta_ini = deck_ini.pop()
+                desc_ini.append(carta_ini)
+                self.estado = aplicar_delta(self.estado, {
+                    "deck_inimigos": deck_ini,
+                    "descarte_inimigos": desc_ini
+                })
+                
+                mapa_classes = {
+                    "goblin": Goblin,
+                    "esqueleto": Esqueleto,
+                    "kobold": Kobold
+                }
+                classe_inimigo = mapa_classes.get(carta_ini, Goblin)
                 nome_inimigo = f"Inseto {classe_inimigo.__name__}"
                 is_infiltrador = False
                 
@@ -2589,10 +2612,14 @@ class CercoState(GameState):
     def _calcular_pos_carta_na_mao(self, idx, total_cartas):
         mr = self.mao_rect
         total_cartas = max(1, total_cartas)
-        # Largura da carta 96px para melhor legibilidade
-        cw = min(96, (mr.width - 130) // total_cartas)
-        gap = max(2, (mr.width - 130 - cw * total_cartas) // (total_cartas + 1))
-        cx = mr.x + gap + idx * (cw + gap)
+        # Espaço reservado: 230px na esquerda (deck inimigos + descarte), 130px na direita (deck herói)
+        espaco_reservado_esquerda = 230
+        espaco_reservado_direita = 130
+        largura_disponivel = mr.width - espaco_reservado_esquerda - espaco_reservado_direita
+        
+        cw = min(96, largura_disponivel // total_cartas)
+        gap = max(2, (largura_disponivel - cw * total_cartas) // (total_cartas + 1))
+        cx = mr.x + espaco_reservado_esquerda + gap + idx * (cw + gap)
         cy = mr.y + 4
         ch = mr.height - 8
         return cx, cy, cw, ch
@@ -2606,11 +2633,11 @@ class CercoState(GameState):
         mao = self.estado["mao"]
         self.carta_rects = []
         
-        # 1. Desenhar o Deck (Baralho) no canto direito do rodapé
+        # 1. Desenhar o Deck (Baralho) do Herói no canto direito do rodapé
         deck_cartas_qtd = len(self.estado["deck_heroi"])
         deck_rect = pygame.Rect(mr.right - 106, mr.y + 6, 96, mr.height - 12)
         
-        # Efeito de pilha 3D para o deck
+        # Efeito de pilha 3D para o deck do herói
         for offset in range(min(4, max(1, deck_cartas_qtd // 3))):
             d_rect = deck_rect.move(-offset * 2, -offset * 2)
             sprite_verso = None
@@ -2631,9 +2658,49 @@ class CercoState(GameState):
             tela.blit(lbl_deck1, (top_deck_rect.centerx - lbl_deck1.get_width() // 2, top_deck_rect.y + 40))
             tela.blit(lbl_deck2, (top_deck_rect.centerx - lbl_deck2.get_width() // 2, top_deck_rect.y + 64))
 
+        # 2. Desenhar o Deck de Inimigos no canto esquerdo do rodapé
+        deck_ini_qtd = len(self.estado.get("deck_inimigos", []))
+        deck_ini_rect = pygame.Rect(mr.x + 10, mr.y + 6, 96, mr.height - 12)
+        
+        # Efeito de pilha 3D para o deck de inimigos (vermelho/ameaçador)
+        for offset in range(min(4, max(1, deck_ini_qtd // 3))):
+            d_rect = deck_ini_rect.move(offset * 2, -offset * 2)
+            pygame.draw.rect(tela, (40, 14, 14), d_rect, border_radius=6)
+            pygame.draw.rect(tela, (140, 30, 30), d_rect, 1, border_radius=6)
+            
+        # Texto do Deck por cima da pilha
+        if deck_ini_qtd > 0:
+            top_deck_rect = deck_ini_rect.move(min(4, max(1, deck_ini_qtd // 3)) * 2, -min(4, max(1, deck_ini_qtd // 3)) * 2)
+            lbl_deck1 = self.fMi.render("DECK INI", True, C_PERIGO)
+            lbl_deck2 = self.fMi.render(str(deck_ini_qtd), True, C_TEXTO)
+            tela.blit(lbl_deck1, (top_deck_rect.centerx - lbl_deck1.get_width() // 2, top_deck_rect.y + 40))
+            tela.blit(lbl_deck2, (top_deck_rect.centerx - lbl_deck2.get_width() // 2, top_deck_rect.y + 64))
+
+        # 3. Desenhar a última carta de inimigo revelada ao lado do deck de inimigos
+        descarte_ini = self.estado.get("descarte_inimigos", [])
+        if descarte_ini:
+            ultima_carta = descarte_ini[-1]
+            carta_ini_rect = pygame.Rect(mr.x + 116, mr.y + 6, 96, mr.height - 12)
+            
+            # Fundo da carta revelada
+            pygame.draw.rect(tela, (24, 16, 16), carta_ini_rect, border_radius=6)
+            pygame.draw.rect(tela, C_PERIGO, carta_ini_rect, 1, border_radius=6)
+            
+            # Texto da carta
+            nome_lbl1 = self.fMi.render("REVELADO", True, C_DIM)
+            nome_lbl2 = self.fMi.render(ultima_carta.upper(), True, C_PERIGO)
+            tela.blit(nome_lbl1, (carta_ini_rect.centerx - nome_lbl1.get_width() // 2, carta_ini_rect.y + 20))
+            tela.blit(nome_lbl2, (carta_ini_rect.centerx - nome_lbl2.get_width() // 2, carta_ini_rect.y + 45))
+            
+            # Icone de Runa/Caveira
+            pygame.draw.circle(tela, C_PERIGO, (carta_ini_rect.centerx, carta_ini_rect.y + 80), 5)
+            pygame.draw.rect(tela, C_PERIGO, (carta_ini_rect.centerx - 4, carta_ini_rect.y + 84, 8, 4))
+
         if not mao:
             nt = self.fP.render("Sem cartas na mão — jogue cartas ou passe o turno", True, C_DIM)
-            tela.blit(nt, (mr.centerx - 45 - nt.get_width() // 2, mr.centery - 8))
+            # Centraliza o texto no espaço disponível para as cartas da mão
+            disponivel_x = mr.x + 230 + (mr.width - 360) // 2
+            tela.blit(nt, (disponivel_x - nt.get_width() // 2, mr.centery - 8))
             return
 
         mouse = pygame.mouse.get_pos()
