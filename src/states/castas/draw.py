@@ -1,10 +1,10 @@
 """
 castas_draw.py — Mixin de renderização para CastasState
 
-Herda CercoStateDrawMixin e sobrescreve apenas:
-  - draw() para adicionar o painel do Diretor e overlay de casta
-  - _draw_header() para mostrar título e indicador de turno Diretor
-  - _draw_painel_diretor() novo painel com lista de castas disponíveis
+Herda CercoStateDrawMixin e renderiza:
+  - Painel lateral simplificado para o Diretor (estatísticas do deck dele).
+  - A mão de cartas de insetos do Diretor na parte inferior.
+  - O mapa tático destacando as zonas externas para onde ele pode enviar as hordas.
 """
 from __future__ import annotations
 import pygame
@@ -17,12 +17,8 @@ from .data import (
     MODO_DIR_ESCOLHER_CASTA, MODO_DIR_ESCOLHER_ZONA,
 )
 
-# Zonas válidas para o Diretor invadir
-ZONAS_BORDA = [
-    "campo_norte", "campo_sul", "campo_oeste", "campo_leste",
-    "muralha_norte", "muralha_sul", "muralha_oeste", "muralha_leste",
-    "torre_nw", "torre_ne", "torre_sw", "torre_se",
-]
+# Zonas externas válidas para o Diretor iniciar sua invasão
+ZONAS_BORDA = ["campo_norte", "campo_sul", "campo_oeste", "campo_leste"]
 
 
 class CastasStateDrawMixin(CercoStateDrawMixin):
@@ -34,10 +30,10 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         W, H = LARGURA_TELA, ALTURA_TELA
         tela.fill(C_BG)
 
-        # Brilho de fundo roxo (diferencia visualmente do Cerco)
+        # Brilho de fundo roxo/avermelhado sombrio (tema de insetos)
         glow = pygame.Surface((W, H), pygame.SRCALPHA)
-        pygame.draw.circle(glow, (80, 20, 130, 18), (W // 5, H // 4), 320)
-        pygame.draw.circle(glow, (20, 60, 10,  12), (W * 4 // 5, H * 3 // 4), 260)
+        pygame.draw.circle(glow, (90, 15, 60, 20), (W // 5, H // 4), 320)
+        pygame.draw.circle(glow, (25, 45, 10,  15), (W * 4 // 5, H * 3 // 4), 260)
         tela.blit(glow, (0, 0))
 
         self._draw_header(tela, W)
@@ -45,11 +41,9 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
 
         if self.fase == "TURNO_DIRETOR":
             self._draw_painel_diretor(tela, W, H)
+            self._draw_mao_diretor(tela)
         else:
             self._draw_painel_lateral(tela)
-
-        # Botões de ação (heróis) só aparecem quando não é turno do Diretor
-        if self.fase != "TURNO_DIRETOR":
             self._draw_mao(tela)
             self._draw_botoes_acao(tela, W, H)
 
@@ -59,13 +53,19 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         if self.feedback_timer > 0:
             self._draw_feedback(tela, W, H)
 
+        if self.fase == "ESCOLHER_ACAO_CARTA":
+            self._draw_modal_escolha_carta(tela, W, H)
+
         if self.estado.get("derrota") or self.estado.get("vitoria"):
             self._draw_fim(tela, W, H)
+
+        if getattr(self, "dev_menu_aberto", False):
+            self._desenhar_dev_menu(tela)
 
     # ── HEADER SOBRESCRITO ────────────────────────────────────────────────
     def _draw_header(self, tela, W):
         bar = pygame.Surface((W, 62), pygame.SRCALPHA)
-        bar.fill((10, 5, 22, 220))
+        bar.fill((10, 5, 20, 220))
         tela.blit(bar, (0, 0))
         pygame.draw.line(tela, C_BORDA, (0, 62), (W, 62), 1)
 
@@ -87,7 +87,7 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         rf = self.fM.render(f"Rodada {rodada}  |  {fase_txt}", True, cor_fase)
         tela.blit(rf, (W // 2 - rf.get_width() // 2, 12))
 
-        # HUD recursos (canto direito)
+        # HUD recursos
         e = self.estado
         stats = [
             (f"🏆 {e.get('tesouro', 0)}", C_OURO),
@@ -120,68 +120,82 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
                 tela.blit(fb, (h_rect.centerx - fb.get_width()//2, h_rect.centery - fb.get_height()//2))
             pygame.draw.rect(tela, cor_b, h_rect, 2 if is_ativo else 1, border_radius=3)
 
-    # ── PAINEL DO DIRETOR ────────────────────────────────────────────────
+    # ── PAINEL DO DIRETOR (Simplificado com estatísticas de Decks) ─────────
     def _draw_painel_diretor(self, tela, W, H):
-        """Painel lateral com lista de castas que o Diretor pode enviar."""
-        from src.cerco_isectum import DADOS_INIMIGOS
-
         px = W - 318
         py = 65
         pw = 310
         ph = H - 75
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        panel.fill((15, 8, 30, 220))
+        panel.fill((20, 8, 16, 220))
         tela.blit(panel, (px, py))
         pygame.draw.rect(tela, C_BORDA, (px, py, pw, ph), 1, border_radius=4)
 
         # Título do painel
         acoes = self.estado.get("acoes_diretor", 0)
-        tt = self.fM.render(f"🐛 DIRETOR — {acoes} ação(ões)", True, C_DIRETOR)
-        tela.blit(tt, (px + 10, py + 10))
-        pygame.draw.line(tela, C_BORDA, (px + 8, py + 34), (px + pw - 8, py + 34), 1)
+        tt = self.fM.render(f"🐛 INVASÃO ISECTUM", True, C_DIRETOR)
+        tela.blit(tt, (px + 15, py + 15))
+        pygame.draw.line(tela, C_BORDA, (px + 8, py + 38), (px + pw - 8, py + 38), 1)
 
-        inst = self.fMi.render(
-            "Selecione uma casta e clique no mapa" if self.casta_selecionada is None
-            else f"Casta: {DADOS_INIMIGOS.get(self.casta_selecionada, {}).get('nome', '')} | Clique na zona",
-            True, C_DIM if self.casta_selecionada is None else C_OURO,
-        )
-        tela.blit(inst, (px + 8, py + 38))
+        # Instruções dinâmicas
+        if self.casta_selecionada is None:
+            inst_txt = "Selecione uma Carta da sua Mão!"
+            inst_cor = C_DIM
+        else:
+            from src.cerco_isectum import DADOS_INIMIGOS
+            c_nome = DADOS_INIMIGOS.get(self.casta_selecionada, {}).get("nome", "")
+            inst_txt = f"Invadindo com: {c_nome}"
+            inst_cor = C_OURO
+        inst = self.fP.render(inst_txt, True, inst_cor)
+        tela.blit(inst, (px + 15, py + 48))
 
-        # Lista de castas
-        mouse = pygame.mouse.get_pos()
-        self.casta_panel_rects = {}
-        cy = py + 60
-        row_h = 44
+        # Estatísticas do Deck de Castas
+        deck_dir = self.estado.get("deck_diretor", [])
+        desc_dir = self.estado.get("descarte_diretor", [])
+        
+        info_y = py + 100
+        lbl_deck = self.fM.render(f"🎴 Deck do Diretor: {len(deck_dir)} cartas", True, C_TEXTO)
+        lbl_desc = self.fM.render(f"🗑 Pilha de Descarte: {len(desc_dir)} cartas", True, C_DIM)
+        tela.blit(lbl_deck, (px + 15, info_y))
+        tela.blit(lbl_desc, (px + 15, info_y + 30))
 
-        all_castas = list(DADOS_INIMIGOS.items())
-        max_visivel = (ph - 80) // row_h
+        # Detalhes da casta selecionada (se houver)
+        if self.casta_selecionada:
+            from src.cerco_isectum import DADOS_INIMIGOS
+            dados = DADOS_INIMIGOS[self.casta_selecionada]
+            
+            dy = py + 200
+            pygame.draw.rect(tela, (30, 10, 20), (px + 10, dy, pw - 20, 120), border_radius=6)
+            pygame.draw.rect(tela, C_BORDA, (px + 10, dy, pw - 20, 120), 1, border_radius=6)
+            
+            nome_lbl = self.fM.render(f"{dados['emoji']} {dados['nome']}", True, C_OURO)
+            classe_lbl = self.fP.render(f"Classe Base: {dados['classe']}", True, C_INSETO)
+            tela.blit(nome_lbl, (px + 20, dy + 10))
+            tela.blit(classe_lbl, (px + 20, dy + 32))
+            
+            # Descrição do efeito (com quebra de linha manual simples)
+            efeito = dados.get("efeito", "")
+            palavras = efeito.split()
+            linhas = []
+            linha_atual = ""
+            for pal in palavras:
+                if len(linha_atual + " " + pal) < 32:
+                    linha_atual += (" " if linha_atual else "") + pal
+                else:
+                    linhas.append(linha_atual)
+                    linha_atual = pal
+            if linha_atual:
+                linhas.append(linha_atual)
+                
+            ly = dy + 58
+            for linha in linhas[:3]:
+                tela.blit(self.fMi.render(linha, True, C_TEXTO), (px + 20, ly))
+                ly += 16
 
-        for i, (inseto_id, dados) in enumerate(all_castas[:max_visivel]):
-            row_rect = pygame.Rect(px + 6, cy, pw - 12, row_h - 4)
-            self.casta_panel_rects[inseto_id] = row_rect
-
-            sel    = (inseto_id == self.casta_selecionada)
-            hover  = row_rect.collidepoint(mouse)
-            cor_bg = (40, 12, 70) if sel else ((22, 10, 40) if hover else (14, 6, 24))
-            cor_bd = C_ACENTO if sel else (C_INSETO if hover else C_BORDA)
-
-            pygame.draw.rect(tela, cor_bg, row_rect, border_radius=6)
-            pygame.draw.rect(tela, cor_bd, row_rect, 2 if sel else 1, border_radius=6)
-
-            # Emoji + nome
-            emoji = dados.get("emoji", "🐛")
-            nome  = dados.get("nome", inseto_id)
-            classe = dados.get("classe", "")
-            nt = self.fP.render(f"{emoji}  {nome}", True, C_OURO if sel else C_TEXTO)
-            tela.blit(nt, (row_rect.x + 8, row_rect.y + 6))
-            ct = self.fMi.render(classe, True, C_ACENTO if sel else C_DIM)
-            tela.blit(ct, (row_rect.x + 8, row_rect.y + 24))
-
-            cy += row_h
-
-        # Botão encerrar turno
+        # Botão Encerrar Turno do Diretor
         btn_y = H - 52
         self.btn_diretor_encerrar = pygame.Rect(px + 8, btn_y, pw - 16, 38)
+        mouse = pygame.mouse.get_pos()
         hover_enc = self.btn_diretor_encerrar.collidepoint(mouse)
         cor_enc_bg = (80, 20, 30) if hover_enc else (50, 10, 20)
         cor_enc_bd = (255, 80, 80) if hover_enc else C_PERIGO
@@ -193,29 +207,109 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
             self.btn_diretor_encerrar.centery - enc_t.get_height() // 2,
         ))
 
-        # Zona clicável highlight no mapa (para MODO_DIR_ESCOLHER_ZONA)
+        # Highlight das zonas válidas (apenas os Campos Externos) no mapa
         if self.modo_acao == MODO_DIR_ESCOLHER_ZONA:
             self._highlight_zonas_borda(tela)
 
+    # ── MÃO DE CARTAS DO DIRETOR ──────────────────────────────────────────
+    def _draw_mao_diretor(self, tela):
+        """Renderiza a mão de cartas de insetos do Diretor na parte inferior."""
+        from src.cerco_isectum import DADOS_INIMIGOS
+
+        mr = self.mao_rect
+        # Desenha a área de mão estilizada com tema Isectum (sombrio)
+        pygame.draw.rect(tela, (18, 8, 20), mr, border_radius=8)
+        pygame.draw.rect(tela, C_BORDA, mr, 1, border_radius=8)
+
+        mao_dir = self.estado.get("mao_diretor", [])
+        self.diretor_carta_rects = []
+
+        if not mao_dir:
+            vazia_lbl = self.fM.render("MÃO DO DIRETOR VAZIA", True, C_DIM)
+            tela.blit(vazia_lbl, (mr.centerx - vazia_lbl.get_width() // 2, mr.centery - vazia_lbl.get_height() // 2))
+            return
+
+        # Dimensões e posicionamento das cartas
+        card_w = 140
+        card_h = mr.height - 16
+        gap = 12
+        total_w = len(mao_dir) * card_w + (len(mao_dir) - 1) * gap
+        start_x = mr.x + (mr.width - total_w) // 2
+
+        mouse = pygame.mouse.get_pos()
+
+        for idx, inseto_id in enumerate(mao_dir):
+            cx = start_x + idx * (card_w + gap)
+            cy = mr.y + 8
+            card_rect = pygame.Rect(cx, cy, card_w, card_h)
+            self.diretor_carta_rects.append((inseto_id, card_rect))
+
+            dados = DADOS_INIMIGOS.get(inseto_id, {})
+            sel = (inseto_id == self.casta_selecionada)
+            hover = card_rect.collidepoint(mouse)
+
+            # Cor de fundo e borda com tema de insetos (Roxo/Avermelhado)
+            bg_color = (48, 12, 32) if sel else ((32, 10, 24) if hover else (22, 6, 16))
+            border_color = C_INSETO if sel else ((255, 120, 180) if hover else C_BORDA)
+
+            pygame.draw.rect(tela, bg_color, card_rect, border_radius=6)
+            pygame.draw.rect(tela, border_color, card_rect, 2 if sel or hover else 1, border_radius=6)
+
+            # Emoji
+            emoji_lbl = self.fG.render(dados.get("emoji", "🐛"), True, C_TEXTO)
+            tela.blit(emoji_lbl, (cx + 8, cy + 8))
+
+            # Nome
+            nome = dados.get("nome", inseto_id).split()
+            nome_str = nome[0] if nome else "Inseto"
+            nome_lbl = self.fP.render(nome_str, True, C_OURO if sel else C_TEXTO)
+            tela.blit(nome_lbl, (cx + 34, cy + 12))
+
+            # Classe
+            classe_lbl = self.fMi.render(dados.get("classe", ""), True, C_ACENTO)
+            tela.blit(classe_lbl, (cx + 8, cy + 34))
+
+            # Habilidade resumida
+            efeito = dados.get("efeito", "")
+            linhas = []
+            palavras = efeito.split()
+            linha = ""
+            for p in palavras:
+                if len(linha + " " + p) < 17:
+                    linha += (" " if linha else "") + p
+                else:
+                    linhas.append(linha)
+                    linha = p
+            if linha:
+                linhas.append(linha)
+
+            ly = cy + 54
+            for l in linhas[:3]:
+                tela.blit(self.fMi.render(l, True, C_DIM if not sel else C_TEXTO), (cx + 8, ly))
+                ly += 14
+
+    # ── HIGHLIGHT DE ZONAS (Apenas os campos de spawn exterior) ────────────
     def _highlight_zonas_borda(self, tela):
-        """Destaca visualmente as zonas válidas para invasão no mapa."""
+        """Destaca visualmente apenas os Campos Externos de spawn no mapa."""
         from src.resolvedor_acoes import ZONAS_GRID
         self._zona_rects_mapa = {}
 
         for zona_id, (x1, y1, x2, y2) in ZONAS_GRID.items():
             if zona_id not in ZONAS_BORDA:
                 continue
-            # Converte coordenadas de grid para tela usando iso_to_screen
+            # Converte coordenadas do grid para tela (isométrico)
             pts = []
             for gx, gy in [(x1,y1),(x2,y1),(x2,y2),(x1,y2)]:
                 sx, sy = self._grid_to_screen(gx, gy)
                 pts.append((sx, sy))
             if len(pts) >= 3:
                 s = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
-                pygame.draw.polygon(s, (200, 80, 255, 60), pts)
-                pygame.draw.polygon(s, (200, 80, 255, 200), pts, 2)
+                # Destaque vermelho/laranja pulsante para área de spawn
+                pygame.draw.polygon(s, (255, 100, 50, 45), pts)
+                pygame.draw.polygon(s, (255, 100, 50, 180), pts, 2)
                 tela.blit(s, (0, 0))
-                # Cria rect AABB para hit-testing
+
+                # Cria o rect AABB para colisão de clique
                 xs = [p[0] for p in pts]
                 ys = [p[1] for p in pts]
                 self._zona_rects_mapa[zona_id] = pygame.Rect(
@@ -223,7 +317,7 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
                 )
 
     def _grid_to_screen(self, gx, gy):
-        """Converte posição de grid para posição na tela (iso)."""
+        """Converte coordenadas da grade lógica para posição de pixel isométrica."""
         mr = self.mapa_rect
         CELL = 48
         ox = mr.x + mr.width // 2

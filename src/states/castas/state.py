@@ -74,7 +74,24 @@ class CastasState(
         self.casta_selecionada = None
         self.modo_acao = MODO_NENHUM
         self._zona_rects_mapa  = {}
-        self.casta_panel_rects = {}
+        self.diretor_carta_rects = []
+
+        # Inicializa o Deck do Diretor com 2 de cada cata (48 cartas no total)
+        from src.cerco_isectum import DADOS_INIMIGOS
+        pool_inimigos = list(DADOS_INIMIGOS.keys()) * 2
+        random.shuffle(pool_inimigos)
+
+        # Determina o tamanho da mão do Diretor baseado na dificuldade (padrão: 3)
+        tam_mao_dir = 3
+        if diff_raw.get("id") == "facil":
+            tam_mao_dir = 2
+        elif diff_raw.get("id") == "dificil":
+            tam_mao_dir = 4
+
+        mao_dir = []
+        for _ in range(tam_mao_dir):
+            if pool_inimigos:
+                mao_dir.append(pool_inimigos.pop())
 
         # Adiciona campos de estado para o modo Castas
         from ...cerco_isectum import aplicar_delta
@@ -82,6 +99,9 @@ class CastasState(
             "castas_invasoras": {},    # zona_id → inseto_id
             "zonas_bloqueadas": [],    # zonas sem trabalho nesta rodada
             "acoes_diretor":    diff_raw.get("acoes_dir", 3),
+            "deck_diretor":     pool_inimigos,
+            "mao_diretor":      mao_dir,
+            "descarte_diretor": [],
         })
 
         self._push("SISTEMA", "🐛 Modo Castas dos Isectum — 2 jogadores assimétrico!")

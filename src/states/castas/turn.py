@@ -91,13 +91,10 @@ class CastasStateTurnMixin:
             self._feedback("Casta inválida!", C_PERIGO)
             return
 
-        zonas_validas = [
-            "campo_norte", "campo_sul", "campo_oeste", "campo_leste",
-            "muralha_norte", "muralha_sul", "muralha_oeste", "muralha_leste",
-            "torre_nw", "torre_ne", "torre_sw", "torre_se",
-        ]
+        # Restringe posicionamento apenas às 4 zonas externas de spawn de campo
+        zonas_validas = ["campo_norte", "campo_sul", "campo_oeste", "campo_leste"]
         if zona_id not in zonas_validas:
-            self._feedback("Zona inválida para invasão!", C_PERIGO)
+            self._feedback("Coloque os invasores nos Campos Externos!", C_PERIGO)
             return
 
         e = self.estado
@@ -105,6 +102,25 @@ class CastasStateTurnMixin:
         if acoes <= 0:
             self._feedback("Sem ações restantes para o Diretor!", C_PERIGO)
             return
+
+        # Remove da mão e envia para o descarte
+        mao_dir = list(e.get("mao_diretor", []))
+        if inseto_id in mao_dir:
+            mao_dir.remove(inseto_id)
+        descarte_dir = list(e.get("descarte_diretor", []))
+        descarte_dir.append(inseto_id)
+
+        # Compra 1 carta para repor a mão imediatamente
+        deck_dir = list(e.get("deck_diretor", []))
+        if not deck_dir and descarte_dir:
+            # Rebaralha descarte se deck esgotar
+            deck_dir = list(descarte_dir)
+            import random
+            random.shuffle(deck_dir)
+            descarte_dir = []
+
+        if deck_dir:
+            mao_dir.append(deck_dir.pop(0))
 
         # Adiciona invasor à zona
         invasores = dict(e["invasores"])
@@ -115,9 +131,12 @@ class CastasStateTurnMixin:
         castas_inv[zona_id] = inseto_id
 
         self.estado = aplicar_delta(e, {
-            "invasores":       invasores,
-            "castas_invasoras": castas_inv,
-            "acoes_diretor":   acoes - 1,
+            "invasores":        invasores,
+            "castas_invasoras":  castas_inv,
+            "acoes_diretor":    acoes - 1,
+            "mao_diretor":      mao_dir,
+            "deck_diretor":     deck_dir,
+            "descarte_diretor": descarte_dir,
         })
 
         dados = DADOS_INIMIGOS[inseto_id]
