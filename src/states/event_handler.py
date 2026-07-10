@@ -56,6 +56,19 @@ class EventHandler:
                     from .cerco_setup_state import CercoSetupState
                     g.cerco_setup_state = CercoSetupState(g)
                 g.cerco_setup_state.handle_events([event])
+
+            # Castas Setup: encaminha eventos para tela de configuração das Castas
+            if g.estado_jogo == "castas_setup":
+                if not getattr(g, 'castas_setup_state', None):
+                    from .castas_setup_state import CastasSetupState
+                    g.castas_setup_state = CastasSetupState(g)
+                g.castas_setup_state.handle_events([event])
+
+            # Castas: encaminha eventos para o estado principal
+            if g.estado_jogo == "castas":
+                if getattr(g, 'castas_state', None):
+                    g.castas_state.handle_events([event])
+
             elif g.estado_jogo == ESTADO_JOGO_CUTSCENE:
                  if event.type == pygame.KEYDOWN or (event.type == pygame.MOUSEBUTTONDOWN):
                       g.cutscene_manager.pular()
@@ -80,6 +93,9 @@ class EventHandler:
             self._handle_combate_click(event, mouse_pos, personagem_ativo)
         elif g.estado_jogo == ESTADO_JOGO_CERCO_SETUP:
             # Já tratado no handle_events principal
+            pass
+        elif g.estado_jogo in ("castas_setup", "castas"):
+            # Já tratado no handle_events principal via castas_state/castas_setup_state
             pass
         elif g.estado_jogo == ESTADO_JOGO_EDITOR:
             self._handle_editor_click(event, mouse_pos)

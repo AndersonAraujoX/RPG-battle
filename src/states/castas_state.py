@@ -559,10 +559,6 @@ class CastasState(GameState):
         if self.feedback_timer > 0:
             self.feedback_timer -= 1
 
-        # Processa eventos para pygame
-        events = pygame.event.get()
-        self.handle_events(events)
-
     # ── DRAW ───────────────────────────────────────────────────────────────
     def draw(self, tela):
         W, H = LARGURA_TELA, ALTURA_TELA

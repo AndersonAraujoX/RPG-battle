@@ -119,6 +119,8 @@ class Game:
         
         self.cerco_state = None
         self.cerco_setup_state = None
+        self.castas_state = None
+        self.castas_setup_state = None
         
         # Optimization Trackers
         self.last_char_id = None
