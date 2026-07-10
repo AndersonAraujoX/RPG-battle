@@ -52,7 +52,7 @@ class GameSetup:
     def carregar_imagens():
         imagens = {}
         
-        # Carrega o spritesheet de monstros insetos para o modo Cerco contra Isectum
+        # Carrega o spritesheet de monstros insetos para o modo Cerco contra Isectum (fallback)
         insetos_fatiados = {}
         caminho_insetos = resource_path("assets/images/characters/monsters/ItemsInsectA.png")
         try:
@@ -72,47 +72,96 @@ class GameSetup:
                 "casulo_terra":       insetos_spritesheet.subsurface((col_w,     row_h, col_w, row_h)),
                 "centopeia_marrom":   insetos_spritesheet.subsurface((col_w * 2, row_h, col_w, row_h)),
             }
-
-            # Fatiamento dinâmico para as 24 variantes específicas de Isectum
-            map_insetos_posicoes = {
-                "vespa_cacadora":        (0, 0),
-                "louva_deus":            (1, 0),
-                "viuva_canibal":         (2, 0),
-                "escaravelho_necrofago":  (3, 0),
-                "besouro_unicornio":     (4, 0),
-                "gafanhoto_praga":       (5, 0),
-                "carrapato_vampiro":      (6, 0),
-                "libelula_blindada":     (7, 0),
-                "besouro_gorgulho":      (8, 0),
-                "cigarra_ressonante":    (9, 0),
-                "enxame_rainha":         (10, 0),
-                "vagalume_sombras":      (11, 0),
-                "larva_carniceira":      (12, 0),
-                "tarantula_golias":      (13, 0),
-                "formiga_correicao":     (14, 0),
-                
-                "aranha_clepto":         (0, 1),
-                "centopeia_olhos":       (1, 1),
-                "abelha_tecela":         (2, 1),
-                "mariposa_esfinge":      (3, 1),
-                "efemera_mimetica":      (4, 1),
-                "vespa_joia":            (5, 1),
-                "viuva_negra":           (6, 1),
-                "besouro_rinoceronte":   (7, 1),
-                "mosca_tse_tse":         (8, 1),
-                
-                # Nomes amigáveis e infiltradores/brutamontes
-                "brutamonte":            (7, 1),
-                "infiltrador":           (14, 0),
-            }
-
-            for chave_inseto, (col, row) in map_insetos_posicoes.items():
-                try:
-                    imagens[f"inseto_{chave_inseto}"] = insetos_spritesheet.subsurface((col * col_w, row * row_h, col_w, row_h))
-                except Exception as ex:
-                    print(f"Erro ao fatiar inseto {chave_inseto} na pos ({col}, {row}): {ex}")
         except Exception as e:
             print(f"Não foi possível carregar o spritesheet de insetos em {caminho_insetos}: {e}")
+
+        # GERAÇÃO E CARREGAMENTO DE SPRITES DE 32x32 INDIVIDUAIS DO ISECTUM (IA)
+        import os
+        import shutil
+        isectum_dir = resource_path("assets/images/characters/monsters/isectum")
+        sheet_dest_path = resource_path("assets/images/characters/monsters/isectum_spritesheet.png")
+        src_sheet = "/home/anderson/.gemini/antigravity-ide/brain/b2341e26-922c-497c-9fd1-36f1c570cc7f/isectum_spritesheet_1783642920213.png"
+
+        # Se as imagens individuais ainda não existem, cria e fatia a partir do spritesheet da IA
+        if not os.path.exists(isectum_dir) or not os.listdir(isectum_dir):
+            if not os.path.exists(isectum_dir):
+                try:
+                    os.makedirs(isectum_dir)
+                except Exception:
+                    pass
+            if os.path.exists(src_sheet) and not os.path.exists(sheet_dest_path):
+                try:
+                    shutil.copy(src_sheet, sheet_dest_path)
+                except Exception as e:
+                    print(f"Erro ao copiar spritesheet da IA: {e}")
+
+            if os.path.exists(sheet_dest_path):
+                try:
+                    sheet_img = pygame.image.load(sheet_dest_path)
+                    w_in, h_in = sheet_img.get_size()
+                    cols, rows = 6, 5
+                    cell_w, cell_h = w_in // cols, h_in // rows
+                    
+                    mapping_gerar = {
+                        "vespa_cacadora":        (0, 0),
+                        "abelha_tecela":         (1, 0),
+                        "formiga_correicao":     (2, 0),
+                        "libelula_blindada":     (3, 0),
+                        "louva_deus":            (4, 0),
+                        "viuva_canibal":         (5, 0),
+                        
+                        "besouro_rinoceronte":   (0, 1),
+                        "vagalume_sombras":      (1, 1),
+                        "aranha_clepto":         (2, 1),
+                        "mariposa_esfinge":      (3, 1),
+                        "besouro_unicornio":     (4, 1),
+                        "infiltrador":           (5, 1),
+                        
+                        "centopeia_olhos":       (0, 2),
+                        "besouro_gorgulho":      (1, 2),
+                        "efemera_mimetica":      (2, 2),
+                        "cigarra_ressonante":    (3, 2),
+                        "larva_carniceira":      (4, 2),
+                        "viuva_negra":           (5, 2),
+                        
+                        "mosca_tse_tse":         (0, 3),
+                        "gafanhoto_praga":       (2, 3),
+                        "escaravelho_necrofago":  (3, 3),
+                        "vespa_joia":            (4, 3),
+                        "enxame_rainha":         (5, 3),
+                        
+                        "brutamonte":            (4, 4),
+                        "carrapato_vampiro":      (3, 4),
+                    }
+                    
+                    for name, (col, row) in mapping_gerar.items():
+                        rect = pygame.Rect(col * cell_w, row * cell_h, cell_w, cell_h)
+                        sub = sheet_img.subsurface(rect)
+                        cell_surf = pygame.Surface((cell_w, cell_h), pygame.SRCALPHA)
+                        cell_surf.blit(sub, (0, 0))
+                        
+                        # Remove fundo branco
+                        for y in range(cell_h):
+                            for x in range(cell_w):
+                                color = cell_surf.get_at((x, y))
+                                if color.r > 240 and color.g > 240 and color.b > 240:
+                                    cell_surf.set_at((x, y), (0, 0, 0, 0))
+                                    
+                        scaled = pygame.transform.scale(cell_surf, (32, 32))
+                        pygame.image.save(scaled, os.path.join(isectum_dir, f"{name}.png"))
+                except Exception as e:
+                    print(f"Erro ao fatiar e salvar sprites de 32x32: {e}")
+
+        # Carrega todas as imagens individuais de 32x32 salvas na pasta
+        if os.path.exists(isectum_dir):
+            for file_name in os.listdir(isectum_dir):
+                if file_name.endswith(".png"):
+                    key_inseto = file_name.replace(".png", "")
+                    try:
+                        imagens[f"inseto_{key_inseto}"] = pygame.image.load(os.path.join(isectum_dir, file_name)).convert_alpha()
+                    except Exception as e:
+                        print(f"Erro ao carregar imagem individual {file_name}: {e}")
+
 
         MONSTROS_INSETOS_MAP = {
             "Goblin": "joaninha",
