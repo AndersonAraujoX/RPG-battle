@@ -81,6 +81,18 @@ class GameSetup:
         isectum_dir = resource_path("assets/images/characters/monsters/isectum")
         sheet_dest_path = resource_path("assets/images/characters/monsters/isectum_spritesheet.png")
         src_sheet = "/home/anderson/.gemini/antigravity-ide/brain/b2341e26-922c-497c-9fd1-36f1c570cc7f/isectum_spritesheet_1783642920213.png"
+        qual_flag = os.path.join(isectum_dir, ".quality_v2")
+
+        # Força limpeza para re-geração se a versão de qualidade antiga for detectada
+        if os.path.exists(isectum_dir) and not os.path.exists(qual_flag):
+            try:
+                for f in os.listdir(isectum_dir):
+                    fp = os.path.join(isectum_dir, f)
+                    if os.path.isfile(fp):
+                        os.remove(fp)
+                print("Limpando pasta de sprites antigos para aplicar melhoria de qualidade...")
+            except Exception as e:
+                print(f"Erro ao limpar pasta de insetos para upgrade: {e}")
 
         # Se as imagens individuais ainda não existem, cria e fatia a partir do spritesheet da IA
         if not os.path.exists(isectum_dir) or not os.listdir(isectum_dir):
@@ -140,15 +152,23 @@ class GameSetup:
                         cell_surf = pygame.Surface((cell_w, cell_h), pygame.SRCALPHA)
                         cell_surf.blit(sub, (0, 0))
                         
-                        # Remove fundo branco
+                        # Remove fundo branco com maior tolerância para eliminar halos brancos
                         for y in range(cell_h):
                             for x in range(cell_w):
                                 color = cell_surf.get_at((x, y))
-                                if color.r > 240 and color.g > 240 and color.b > 240:
+                                if color.r > 215 and color.g > 215 and color.b > 215:
                                     cell_surf.set_at((x, y), (0, 0, 0, 0))
                                     
-                        scaled = pygame.transform.scale(cell_surf, (32, 32))
+                        # Redimensiona usando smoothscale para bordas suaves e anti-aliasing de alta qualidade
+                        scaled = pygame.transform.smoothscale(cell_surf, (32, 32))
                         pygame.image.save(scaled, os.path.join(isectum_dir, f"{name}.png"))
+                        
+                    # Cria arquivo flag de qualidade para não re-gerar à toa
+                    try:
+                        with open(qual_flag, "w") as fflag:
+                            fflag.write("v2")
+                    except Exception:
+                        pass
                 except Exception as e:
                     print(f"Erro ao fatiar e salvar sprites de 32x32: {e}")
 
