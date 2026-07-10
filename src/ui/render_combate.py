@@ -224,6 +224,15 @@ def obter_sprite_escalado(img, w, h):
         return img
 
 def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, animacoes_sprites=None, estado_animacao=None):
+    # Se o personagem tem um tipo de inseto específico no modo Cerco, usa o sprite correto
+    tipo_inseto = getattr(personagem, "tipo_inseto", None)
+    if tipo_inseto:
+        chave_inseto = f"inseto_{tipo_inseto}"
+        if mostrar and chave_inseto in game_images and game_images[chave_inseto]:
+            scaled_img = obter_sprite_escalado(game_images[chave_inseto], rect.width, rect.height)
+            tela.blit(scaled_img, rect.topleft)
+            return
+
     personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
     classe_nome = personagem.__class__.__name__
 

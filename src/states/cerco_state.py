@@ -656,6 +656,37 @@ class CercoState(GameState):
         mouse = pygame.mouse.get_pos()
         e = self.estado
 
+        # Intercepta eventos se o menu dev estiver aberto
+        if getattr(self, "dev_menu_aberto", False):
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_ESCAPE, pygame.K_F12):
+                        self.dev_menu_aberto = False
+                        return
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    W, H = LARGURA_TELA, ALTURA_TELA
+                    pw, ph = 840, 360
+                    px = (W - pw) // 2
+                    py = (H - ph) // 2
+                    x0 = px + 25
+                    y0 = py + 70
+                    cw, ch = 190, 35
+                    gap_x, gap_y = 10, 10
+                    
+                    from ..cerco_isectum import DADOS_INIMIGOS
+                    keys = list(DADOS_INIMIGOS.keys())
+                    for idx, key in enumerate(keys):
+                        col = idx % 4
+                        row = idx // 4
+                        bx = x0 + col * (cw + gap_x)
+                        by = y0 + row * (ch + gap_y)
+                        r = pygame.Rect(bx, by, cw, ch)
+                        if r.collidepoint(mouse):
+                            self._dev_summon_specific_enemy(key)
+                            self.dev_menu_aberto = False
+                            return
+            return
+
         for event in events:
             if self.fase == "ESCOLHER_ACAO_CARTA":
                 # ESC cancela escolha
@@ -791,6 +822,8 @@ class CercoState(GameState):
             if new_z != self.zoom:
                 self.zoom = new_z
                 self.terrain_iso_cache.clear()
+        if key == pygame.K_F12:
+            self.dev_menu_aberto = not getattr(self, "dev_menu_aberto", False)
         if key == pygame.K_MINUS:
             new_z = max(0.35, self.zoom - 0.25)
             if new_z != self.zoom:
@@ -1558,6 +1591,7 @@ class CercoState(GameState):
     def _sincronizar_inimigos_tabuleiro(self):
         from src.resolvedor_acoes import ZONAS_GRID, obter_zona_por_coordenada
         from src.personagens.minions import Goblin, Esqueleto, Kobold, Troll
+        from src.personagens import DragaoAnciao, ReiGoblin
         import random
 
         e = self.estado
@@ -1724,6 +1758,11 @@ class CercoState(GameState):
                 inimigo = classe_inimigo(nome_inimigo, "B", nivel=3)
                 if is_infiltrador:
                     inimigo._is_infiltrador = True
+                    inimigo.tipo_inseto = "infiltrador"
+                elif classe_inimigo == Troll:
+                    inimigo.tipo_inseto = "besouro_rinoceronte"
+                else:
+                    inimigo.tipo_inseto = carta_ini
                 
                 sucesso = tab.adicionar_personagem(inimigo, cx, cy)
                 if sucesso:
@@ -1861,6 +1900,9 @@ class CercoState(GameState):
 
         if self.estado.get("derrota") or self.estado.get("vitoria"):
             self._draw_fim(tela, W, H)
+
+        if getattr(self, "dev_menu_aberto", False):
+            self._desenhar_dev_menu(tela)
 
     # ── HEADER ──────────────────────────────────────────────────────────
     def _draw_header(self, tela, W):
@@ -3969,3 +4011,133 @@ class CercoState(GameState):
                 })
                 self.fase = "ACAO_LIVRE"
                 self._push("SISTEMA", f"🪰 Mosca-Tsé-Tsé picou {self.heroi_atual.nome}! Perdeu a vez!")
+
+    def _dev_summon_specific_enemy(self, carta_key: str):
+        from ..cerco_isectum import DADOS_INIMIGOS
+        from src.personagens.minions import Goblin, Esqueleto, Kobold, Troll
+        from src.personagens import DragaoAnciao, ReiGoblin
+        import random
+        
+        info = DADOS_INIMIGOS.get(carta_key)
+        if not info:
+            return
+        
+        # 2. Escolhe uma zona de destino aleatória para spawnar
+        from ..resolvedor_acoes import ZONAS_GRID
+        zonas_spawn = ["patio", "muralha_norte", "muralha_sul", "muralha_oeste", "muralha_leste"]
+        zona_dest = random.choice(zonas_spawn)
+        
+        tab = self.motor.tabuleiro
+        x1, y1, x2, y2 = ZONAS_GRID[zona_dest]
+        
+        # Encontra célula livre
+        celulas = []
+        for cy in range(y1, y2 + 1):
+            for cx in range(x1, x2 + 1):
+                if 0 <= cx < 20 and 0 <= cy < 20:
+                    if tab.get_terrain_em(cx, cy) != "parede" and tab.grid[cy][cx] is None:
+                        celulas.append((cx, cy))
+                        
+        if not celulas:
+            # Tenta qualquer célula livre no grid
+            for cy in range(20):
+                for cx in range(20):
+                    if tab.get_terrain_em(cx, cy) != "parede" and tab.grid[cy][cx] is None:
+                        celulas.append((cx, cy))
+                        
+        if not celulas:
+            self._feedback("Não há espaço livre no tabuleiro para invocar!", C_PERIGO)
+            return
+            
+        cx, cy = random.choice(celulas)
+        
+        # 3. Cria e adiciona o inimigo
+        mapa_classes = {
+            "Goblin": Goblin,
+            "Esqueleto": Esqueleto,
+            "Kobold": Kobold,
+            "Troll": Troll,
+            "DragaoAnciao": DragaoAnciao,
+            "ReiGoblin": ReiGoblin
+        }
+        classe_inimigo = mapa_classes.get(info["classe"], Goblin)
+        nome_inimigo = f"{info['emoji']} {info['nome']} (Dev)"
+        
+        inimigo = classe_inimigo(nome_inimigo, "B", nivel=3)
+        inimigo.tipo_inseto = carta_key
+        sucesso = tab.adicionar_personagem(inimigo, cx, cy)
+        if sucesso:
+            self.motor.combatentes.append(inimigo)
+            if not hasattr(self.motor, 'time_b'):
+                self.motor.time_b = []
+            self.motor.time_b.append(inimigo)
+            
+            # Incrementa o contador de invasores do estado para consistência visual/mecanismo
+            if zona_dest in self.estado["invasores"]:
+                self.estado["invasores"][zona_dest] += 1
+            elif "muralha" in zona_dest or "patio" in zona_dest:
+                self.estado["invasores"][zona_dest] = self.estado["invasores"].get(zona_dest, 0) + 1
+            
+            # Força o descarte_inimigos a registrar a carta dev para aparecer no HUD do REVELADO
+            desc_ini = list(self.estado.get("descarte_inimigos", []))
+            desc_ini.append(carta_key)
+            self.estado = aplicar_delta(self.estado, {"descarte_inimigos": desc_ini})
+            
+            # Dispara efeito
+            self._aplicar_efeito_inimigo(carta_key)
+            self.map_backbuffer_sujo = True
+            self._feedback(f"Dev: Invocou {info['nome']}!", C_VERDE)
+
+    def _desenhar_dev_menu(self, tela):
+        W, H = LARGURA_TELA, ALTURA_TELA
+        
+        # Overlay escuro semi-transparente cobrindo toda a tela
+        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+        overlay.fill((5, 6, 12, 220))
+        tela.blit(overlay, (0, 0))
+        
+        # Painel central
+        pw, ph = 840, 360
+        px = (W - pw) // 2
+        py = (H - ph) // 2
+        
+        pygame.draw.rect(tela, (14, 16, 30), (px, py, pw, ph), border_radius=12)
+        pygame.draw.rect(tela, C_ACENTO, (px, py, pw, ph), 2, border_radius=12)
+        
+        # Título do painel
+        titulo = self.fG.render("MENU DEV: SELECIONE O INIMIGO PARA INVOCAR", True, C_OURO)
+        tela.blit(titulo, (px + pw // 2 - titulo.get_width() // 2, py + 20))
+        
+        sub = self.fMi.render("Pressione F12 ou ESC para fechar", True, C_DIM)
+        tela.blit(sub, (px + pw // 2 - sub.get_width() // 2, py + 48))
+        
+        # Renderizar botões
+        x0 = px + 25
+        y0 = py + 70
+        cw, ch = 190, 35
+        gap_x, gap_y = 10, 10
+        
+        mouse = pygame.mouse.get_pos()
+        from ..cerco_isectum import DADOS_INIMIGOS
+        keys = list(DADOS_INIMIGOS.keys())
+        for idx, key in enumerate(keys):
+            info = DADOS_INIMIGOS[key]
+            col = idx % 4
+            row = idx // 4
+            bx = x0 + col * (cw + gap_x)
+            by = y0 + row * (ch + gap_y)
+            r = pygame.Rect(bx, by, cw, ch)
+            
+            hover = r.collidepoint(mouse)
+            bg_cor = (30, 32, 54) if hover else (22, 24, 40)
+            borda_cor = C_ACENTO if hover else C_BORDA
+            
+            pygame.draw.rect(tela, bg_cor, r, border_radius=6)
+            pygame.draw.rect(tela, borda_cor, r, 1, border_radius=6)
+            
+            # Desenha texto com emoji
+            txt = f"{info['emoji']} {info['nome']}"
+            txt_surf = self.fP.render(txt, True, C_TEXTO)
+            if txt_surf.get_width() > cw - 12:
+                txt_surf = self.fMi.render(txt, True, C_TEXTO)
+            tela.blit(txt_surf, (r.x + 8, r.centery - txt_surf.get_height() // 2))

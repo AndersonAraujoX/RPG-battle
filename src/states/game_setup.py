@@ -72,6 +72,45 @@ class GameSetup:
                 "casulo_terra":       insetos_spritesheet.subsurface((col_w,     row_h, col_w, row_h)),
                 "centopeia_marrom":   insetos_spritesheet.subsurface((col_w * 2, row_h, col_w, row_h)),
             }
+
+            # Fatiamento dinâmico para as 24 variantes específicas de Isectum
+            map_insetos_posicoes = {
+                "vespa_cacadora":        (0, 0),
+                "louva_deus":            (1, 0),
+                "viuva_canibal":         (2, 0),
+                "escaravelho_necrofago":  (3, 0),
+                "besouro_unicornio":     (4, 0),
+                "gafanhoto_praga":       (5, 0),
+                "carrapato_vampiro":      (6, 0),
+                "libelula_blindada":     (7, 0),
+                "besouro_gorgulho":      (8, 0),
+                "cigarra_ressonante":    (9, 0),
+                "enxame_rainha":         (10, 0),
+                "vagalume_sombras":      (11, 0),
+                "larva_carniceira":      (12, 0),
+                "tarantula_golias":      (13, 0),
+                "formiga_correicao":     (14, 0),
+                
+                "aranha_clepto":         (0, 1),
+                "centopeia_olhos":       (1, 1),
+                "abelha_tecela":         (2, 1),
+                "mariposa_esfinge":      (3, 1),
+                "efemera_mimetica":      (4, 1),
+                "vespa_joia":            (5, 1),
+                "viuva_negra":           (6, 1),
+                "besouro_rinoceronte":   (7, 1),
+                "mosca_tse_tse":         (8, 1),
+                
+                # Nomes amigáveis e infiltradores/brutamontes
+                "brutamonte":            (7, 1),
+                "infiltrador":           (14, 0),
+            }
+
+            for chave_inseto, (col, row) in map_insetos_posicoes.items():
+                try:
+                    imagens[f"inseto_{chave_inseto}"] = insetos_spritesheet.subsurface((col * col_w, row * row_h, col_w, row_h))
+                except Exception as ex:
+                    print(f"Erro ao fatiar inseto {chave_inseto} na pos ({col}, {row}): {ex}")
         except Exception as e:
             print(f"Não foi possível carregar o spritesheet de insetos em {caminho_insetos}: {e}")
 
