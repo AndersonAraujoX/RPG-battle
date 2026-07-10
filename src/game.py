@@ -41,7 +41,7 @@ from .personagens.rei_goblin import ReiGoblin
 from .personagens.lorde_lich import LordeLich
 from .personagens.dragao_anciao import DragaoAnciao
 from .personagens.minions import Esqueleto, Goblin, Kobold
-from .states.cerco_state import CercoState
+from .states.cerco import CercoState
 
 class Game:
     def __init__(self):

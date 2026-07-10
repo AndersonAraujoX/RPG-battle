@@ -5,7 +5,7 @@ from src.utils import calcular_distancia
 from src.perks import PERKS
 from src.personagens.guerreiro import Guerreiro
 from src.personagens.protagonistas import Novak, Yukito, Rilem, Koema
-from src.states.cerco_state import CercoState
+from src.states.cerco import CercoState
 
 class EventHandler:
     def __init__(self, game):
@@ -53,14 +53,14 @@ class EventHandler:
             # Cerco Setup: encaminha eventos para tela de configuração
             if g.estado_jogo == ESTADO_JOGO_CERCO_SETUP:
                 if not g.cerco_setup_state:
-                    from .cerco_setup_state import CercoSetupState
+                    from .cerco_setup import CercoSetupState
                     g.cerco_setup_state = CercoSetupState(g)
                 g.cerco_setup_state.handle_events([event])
 
             # Castas Setup: encaminha eventos para tela de configuração das Castas
             if g.estado_jogo == "castas_setup":
                 if not getattr(g, 'castas_setup_state', None):
-                    from .castas_setup_state import CastasSetupState
+                    from .castas_setup import CastasSetupState
                     g.castas_setup_state = CastasSetupState(g)
                 g.castas_setup_state.handle_events([event])
 
