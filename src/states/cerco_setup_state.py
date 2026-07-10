@@ -84,6 +84,7 @@ class CercoSetupState(GameState):
         self.area_dificuldade = pygame.Rect(40, y_dif, W - 80, 130)
         self.area_resolucao = pygame.Rect(40, y_dif + 145, W - 80, 100)
         self.btn_iniciar   = pygame.Rect(W // 2 - 120, H - 60, 240, 42)
+        self.btn_castas    = pygame.Rect(W // 2 + 135, H - 60, 210, 42)
         self.btn_voltar    = pygame.Rect(20, 20, 100, 36)
 
         self.heroi_rects = []
@@ -127,7 +128,7 @@ class CercoSetupState(GameState):
                     self.game.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
                     return
 
-                # Iniciar
+                # Iniciar Cerco
                 if self.btn_iniciar.collidepoint(mouse):
                     qtd = sum(1 for v in self.selecionados.values() if v)
                     if qtd == 0:
@@ -137,6 +138,13 @@ class CercoSetupState(GameState):
                     self.game.cerco_state = CercoState(self.game, config)
                     self.game.cerco_setup_state = None
                     self.game.estado_jogo = ESTADO_JOGO_CERCO
+                    return
+
+                # Castas dos Isectum
+                if self.btn_castas.collidepoint(mouse):
+                    self.game.cerco_setup_state = None
+                    self.game.castas_setup_state = None
+                    self.game.estado_jogo = "castas_setup"
                     return
 
                 # Clique em herói
@@ -352,6 +360,16 @@ class CercoSetupState(GameState):
         it = self.fM.render(txt, True, cor_texto)
         tela.blit(it, (self.btn_iniciar.centerx - it.get_width() // 2,
                        self.btn_iniciar.centery - it.get_height() // 2))
+
+        # Botão Castas dos Isectum
+        hover_c = self.btn_castas.collidepoint(mouse)
+        cor_c_bg  = (60, 12, 100) if hover_c else (40, 6, 72)
+        cor_c_bd  = (200, 80, 255) if hover_c else (120, 50, 180)
+        pygame.draw.rect(tela, cor_c_bg, self.btn_castas, border_radius=10)
+        pygame.draw.rect(tela, cor_c_bd, self.btn_castas, 2, border_radius=10)
+        ct = self.fM.render("🐛 Castas dos Isectum", True, (200, 80, 255) if hover_c else (150, 60, 200))
+        tela.blit(ct, (self.btn_castas.centerx - ct.get_width() // 2,
+                       self.btn_castas.centery - ct.get_height() // 2))
 
     def _draw_instrucoes(self, tela, W):
         txt = "Clique nos heróis para selecionar/deselecionar | ESC para voltar ao Menu"

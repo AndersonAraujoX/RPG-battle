@@ -168,3 +168,19 @@ class GameRenderer:
                 g.cerco_setup_state = CercoSetupState(g)
             g.cerco_setup_state.update()
             g.cerco_setup_state.draw(g.tela)
+
+        elif g.estado_jogo == "castas_setup":
+            if not getattr(g, 'castas_setup_state', None):
+                from .castas_setup_state import CastasSetupState
+                g.castas_setup_state = CastasSetupState(g)
+            g.castas_setup_state.update()
+            g.castas_setup_state.draw(g.tela)
+
+        elif g.estado_jogo == "castas":
+            if not getattr(g, 'castas_state', None):
+                from .castas_setup_state import CastasSetupState
+                g.castas_setup_state = CastasSetupState(g)
+                g.estado_jogo = "castas_setup"
+            else:
+                g.castas_state.update()
+                g.castas_state.draw(g.tela)
