@@ -79,7 +79,7 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         rodada = self.estado.get("rodada", 1)
         fase_txt = {
             "JOGAR_CARTA":   "Turno dos Heróis",
-            "TURNO_DIRETOR": "🐛 Turno do Diretor",
+            "TURNO_DIRETOR": "🐛 Turno do Filho do Imperador",
             "FASE_AMEACA":   "⚠ Fase de Ameaça",
             "FIM":           "FIM",
         }.get(self.fase, self.fase)
@@ -131,15 +131,19 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         tela.blit(panel, (px, py))
         pygame.draw.rect(tela, C_BORDA, (px, py, pw, ph), 1, border_radius=4)
 
+        # Determina qual Filho do Imperador está ativo no momento
+        idx = self.estado.get("diretor_ativo_idx", 0)
+        ativo = self.diretores[idx] if idx < len(self.diretores) else self.diretores[0]
+        acoes = self.estado["acoes_diretores"].get(ativo, 0)
+
         # Título do painel
-        acoes = self.estado.get("acoes_diretor", 0)
-        tt = self.fM.render(f"🐛 INVASÃO ISECTUM", True, C_DIRETOR)
+        tt = self.fM.render(f"🐛 INVASÃO: {ativo.upper()}", True, C_DIRETOR)
         tela.blit(tt, (px + 15, py + 15))
         pygame.draw.line(tela, C_BORDA, (px + 8, py + 38), (px + pw - 8, py + 38), 1)
 
         # Instruções dinâmicas
         if self.casta_selecionada is None:
-            inst_txt = "Selecione uma Carta da sua Mão!"
+            inst_txt = "Oponente planejando ataque..." if self.num_diretores > 1 else "Selecione uma Carta da sua Mão!"
             inst_cor = C_DIM
         else:
             from src.cerco_isectum import DADOS_INIMIGOS
@@ -149,12 +153,12 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         inst = self.fP.render(inst_txt, True, inst_cor)
         tela.blit(inst, (px + 15, py + 48))
 
-        # Estatísticas do Deck de Castas
-        deck_dir = self.estado.get("deck_diretor", [])
-        desc_dir = self.estado.get("descarte_diretor", [])
+        # Estatísticas do Deck de Castas do Filho Ativo
+        deck_dir = self.estado.get("decks_diretores", {}).get(ativo, [])
+        desc_dir = self.estado.get("descarte_diretores", {}).get(ativo, [])
         
         info_y = py + 100
-        lbl_deck = self.fM.render(f"🎴 Deck do Diretor: {len(deck_dir)} cartas", True, C_TEXTO)
+        lbl_deck = self.fM.render(f"🎴 Deck do {ativo}: {len(deck_dir)} cartas", True, C_TEXTO)
         lbl_desc = self.fM.render(f"🗑 Pilha de Descarte: {len(desc_dir)} cartas", True, C_DIM)
         tela.blit(lbl_deck, (px + 15, info_y))
         tela.blit(lbl_desc, (px + 15, info_y + 30))
@@ -192,7 +196,7 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
                 tela.blit(self.fMi.render(linha, True, C_TEXTO), (px + 20, ly))
                 ly += 16
 
-        # Botão Encerrar Turno do Diretor
+        # Botão Encerrar Turno do Diretor (desabilitado se controlado pela IA de múltiplos Bots)
         btn_y = H - 52
         self.btn_diretor_encerrar = pygame.Rect(px + 8, btn_y, pw - 16, 38)
         mouse = pygame.mouse.get_pos()
@@ -201,7 +205,9 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         cor_enc_bd = (255, 80, 80) if hover_enc else C_PERIGO
         pygame.draw.rect(tela, cor_enc_bg, self.btn_diretor_encerrar, border_radius=8)
         pygame.draw.rect(tela, cor_enc_bd, self.btn_diretor_encerrar, 2, border_radius=8)
-        enc_t = self.fM.render("⏭  Encerrar Turno do Diretor", True, C_TEXTO)
+        
+        texto_btn = "Oponente Agindo..." if self.num_diretores > 1 else "⏭  Encerrar Turno do Filho"
+        enc_t = self.fM.render(texto_btn, True, C_TEXTO)
         tela.blit(enc_t, (
             self.btn_diretor_encerrar.centerx - enc_t.get_width() // 2,
             self.btn_diretor_encerrar.centery - enc_t.get_height() // 2,
@@ -213,19 +219,23 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
 
     # ── MÃO DE CARTAS DO DIRETOR ──────────────────────────────────────────
     def _draw_mao_diretor(self, tela):
-        """Renderiza a mão de cartas de insetos do Diretor na parte inferior."""
+        """Renderiza a mão de cartas de insetos do Filho do Imperador ativo na parte inferior."""
         from src.cerco_isectum import DADOS_INIMIGOS
 
         mr = self.mao_rect
+
         # Desenha a área de mão estilizada com tema Isectum (sombrio)
         pygame.draw.rect(tela, (18, 8, 20), mr, border_radius=8)
         pygame.draw.rect(tela, C_BORDA, mr, 1, border_radius=8)
 
-        mao_dir = self.estado.get("mao_diretor", [])
+        # Pega a mão do diretor ativo
+        idx = self.estado.get("diretor_ativo_idx", 0)
+        ativo = self.diretores[idx] if idx < len(self.diretores) else self.diretores[0]
+        mao_dir = self.estado.get("maos_diretores", {}).get(ativo, [])
         self.diretor_carta_rects = []
 
         if not mao_dir:
-            vazia_lbl = self.fM.render("MÃO DO DIRETOR VAZIA", True, C_DIM)
+            vazia_lbl = self.fM.render(f"MÃO DE {ativo.upper()} VAZIA", True, C_DIM)
             tela.blit(vazia_lbl, (mr.centerx - vazia_lbl.get_width() // 2, mr.centery - vazia_lbl.get_height() // 2))
             return
 

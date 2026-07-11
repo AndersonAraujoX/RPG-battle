@@ -70,43 +70,63 @@ class CastasState(
         # Guarda config original com acoes_dir etc.
         self.config = config
 
-        # Estado adicional do Diretor
+        # Múltiplos Filhos do Imperador
+        self.num_diretores = config.get("num_diretores", 1)
+        self.controle_filhos = config.get("controle_filhos", "humano")
+        self.diretores = [f"Filho {i+1}" for i in range(self.num_diretores)]
+        self.timer_diretor_bot = 0
+
+        # Estado adicional do Filho do Imperador
         self.casta_selecionada = None
         self.modo_acao = MODO_NENHUM
         self._zona_rects_mapa  = {}
         self.diretor_carta_rects = []
 
-        # Inicializa o Deck do Diretor com 2 de cada cata (48 cartas no total)
+        # Inicializa Decks e Mãos individuais para cada Filho do Imperador
         from src.cerco_isectum import DADOS_INIMIGOS
-        pool_inimigos = list(DADOS_INIMIGOS.keys()) * 2
-        random.shuffle(pool_inimigos)
+        maos_dir = {}
+        decks_dir = {}
+        descarte_dir = {}
+        acoes_dir = {}
 
-        # Determina o tamanho da mão do Diretor baseado na dificuldade (padrão: 3)
+        # Determina o tamanho da mão baseado na dificuldade (padrão: 3)
         tam_mao_dir = 3
         if diff_raw.get("id") == "facil":
             tam_mao_dir = 2
         elif diff_raw.get("id") == "dificil":
             tam_mao_dir = 4
 
-        mao_dir = []
-        for _ in range(tam_mao_dir):
-            if pool_inimigos:
-                mao_dir.append(pool_inimigos.pop())
+        acoes_inicial = diff_raw.get("acoes_dir", 3)
+
+        for d_nome in self.diretores:
+            pool = list(DADOS_INIMIGOS.keys()) * 2
+            random.shuffle(pool)
+            
+            # Mão
+            mao = []
+            for _ in range(tam_mao_dir):
+                if pool:
+                    mao.append(pool.pop())
+            
+            maos_dir[d_nome] = mao
+            decks_dir[d_nome] = pool
+            descarte_dir[d_nome] = []
+            acoes_dir[d_nome] = acoes_inicial
 
         # Adiciona campos de estado para o modo Castas
         from ...cerco_isectum import aplicar_delta
         self.estado = aplicar_delta(self.estado, {
             "castas_invasoras": {},    # zona_id → inseto_id
             "zonas_bloqueadas": [],    # zonas sem trabalho nesta rodada
-            "acoes_diretor":    diff_raw.get("acoes_dir", 3),
-            "deck_diretor":     pool_inimigos,
-            "mao_diretor":      mao_dir,
-            "descarte_diretor": [],
+            "maos_diretores":   maos_dir,
+            "decks_diretores":  decks_dir,
+            "descarte_diretores": descarte_dir,
+            "acoes_diretores":  acoes_dir,
+            "diretor_ativo_idx": 0,
         })
 
-        self._push("SISTEMA", "🐛 Modo Castas dos Isectum — 2 jogadores assimétrico!")
-        self._push("SISTEMA", "Heróis: usem cartas para defender a fortaleza.")
-        self._push("SISTEMA", "Diretor: envie castas para invadir e atacar.")
+        self._push("SISTEMA", f"🐛 Modo Castas — Jogando contra {self.num_diretores} Filho(s) do Imperador!")
+        self._push("SISTEMA", "Defenda a fortaleza contra as invasões e vença no Duelo!")
 
     # ── PROPRIEDADE: heroi_atual ────────────────────────────────────────
     # (herdada de CercoState)
@@ -116,6 +136,35 @@ class CastasState(
 
     # ── UPDATE ────────────────────────────────────────────────────────
     def update(self):
-        """Delega para CercoState.update() (sincronização, animações, etc.)"""
-        # Importa CercoState.update sem executar o de CastasState
+        """Delega para CercoState.update() e roda a IA para o turno dos Filhos do Imperador."""
         CercoState.update(self)
+
+        # Se for o turno de algum bot Filho do Imperador e o controle for I.A.
+        if self.fase == "TURNO_DIRETOR" and self.controle_filhos == "ia":
+            idx = self.estado.get("diretor_ativo_idx", 0)
+            if idx < len(self.diretores):
+                ativo = self.diretores[idx]
+                acoes = self.estado["acoes_diretores"].get(ativo, 0)
+
+                if acoes > 0:
+                    self.timer_diretor_bot += 1
+                    if self.timer_diretor_bot >= 40: # Pequeno atraso visual de ~0.7s
+                        self.timer_diretor_bot = 0
+                        
+                        # IA joga uma carta de sua mão
+                        mao = self.estado["maos_diretores"].get(ativo, [])
+                        if mao:
+                            import random
+                            inseto_id = random.choice(mao)
+                            
+                            # Define o campo de spawn com base no índice do Filho
+                            campos = ["campo_norte", "campo_sul", "campo_oeste", "campo_leste"]
+                            zona_spawn = campos[idx % len(campos)]
+                            
+                            # Executa ação de spawn
+                            self._diretor_usar_acao_inseto_multi(ativo, inseto_id, zona_spawn)
+                        else:
+                            # Sem cartas, passa
+                            self._concluir_turno_diretor()
+                else:
+                    self._concluir_turno_diretor()

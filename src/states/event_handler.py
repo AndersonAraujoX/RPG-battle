@@ -69,6 +69,10 @@ class EventHandler:
                 if getattr(g, 'castas_state', None):
                     g.castas_state.handle_events([event])
 
+            elif g.estado_jogo == ESTADO_JOGO_DUELO:
+                if getattr(g, 'duelo_state', None):
+                    g.duelo_state.handle_events([event])
+
             elif g.estado_jogo == ESTADO_JOGO_CUTSCENE:
                  if event.type == pygame.KEYDOWN or (event.type == pygame.MOUSEBUTTONDOWN):
                       g.cutscene_manager.pular()

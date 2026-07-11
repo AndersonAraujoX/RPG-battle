@@ -150,6 +150,7 @@ ESTADO_JOGO_DEV = 10
 ESTADO_JOGO_DEV_CHAPTERS = 11
 ESTADO_JOGO_CERCO = 12          # Modo: Cerco contra Isectum (jogo de tabuleiro)
 ESTADO_JOGO_CERCO_SETUP = 13    # Tela de configuração do modo Cerco
+ESTADO_JOGO_DUELO = 14          # Modo: Duelo de Castas (Grimwood style)
 
 # --- Cores do Novo Menu ---
 COR_FUNDO_MENU = (5, 5, 5) # Quase preto

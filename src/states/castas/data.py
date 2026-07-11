@@ -45,7 +45,7 @@ NAR = {
     "torre":     ["A torre resiste... por enquanto.", "Defesas testadas!"],
 }
 
-# ── DIFICULDADES DO DIRETOR ISECTUM ──
+# ── DIFICULDADES DO FILHO DO IMPERADOR ──
 DIFICULDADES_CASTAS = [
     {
         "id":          "facil",
@@ -53,8 +53,8 @@ DIFICULDADES_CASTAS = [
         "pedregulhos": 6,
         "tesouro":     25,
         "reserva":     12,
-        "acoes_dir":   2,   # ações por turno do Diretor
-        "desc":        "Diretor recebe 2 ações. Bom para aprender.",
+        "acoes_dir":   2,   # ações por turno
+        "desc":        "Filho do Imperador recebe 2 ações. Bom para aprender.",
     },
     {
         "id":          "normal",
@@ -63,7 +63,7 @@ DIFICULDADES_CASTAS = [
         "tesouro":     20,
         "reserva":     10,
         "acoes_dir":   3,
-        "desc":        "Diretor recebe 3 ações. Experiência equilibrada.",
+        "desc":        "Filho do Imperador recebe 3 ações. Experiência equilibrada.",
     },
     {
         "id":          "dificil",
@@ -72,6 +72,6 @@ DIFICULDADES_CASTAS = [
         "tesouro":     15,
         "reserva":     8,
         "acoes_dir":   4,
-        "desc":        "Diretor recebe 4 ações. Para jogadores experientes.",
+        "desc":        "Filho do Imperador recebe 4 ações. Para jogadores experientes.",
     },
 ]

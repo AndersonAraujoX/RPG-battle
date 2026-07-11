@@ -25,7 +25,7 @@ DIFICULDADES_CASTAS = [
         "tesouro":     25,
         "reserva":     12,
         "acoes_dir":   2,
-        "desc":        "Diretor recebe 2 ações por turno. Bom para aprender.",
+        "desc":        "Filho do Imperador recebe 2 ações por turno. Bom para aprender.",
     },
     {
         "id":          "normal",
@@ -34,7 +34,7 @@ DIFICULDADES_CASTAS = [
         "tesouro":     20,
         "reserva":     10,
         "acoes_dir":   3,
-        "desc":        "Diretor recebe 3 ações por turno. Experiência equilibrada.",
+        "desc":        "Filho do Imperador recebe 3 ações por turno. Experiência equilibrada.",
     },
     {
         "id":          "dificil",
@@ -43,7 +43,7 @@ DIFICULDADES_CASTAS = [
         "tesouro":     15,
         "reserva":     8,
         "acoes_dir":   4,
-        "desc":        "Diretor recebe 4 ações por turno. Para veteranos.",
+        "desc":        "Filho do Imperador recebe 4 ações por turno. Para veteranos.",
     },
 ]
 

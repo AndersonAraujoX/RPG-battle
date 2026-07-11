@@ -184,3 +184,8 @@ class GameRenderer:
             else:
                 g.castas_state.update()
                 g.castas_state.draw(g.tela)
+
+        elif g.estado_jogo == ESTADO_JOGO_DUELO:
+            if getattr(g, 'duelo_state', None):
+                g.duelo_state.update()
+                g.duelo_state.draw(g.tela)

@@ -68,7 +68,7 @@ class CastasStateTurnMixin:
 
     # ── TURNO DO DIRETOR ─────────────────────────────────────────────────
     def _iniciar_turno_diretor(self):
-        """Começa o turno do Diretor humano (jogador 2)."""
+        """Começa a rodada de turnos dos Filhos do Imperador."""
         from .data import DIFICULDADES_CASTAS
         from src.cerco_isectum import aplicar_delta
 
@@ -76,44 +76,50 @@ class CastasStateTurnMixin:
         dif     = next((d for d in DIFICULDADES_CASTAS if d["id"] == dif_id), DIFICULDADES_CASTAS[1])
         acoes   = dif.get("acoes_dir", 3)
 
-        self.estado = aplicar_delta(self.estado, {"acoes_diretor": acoes})
-        self.fase   = "TURNO_DIRETOR"
-        self.modo_acao = MODO_DIR_ESCOLHER_CASTA
-        self.casta_selecionada = None
-        self._feedback(f"🐛 Turno do Diretor! {acoes} ações disponíveis.", C_DIRETOR)
-        self._push("SISTEMA", f"Turno do Diretor Isectum — {acoes} ação(ões).")
+        # Configura o primeiro Filho do Imperador da fila
+        self.estado = aplicar_delta(self.estado, {
+            "diretor_ativo_idx": 0,
+        })
+        
+        # Define as ações iniciais de todos os diretores
+        acoes_dir = {d: acoes for d in self.diretores}
+        self.estado = aplicar_delta(self.estado, {"acoes_diretores": acoes_dir})
 
-    def _diretor_usar_acao_inseto(self, inseto_id, zona_id):
-        """Diretor humano envia um inseto para uma zona específica."""
+        self.fase   = "TURNO_DIRETOR"
+        self.modo_acao = MODO_NENHUM
+        self.casta_selecionada = None
+        self.timer_diretor_bot = 0
+
+        ativo = self.diretores[0]
+        self._feedback(f"🐛 Turno de {ativo}! {acoes} ações.", C_DIRETOR)
+        self._push("SISTEMA", f"Turno de {ativo} — {acoes} ação(ões).")
+
+    def _diretor_usar_acao_inseto_multi(self, ativo, inseto_id, zona_id):
+        """Um bot Filho do Imperador envia um inseto para uma zona de spawn."""
         from src.cerco_isectum import DADOS_INIMIGOS, aplicar_delta, NOMES_ZONA
 
         if inseto_id not in DADOS_INIMIGOS:
-            self._feedback("Casta inválida!", C_PERIGO)
-            return
-
-        # Restringe posicionamento apenas às 4 zonas externas de spawn de campo
-        zonas_validas = ["campo_norte", "campo_sul", "campo_oeste", "campo_leste"]
-        if zona_id not in zonas_validas:
-            self._feedback("Coloque os invasores nos Campos Externos!", C_PERIGO)
             return
 
         e = self.estado
-        acoes = e.get("acoes_diretor", 0)
+        acoes = e["acoes_diretores"].get(ativo, 0)
         if acoes <= 0:
-            self._feedback("Sem ações restantes para o Diretor!", C_PERIGO)
             return
 
-        # Remove da mão e envia para o descarte
-        mao_dir = list(e.get("mao_diretor", []))
+        # Remove da mão do Filho ativo e descarta
+        maos = dict(e["maos_diretores"])
+        mao_dir = list(maos.get(ativo, []))
         if inseto_id in mao_dir:
             mao_dir.remove(inseto_id)
-        descarte_dir = list(e.get("descarte_diretor", []))
+            
+        descartes = dict(e["descarte_diretores"])
+        descarte_dir = list(descartes.get(ativo, []))
         descarte_dir.append(inseto_id)
 
-        # Compra 1 carta para repor a mão imediatamente
-        deck_dir = list(e.get("deck_diretor", []))
+        # Repõe a mão a partir do deck individual
+        decks = dict(e["decks_diretores"])
+        deck_dir = list(decks.get(ativo, []))
         if not deck_dir and descarte_dir:
-            # Rebaralha descarte se deck esgotar
             deck_dir = list(descarte_dir)
             import random
             random.shuffle(deck_dir)
@@ -122,43 +128,67 @@ class CastasStateTurnMixin:
         if deck_dir:
             mao_dir.append(deck_dir.pop(0))
 
-        # Adiciona invasor à zona
+        # Adiciona invasor à zona do Cerco
         invasores = dict(e["invasores"])
         invasores[zona_id] = invasores.get(zona_id, 0) + 1
 
-        # Registra qual casta foi enviada para a zona (para instanciar o inseto certo)
+        # Registra a casta invasora na zona correspondente
         castas_inv = dict(e.get("castas_invasoras", {}))
         castas_inv[zona_id] = inseto_id
+
+        # Atualiza dicionários do estado
+        maos[ativo] = mao_dir
+        decks[ativo] = deck_dir
+        descartes[ativo] = descarte_dir
+        
+        acoes_dir = dict(e["acoes_diretores"])
+        acoes_dir[ativo] = acoes - 1
 
         self.estado = aplicar_delta(e, {
             "invasores":        invasores,
             "castas_invasoras":  castas_inv,
-            "acoes_diretor":    acoes - 1,
-            "mao_diretor":      mao_dir,
-            "deck_diretor":     deck_dir,
-            "descarte_diretor": descarte_dir,
+            "maos_diretores":   maos,
+            "decks_diretores":  decks,
+            "descarte_diretores": descartes,
+            "acoes_diretores":  acoes_dir,
         })
 
         dados = DADOS_INIMIGOS[inseto_id]
         zona_nome = NOMES_ZONA.get(zona_id, zona_id)
-        self._push("DIRETOR", f"🐛 {dados['emoji']} {dados['nome']} → {zona_nome}!")
-        self._feedback(f"Casta enviada para {zona_nome}! {acoes - 1} ação(ões) restantes.", C_DIRETOR)
+        self._push(ativo, f"🐛 {dados['emoji']} {dados['nome']} → {zona_nome}!")
+        self._feedback(f"{ativo} enviou casta para {zona_nome}!", C_DIRETOR)
 
         # Força sincronização imediata
         self._sincronizar_inimigos_tabuleiro()
 
-        self.casta_selecionada = None
-        self.modo_acao = MODO_DIR_ESCOLHER_CASTA
-
-        if self.estado.get("acoes_diretor", 0) <= 0:
+        if acoes - 1 <= 0:
             self._concluir_turno_diretor()
 
     def _concluir_turno_diretor(self):
-        """Diretor encerrou suas ações → passa para fase de ameaça."""
+        """Conclui o turno do Filho ativo. Passa para o próximo ou inicia Fase de Ameaça."""
         from src.cerco_isectum import aplicar_delta
-        self.estado = aplicar_delta(self.estado, {"acoes_diretor": 0})
-        self.modo_acao = MODO_NENHUM
-        self._iniciar_fase_ameaca()
+        
+        idx = self.estado.get("diretor_ativo_idx", 0)
+        # Zera as ações do Filho que acabou de jogar
+        ativo = self.diretores[idx]
+        acoes_dir = dict(self.estado["acoes_diretores"])
+        acoes_dir[ativo] = 0
+        self.estado = aplicar_delta(self.estado, {"acoes_diretores": acoes_dir})
+
+        if idx + 1 < len(self.diretores):
+            # Passa para o próximo Filho do Imperador
+            novo_idx = idx + 1
+            proximo = self.diretores[novo_idx]
+            self.estado = aplicar_delta(self.estado, {
+                "diretor_ativo_idx": novo_idx,
+            })
+            self.timer_diretor_bot = 0
+            self._feedback(f"Turno de {proximo}!", C_DIRETOR)
+            self._push("SISTEMA", f"Turno de {proximo}.")
+        else:
+            # Todos os Filhos jogaram → inicia a Fase de Ameaça
+            self.modo_acao = MODO_NENHUM
+            self._iniciar_fase_ameaca()
 
     # ── FASE DE AMEAÇA ───────────────────────────────────────────────────
     def _iniciar_fase_ameaca(self):
@@ -184,15 +214,81 @@ class CastasStateTurnMixin:
         for t, m in ls:
             self._push(t, m)
 
+        # Guarda os invasores antes de processar a movimentação
+        invasores_antes = dict(self.estado.get("invasores", {}))
+
         if self.carta_cerco:
             delta, logs = processar_carta(self.estado, self.carta_cerco)
             self.estado = aplicar_delta(self.estado, delta)
             for t, m in logs:
                 self._push(t, m)
 
+            # Sincroniza a trilha de castas invasoras de acordo com as transições de zona do Cerco
+            if self.carta_cerco.get("tipo") == "mover":
+                c_inv = dict(self.estado.get("castas_invasoras", {}))
+                
+                # 1. Oficinas → Câmara Central
+                for of in ("carpintaria", "curtume", "fundicao", "patio"):
+                    if invasores_antes.get(of, 0) > 0:
+                        c_inv["camara_central"] = c_inv.get(of, "formiga_correicao")
+                
+                # 2. Muralhas → Oficinas
+                for mur, of in (("muralha_norte", "carpintaria"), ("muralha_sul", "curtume"),
+                                ("muralha_oeste", "fundicao"),    ("muralha_leste", "patio")):
+                    if invasores_antes.get(mur, 0) > 0:
+                        c_inv[of] = c_inv.get(mur, "formiga_correicao")
+                
+                # 3. Campos → Muralhas
+                for campo, mur in (("campo_norte", "muralha_norte"), ("campo_sul", "muralha_sul"),
+                                   ("campo_oeste", "muralha_oeste"), ("campo_leste", "muralha_leste")):
+                    if invasores_antes.get(campo, 0) > 0:
+                        c_inv[mur] = c_inv.get(campo, "formiga_correicao")
+                        
+                self.estado = aplicar_delta(self.estado, {"castas_invasoras": c_inv})
+
+        carta_tipo = self.carta_cerco.get("tipo") if self.carta_cerco else None
         self.carta_cerco = None
         nova_rodada = self.estado.get("rodada", 1) + 1
         self.estado = aplicar_delta(self.estado, {"rodada": nova_rodada})
+
+        # --- GATILHO DE DUELO TÁTICO ---
+        # Se houve movimentação de invasores e algum deles entrou em zona interna da fortaleza
+        if carta_tipo == "mover":
+            zonas_internas = ["carpintaria", "curtume", "fundicao", "patio", "camara_central"]
+            for zona in zonas_internas:
+                # Se há novos invasores que penetraram esta zona interna
+                if self.estado.get("invasores", {}).get(zona, 0) > 0:
+                    inseto_id = self.estado.get("castas_invasoras", {}).get(zona, "formiga_correicao")
+                    
+                    # Pausa o tabuleiro e salva o estado do jogo
+                    self.game.castas_state_salvo = self
+                    
+                    # Remove a unidade do invasor da contagem do tabuleiro (será resolvida no duelo de cartas)
+                    novos_inv = dict(self.estado["invasores"])
+                    novos_inv[zona] = max(0, novos_inv.get(zona, 0) - 1)
+                    self.estado = aplicar_delta(self.estado, {"invasores": novos_inv})
+                    
+                    # Inicializa o Duelo de Cartas 1v1 contra o Filho do Imperador usando a casta invasora
+                    from src.states.duelo.state import DueloState
+                    from src.config import ESTADO_JOGO_DUELO
+                    
+                    duelo = DueloState(self.game)
+                    duelo.num_adversarios = 1
+                    duelo.controle_filhos = self.controle_filhos
+                    duelo.configurar_duelo_adversarios()
+                    
+                    # Sabor temático de invasão
+                    duelo.maos["Filho 1"] = [inseto_id] * 3
+                    duelo.hordas["Filho 1"] = [inseto_id]
+                    duelo.zona_invasao_origem = zona
+                    duelo.modo_retorno_cerco = True
+                    
+                    self.game.duelo_state = duelo
+                    self.game.estado_jogo = ESTADO_JOGO_DUELO
+                    
+                    self._push("⚠️ INVASÃO", f"O oponente invadiu {zona.upper()} com a casta {inseto_id.upper()}!")
+                    self._push("SISTEMA", "Resolva o Duelo de Cartas para defender a fortaleza!")
+                    return # Interrompe fluxo até o duelo terminar
 
         # Limpa zonas bloqueadas da rodada anterior
         self.estado = aplicar_delta(self.estado, {"zonas_bloqueadas": []})
