@@ -49,6 +49,7 @@ from .input import CercoStateInputMixin
 from .hero import CercoStateHeroMixin
 from .turn import CercoStateTurnMixin
 from .enemy import CercoStateEnemyMixin
+from .ia_heroi import IAComandanteImperial
 
 
 class CercoState(
@@ -97,6 +98,8 @@ class CercoState(
         self.map_backbuffer_sujo = True
         self.walk_anim          = None
         self.monster_walk_anims = {}
+        self.ia_heroi           = None   # Será instanciado após setup dos heróis
+        self.ia_banner_timer    = 0      # Timer para o banner central de turno da IA
 
         from ...motor_combate import MotorCombate
         self.motor = MotorCombate(args_times=[0]*24, gerar_terreno=False)
@@ -186,6 +189,10 @@ class CercoState(
         self._setup_fonts()
         self._setup_layout()
         self.terrain_iso_cache = {}
+
+        # Instanciar IA inimiga: Filho do Imperador como diretor inimigo
+        self.ia_heroi = None        # alias legacy (não usado neste modo)
+        self.ia_comandante = IAComandanteImperial(self)
 
         from ...utils import resource_path
         caminho_card = resource_path("assets/images/environment/card/pixelCardAssest.png")
@@ -357,3 +364,16 @@ class CercoState(
                 if anim['progresso'] >= 1.0:
                     anim['progresso'] = 1.0
                     anim['finalizada'] = True
+
+        # ── IA do Filho do Imperador (inimigo comandante) ─────────────────
+        # Quando a fase é TURNO_FILHO_IMPERADOR, a IA processa sua fila de ações
+        ia_cmd = getattr(self, 'ia_comandante', None)
+        if ia_cmd is not None and self.fase == "TURNO_FILHO_IMPERADOR":
+            if not ia_cmd.esta_ativo:
+                # Inicia o turno inimigo
+                ia_cmd.iniciar_turno()
+            else:
+                ia_cmd.update()
+        # Decrementa banner do inimigo
+        if ia_cmd is not None and getattr(ia_cmd, 'banner_timer', 0) > 0:
+            ia_cmd.banner_timer -= 1

@@ -249,6 +249,8 @@ class CercoStateDrawMixin:
             self._draw_feedback(tela, W, H)
         if self.fase == "ESCOLHER_ACAO_CARTA":
             self._draw_modal_escolha_carta(tela, W, H)
+        # Banner de turno da IA
+        self._draw_ia_turno_banner(tela, W, H)
         if self.estado.get("derrota") or self.estado.get("vitoria"):
             self._draw_fim(tela, W, H)
         if getattr(self, "dev_menu_aberto", False):
@@ -296,6 +298,23 @@ class CercoStateDrawMixin:
                 pulse = abs(self.timer % 60 - 30) / 30.0
                 rp = int(2 + 2 * pulse)
                 pygame.draw.rect(tela, C_VERDE, h_rect.inflate(rp, rp), 1, border_radius=3)
+            # Ícone especial para heróis IA
+            if getattr(h, 'is_ia_controlado', False):
+                pulse_ia = abs(self.timer % 60 - 30) / 30.0
+                cor_coroa = (
+                    int(160 + 80 * pulse_ia),
+                    int(80 + 60 * pulse_ia),
+                    255,
+                )
+                rp_ia = int(3 + 3 * pulse_ia)
+                pygame.draw.rect(tela, cor_coroa, h_rect.inflate(rp_ia * 2, rp_ia * 2), 2, border_radius=4)
+                # Mini coroa acima do avatar
+                cx, cy = h_rect.centerx, h_rect.top - 2
+                pygame.draw.polygon(tela, cor_coroa, [
+                    (cx - 5, cy), (cx - 5, cy - 5),
+                    (cx,     cy - 8),
+                    (cx + 5, cy - 5), (cx + 5, cy),
+                ])
         ax = bx + bw - 30
         ay = by + (bh - av_size) // 2
         a_rect = pygame.Rect(ax, ay, av_size, av_size)
@@ -319,6 +338,7 @@ class CercoStateDrawMixin:
         fase_label = {
             "JOGAR_CARTA": "Jogue Cartas",
             "ACAO_LIVRE":  "Execute Ações",
+            "TURNO_FILHO_IMPERADOR": "Turno Inimigo",
             "FASE_AMEACA": "Fase de Ameaça",
             "FIM":         "Fim",
         }
@@ -345,8 +365,33 @@ class CercoStateDrawMixin:
             heroi_info = f"Heroi: {nome_exibido} [{self.heroi_atual_idx + 1}/{len(self.herois)}]  [TAB]"
         else:
             heroi_info = f"Heroi: {nome_exibido}"
-        ph = self.fMi.render(heroi_info, True, C_HEROI)
-        tela.blit(ph, (14, 46))
+
+        # Indicador especial quando é o turno da IA (Filho do Imperador)
+        eh_turno_ia = self.fase == "TURNO_FILHO_IMPERADOR"
+        if eh_turno_ia:
+            pulso = (math.sin(self.timer * 0.15) + 1.0) / 2.0
+            cor_ia = (
+                int(235 + 20 * pulso),
+                int(70 + 40 * pulso),
+                40,
+            )
+            # Fundo avermelhado/laranja pulsante no canto esquerdo
+            ia_label = self.fP.render("⚔ FILHO DO IMPERADOR", True, cor_ia)
+            lw = ia_label.get_width() + 24
+            lh = ia_label.get_height() + 10
+            bg_ia = pygame.Surface((lw, lh), pygame.SRCALPHA)
+            bg_ia.fill((50, 10, 10, int(180 + 40 * pulso)))
+            tela.blit(bg_ia, (8, 66))
+            pygame.draw.rect(tela, cor_ia, pygame.Rect(8, 66, lw, lh), 2, border_radius=5)
+            tela.blit(ia_label, (20, 71))
+            # Legenda "INVASÃO..." ou "PLANEJANDO..."
+            ia_exec = self.ia_comandante and self.ia_comandante.esta_ativo
+            sub_txt = "⚙ INVASÃO..." if ia_exec else "⏳ PLANEJANDO..."
+            sub_surf = self.fMi.render(sub_txt, True, cor_ia)
+            tela.blit(sub_surf, (20, 66 + lh + 2))
+        else:
+            ph = self.fP.render(heroi_info, True, C_HEROI)
+            tela.blit(ph, (14, 66))
         m = pygame.mouse.get_pos()
         hover = self.btn_voltar.collidepoint(m)
         bc = (48, 48, 72) if hover else (24, 24, 42)
@@ -972,6 +1017,61 @@ class CercoStateDrawMixin:
                              max(1, int(nome_s.get_height() * self.zoom))))
                     tela.blit(nome_s, (cx_draw - nome_s.get_width() // 2, cy_draw - int(32 * self.zoom)))
 
+            # Desenha o Príncipe Lysander fora do tabuleiro como oponente comandante
+            if gx == -3 and gy == -3:
+                ia_cmd = getattr(self, 'ia_comandante', None)
+                if ia_cmd is not None:
+                    # 1. Desenha a base decorativa imperial
+                    pulso = (math.sin(self.timer * 0.1) + 1.0) / 2.0
+                    radius = max(12, int(28 * self.zoom))
+                    sombra = pygame.Surface((radius * 2, radius), pygame.SRCALPHA)
+                    pygame.draw.ellipse(sombra, (30, 5, 5, int(120 + 30 * pulso)), (0, 0, radius * 2, radius))
+                    tela.blit(sombra, (cx_ - radius, cy_ - radius // 2))
+
+                    # Aura imperial pulsante vermelha/roxa
+                    cor_aura = (
+                        int(200 + 55 * pulso),
+                        int(50 + 20 * pulso),
+                        50
+                    )
+                    pygame.draw.ellipse(tela, cor_aura,
+                                        pygame.Rect(cx_ - radius, cy_ - radius // 2, radius * 2, radius),
+                                        2)
+
+                    # 2. Desenha o Príncipe Lysander
+                    from src.personagens.novos_personagens import FilhoDoImperador
+                    if not hasattr(self, '_mock_principe'):
+                        self._mock_principe = FilhoDoImperador("Príncipe Lysander", "B")
+
+                    sw, sh = max(14, int(32 * self.zoom)), max(14, int(32 * self.zoom))
+                    rect_prince = pygame.Rect(cx_ - sw // 2, cy_ - sh + 4, sw, sh)
+                    cor_destaque = (255, 100, 100) if self.fase == "TURNO_FILHO_IMPERADOR" else (200, 80, 80)
+
+                    from src.ui.render_combate import desenhar_sprite
+                    desenhar_sprite(tela, self._mock_principe, rect_prince, cor_destaque, self.game.imagens, self.game.sprites_visiveis)
+
+                    # 3. Desenha um mastro e estandarte imperial do lado dele
+                    px_mastro = cx_ + int(20 * self.zoom)
+                    py_mastro = cy_ - int(5 * self.zoom)
+                    pygame.draw.line(tela, (140, 110, 50), (px_mastro, py_mastro + 4), (px_mastro, py_mastro - int(40 * self.zoom)), 3)
+                    # Bandeira vermelha com símbolo de coroa
+                    pts_bandeira = [
+                        (px_mastro, py_mastro - int(40 * self.zoom)),
+                        (px_mastro + int(18 * self.zoom), py_mastro - int(34 * self.zoom)),
+                        (px_mastro + int(12 * self.zoom), py_mastro - int(27 * self.zoom)),
+                        (px_mastro + int(18 * self.zoom), py_mastro - int(20 * self.zoom)),
+                        (px_mastro, py_mastro - int(20 * self.zoom)),
+                    ]
+                    pygame.draw.polygon(tela, (180, 20, 20), pts_bandeira)
+                    pygame.draw.polygon(tela, (255, 210, 40), pts_bandeira, 1)
+
+                    # Nome e Título acima dele
+                    lbl_prince = self.fMi.render("Pr. Lysander", True, (255, 120, 120))
+                    tela.blit(lbl_prince, (cx_ - lbl_prince.get_width() // 2, cy_ - sh - int(14 * self.zoom)))
+
+                    lbl_tag = self.fMi.render("👑 COMANDANTE", True, (255, 220, 40))
+                    tela.blit(lbl_tag, (cx_ - lbl_tag.get_width() // 2, cy_ - sh - int(28 * self.zoom)))
+
         e = self.estado
         for zona_key, (lcx, lcy) in labels_pendentes.items():
             y_off = lcy - int(8 * self.zoom)
@@ -1533,6 +1633,100 @@ class CercoStateDrawMixin:
         tela.blit(surf, (0, H // 2 - 16))
         ft = self.fP.render(self.msg_feedback[:80], True, self.msg_cor)
         tela.blit(ft, (W // 2 - ft.get_width() // 2, H // 2 - 10))
+
+    # ── BANNER DE TURNO DA IA ────────────────────────────────────────────
+    def _draw_ia_turno_banner(self, tela, W, H):
+        """Exibe um banner central grande quando começa o turno do Príncipe Lysander."""
+        timer = 0
+        if getattr(self, 'ia_comandante', None) is not None:
+            timer = getattr(self.ia_comandante, 'banner_timer', 0)
+        if timer <= 0:
+            return
+
+        # Calcula opacidade: fade-in nos primeiros 20f, fade-out nos últimos 30f
+        TOTAL = 180  # frames que o banner fica visível (ajustado para 180)
+        if timer > TOTAL:
+            timer = TOTAL
+
+        if timer > TOTAL - 20:
+            alpha = int(255 * (TOTAL - timer) / 20)
+        elif timer < 30:
+            alpha = int(255 * timer / 30)
+        else:
+            alpha = 255
+
+        # Garante que o alpha está entre 0 e 255
+        alpha = max(0, min(255, alpha))
+
+        # Fundo escuro semi-transparente
+        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, int(alpha * 0.55)))
+        tela.blit(overlay, (0, 0))
+
+        # Caixa central do banner
+        bw, bh = min(W - 80, 660), 180
+        bx = W // 2 - bw // 2
+        by = H // 2 - bh // 2
+
+        pulso = (math.sin(self.timer * 0.2) + 1.0) / 2.0
+        cor_roxo = (int(90 + 50 * pulso), int(20 + 20 * pulso), int(160 + 60 * pulso))
+        cor_titulo = (int(200 + 40 * pulso), int(130 + 60 * pulso), 255)
+
+        caixa = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        caixa.fill((10, 5, 30, int(alpha * 0.92)))
+        tela.blit(caixa, (bx, by))
+        # Borda dupla pulsante
+        pygame.draw.rect(tela, cor_roxo,
+                         pygame.Rect(bx, by, bw, bh), 3, border_radius=12)
+        pygame.draw.rect(tela, cor_titulo,
+                         pygame.Rect(bx + 4, by + 4, bw - 8, bh - 8), 1, border_radius=10)
+
+        # Linha decorativa superior
+        pygame.draw.line(tela, cor_titulo,
+                         (bx + 20, by + 24), (bx + bw - 20, by + 24), 1)
+
+        # Ícone de coroa desenhado
+        cx_icon = bx + 50
+        cy_icon = by + bh // 2
+        coroa_pts = [
+            (cx_icon - 20, cy_icon + 10),
+            (cx_icon - 20, cy_icon - 12),
+            (cx_icon - 10, cy_icon - 4),
+            (cx_icon,      cy_icon - 18),
+            (cx_icon + 10, cy_icon - 4),
+            (cx_icon + 20, cy_icon - 12),
+            (cx_icon + 20, cy_icon + 10),
+        ]
+        pygame.draw.polygon(tela, cor_titulo, coroa_pts)
+        pygame.draw.polygon(tela, cor_roxo, coroa_pts, 2)
+
+        # Título principal
+        t_titulo = self.fT.render("PRÍNCIPE LYSANDER", True, cor_titulo)
+        t_titulo.set_alpha(alpha)
+        tela.blit(t_titulo, (bx + bw // 2 - t_titulo.get_width() // 2, by + 22))
+
+        # Subtítulo
+        t_sub = self.fM.render("Filho do Imperador — Invasão Imperial", True, (240, 150, 150))
+        t_sub.set_alpha(alpha)
+        tela.blit(t_sub, (bx + bw // 2 - t_sub.get_width() // 2, by + 75))
+
+        # Descrição
+        t_desc = self.fP.render("O Príncipe envia ondas de castas de insetos para derrubar a fortaleza.", True, (190, 150, 150))
+        t_desc.set_alpha(alpha)
+        tela.blit(t_desc, (bx + bw // 2 - t_desc.get_width() // 2, by + 112))
+
+        # Linha decorativa inferior
+        pygame.draw.line(tela, cor_titulo,
+                         (bx + 20, by + bh - 24), (bx + bw - 20, by + bh - 24), 1)
+
+        # Instrução
+        t_inst = self.fMi.render("Aguarde — O inimigo está planejando o ataque...", True, (150, 100, 100))
+        t_inst.set_alpha(alpha)
+        tela.blit(t_inst, (bx + bw // 2 - t_inst.get_width() // 2, by + bh - 16))
+
+        # O decremento do timer é feito no update() do state.py, apenas desenhamos aqui
+        pass
+
 
     # ── TELA DE FIM ──────────────────────────────────────────────────────
     def _draw_fim(self, tela, W, H):

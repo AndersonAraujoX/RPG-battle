@@ -7,6 +7,7 @@ import random
 from ...resolvedor_acoes import obter_zona_por_coordenada
 from .data import (
     MODO_NENHUM, MODO_MOVER, MODO_TRABALHAR, MODO_ESCAVAR,
+    MODO_SUBORNAR, MODO_UPGRADE, MODO_CONVOCAR, MODO_ATACAR, MODO_ATIRAR,
     C_VERDE, C_PERIGO, C_HEROI, C_OURO,
 )
 

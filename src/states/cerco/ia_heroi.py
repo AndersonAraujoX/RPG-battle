@@ -1,325 +1,227 @@
 """
-ia_heroi.py — Inteligência Artificial do Filho do Imperador no modo Cerco.
+ia_heroi.py — IA do Filho do Imperador no modo Cerco.
 
-O Príncipe Lysander age autonomamente no turno dele, tomando decisões
-táticas baseadas no estado do cerco:
-  1. Joga cartas da mão para ganhar pontos de ação
-  2. Decide onde mover (prioriza zonas com inimigos ou recursos)
-  3. Ataca inimigos adjacentes se possível
-  4. Trabalha/escava se estiver em zona produtiva e sem ameaças
+O Príncipe Lysander age como INIMIGO COMANDANTE no modo Cerco,
+controlando as invasões como se fosse um jogador humano da casta do Imperador.
+
+A cada turno (após os heróis), ele:
+  1. Escolhe castas de insetos da sua mão
+  2. Decide qual zona atacar (baseado em análise tática)
+  3. Envia as tropas para invadir a fortaleza
+  4. Usa habilidades especiais das castas
+
+É como se um jogador inimigo estivesse jogando contra você no modo Cerco.
 """
 from __future__ import annotations
 import random
 import math
-import time as _time
 
 
-def _distancia(x1, y1, x2, y2):
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+class IAComandanteImperial:
+    """
+    IA do Filho do Imperador — age como um jogador adversário no modo Cerco.
 
-
-class IAFilhoImperador:
-    """Motor de decisão tática para o Filho do Imperador (Príncipe Lysander).
-
-    Chamado ao início do turno do Príncipe para executar ações de forma
-    autônoma: joga cartas, move, ataca ou trabalha.
+    Simula um diretor humano das castas do Imperador, escolhendo
+    estratégias de invasão com base no estado atual da fortaleza.
     """
 
-    # Delay entre ações para que o jogador possa acompanhar (em frames)
-    DELAY_ENTRE_ACOES = 40
+    # Frames de delay entre ações (para o jogador acompanhar)
+    DELAY_ACAO = 90   # ~1.5 segundos por ação
 
     def __init__(self, cerco_state):
         self.state = cerco_state
-        self._fila_acoes = []          # lista de callables a serem executados
-        self._timer_acao = 0
-        self._executando = False
+        self._ativo = False
+        self._timer = 0
+        self._fila = []          # lista de callables a executar
+        self.acoes_por_turno = 3  # número de invasões por turno
+        self._acoes_restantes = 0
 
-    # ── ENTRADA PRINCIPAL ─────────────────────────────────────────────
+        # Deck do Filho do Imperador (cartas de castas/insetos)
+        from src.cerco_isectum import DADOS_INIMIGOS
+        self._deck = list(DADOS_INIMIGOS.keys()) * 2
+        random.shuffle(self._deck)
+        self._mao = []
+        self._comprar_mao(3)     # começa com 3 cartas na mão
+
+        # Anuncio inicial
+        self.banner_timer = 0
+
+    # ── MÃO DE CARTAS ────────────────────────────────────────────────
+    def _comprar_mao(self, qtd=1):
+        """Compra cartas do deck para a mão."""
+        for _ in range(qtd):
+            if not self._deck:
+                from src.cerco_isectum import DADOS_INIMIGOS
+                self._deck = list(DADOS_INIMIGOS.keys()) * 2
+                random.shuffle(self._deck)
+            if self._deck:
+                self._mao.append(self._deck.pop())
+
+    # ── ENTRADA DO TURNO ─────────────────────────────────────────────
     def iniciar_turno(self):
-        """Chamado quando começa o turno do Príncipe. Planeja todas as ações."""
+        """Chamado quando começa o turno do Filho do Imperador."""
         s = self.state
-        principe = s.heroi_atual
-        if not principe:
-            return
+        self._ativo = True
+        self._timer = self.DELAY_ACAO
+        self._acoes_restantes = self.acoes_por_turno
 
-        s._push("IA", f"⚔️ Príncipe Lysander age autonomamente!")
-        s._feedback("⚔️ Lysander está planejando sua ação...", (180, 140, 255))
+        # Compra cartas até ter 3 na mão
+        while len(self._mao) < 3:
+            self._comprar_mao(1)
 
-        self._fila_acoes = []
-        self._executando = True
-        self._timer_acao = self.DELAY_ENTRE_ACOES
+        s._push("INIMIGO", "👑 FILHO DO IMPERADOR age! As castas imperiais invadem!")
+        s._feedback("⚠ Turno do Filho do Imperador! Prepare-se...", (255, 80, 40))
+        self.banner_timer = 180   # ~3 segundos de banner
 
-        # Planejar a sequência completa de ações
-        self._planejar_acoes()
-
-    def _planejar_acoes(self):
-        """Monta a fila de ações baseado na avaliação do estado."""
-        s = self.state
-        e = s.estado
-        principe = s.heroi_atual
-
-        # Passo 1: jogar todas as cartas da mão
-        mao = list(e.get("mao", []))
-        for carta in mao:
-            c = carta.copy()  # captura por valor
-            self._fila_acoes.append(lambda carta=c: self._jogar_carta(carta))
-
-        # Passo 2: decidir ação principal
-        self._fila_acoes.append(self._decidir_acao_principal)
-
-        # Passo 3: finalizar turno
-        self._fila_acoes.append(self._finalizar_turno)
-
-    def update(self):
-        """Chamado a cada frame durante o turno do Príncipe. Processa a fila."""
-        if not self._executando or not self._fila_acoes:
-            return
-
-        self._timer_acao -= 1
-        if self._timer_acao > 0:
-            return
-
-        # Executar próxima ação
-        acao = self._fila_acoes.pop(0)
-        acao()
-        self._timer_acao = self.DELAY_ENTRE_ACOES
-
-        # Verificar se terminou
-        if not self._fila_acoes:
-            self._executando = False
+        # Planeja as ações do turno
+        self._fila = []
+        for _ in range(self.acoes_por_turno):
+            self._fila.append(self._executar_acao)
+        self._fila.append(self._finalizar_turno)
 
     @property
-    def esta_executando(self):
-        return self._executando
+    def esta_ativo(self):
+        return self._ativo
 
-    # ── JOGAR CARTA ───────────────────────────────────────────────────
-    def _jogar_carta(self, carta):
-        from ...cerco_isectum import processar_carta, aplicar_delta
+    # ── LOOP DE UPDATE ────────────────────────────────────────────────
+    def update(self):
+        """Chamado a cada frame. Processa a fila de ações com delay."""
+        if not self._ativo or not self._fila:
+            return
+
+        self._timer -= 1
+        if self._timer > 0:
+            return
+
+        acao = self._fila.pop(0)
+        acao()
+        self._timer = self.DELAY_ACAO
+
+        if not self._fila:
+            self._ativo = False
+
+    # ── DECISÃO TÁTICA ────────────────────────────────────────────────
+    def _executar_acao(self):
+        """Executa uma ação: escolhe casta e zona para invasão."""
         s = self.state
         e = s.estado
 
-        mao_atual = list(e.get("mao", []))
-        if carta not in mao_atual:
-            return  # já foi removida
+        if not self._mao:
+            self._comprar_mao(2)
+        if not self._mao:
+            s._push("INIMIGO", "👑 Filho do Imperador sem cartas — aguardando reforços.")
+            return
 
-        try:
-            delta, logs = processar_carta(e, carta)
-            mao_nova = [c for c in mao_atual if c is not carta and c != carta]
-            delta["mao"] = mao_nova
-            s.estado = aplicar_delta(e, delta)
-            for tipo, msg in logs:
-                s._push(tipo, msg)
-            s._push("IA", f"🃏 Lysander jogou: {carta.get('nome', '?')} [{carta.get('simbolo', '?')}]")
-        except Exception as exc:
-            s._push("IA", f"Carta ignorada: {exc}")
+        # Escolhe a casta (carta da mão)
+        inseto_id = self._escolher_casta(e)
+        if inseto_id not in self._mao:
+            inseto_id = self._mao[0]
 
-        s.map_backbuffer_sujo = True
+        # Escolhe a zona de invasão taticamente
+        zona = self._escolher_zona_taticamente(e)
 
-    # ── DECISÃO PRINCIPAL ─────────────────────────────────────────────
-    def _decidir_acao_principal(self):
-        """Decide entre: atacar inimigo, mover para ameaça, trabalhar, escavar."""
+        # Executa o spawn da casta
+        self._invadir_zona(inseto_id, zona)
+
+        # Remove a carta da mão e coloca no descarte
+        if inseto_id in self._mao:
+            self._mao.remove(inseto_id)
+        self._comprar_mao(1)   # repõe 1 carta
+
+    def _escolher_casta(self, e) -> str:
+        """Escolhe qual casta jogar baseado na situação tática."""
+        if not self._mao:
+            return ""
+
+        # Verifica zonas que precisam de reforço
+        invasores = e.get("invasores", {})
+        muralhas = ["muralha_norte", "muralha_sul", "muralha_leste", "muralha_oeste"]
+        muralha_mais_fraca = min(muralhas, key=lambda z: invasores.get(z, 0))
+
+        # Se uma muralha tem poucos invasores, prioriza castas de ataque
+        if invasores.get(muralha_mais_fraca, 0) < 2:
+            # Prefere insetos com efeitos de combate
+            preferidas = ["tarantula_golias", "viuva_negra", "besouro_rinoceronte",
+                          "carrapato_vampiro", "louva_deus"]
+            for p in preferidas:
+                if p in self._mao:
+                    return p
+
+        # Caso contrário, escolhe aleatoriamente com peso
+        pesos = {c: 3 if c in ["vespa_cacadora", "formiga_correicao", "enxame_rainha"]
+                 else 1 for c in self._mao}
+        populacao = list(pesos.keys())
+        pesos_lista = [pesos[c] for c in populacao]
+        return random.choices(populacao, weights=pesos_lista)[0]
+
+    def _escolher_zona_taticamente(self, e) -> str:
+        """Escolhe a zona de invasão baseado na análise tática da fortaleza."""
+        invasores = e.get("invasores", {})
+        pedregulhos = e.get("pedregulhos", 0)
+
+        # Zonas disponíveis
+        campos = ["campo_norte", "campo_sul", "campo_oeste", "campo_leste"]
+        muralhas = ["muralha_norte", "muralha_sul", "muralha_leste", "muralha_oeste"]
+
+        # Tática 1: se há muitos pedregulhos, atacar pelo pátio (escavar defesa)
+        if pedregulhos >= 6 and random.random() < 0.3:
+            return "patio"
+
+        # Tática 2: reforçar a muralha com menos invasores
+        muralha_alvo = min(muralhas, key=lambda z: invasores.get(z, 0))
+        if invasores.get(muralha_alvo, 0) < 3 and random.random() < 0.5:
+            # Ataca pelo campo correspondente
+            mapa_campo = {
+                "muralha_norte": "campo_norte",
+                "muralha_sul":   "campo_sul",
+                "muralha_leste": "campo_leste",
+                "muralha_oeste": "campo_oeste",
+            }
+            return mapa_campo.get(muralha_alvo, random.choice(campos))
+
+        # Tática 3: diversificar campos para sobrecarregar a defesa
+        campos_vazios = [c for c in campos if invasores.get(c, 0) == 0]
+        if campos_vazios:
+            return random.choice(campos_vazios)
+
+        # Fallback: campo aleatório
+        return random.choice(campos)
+
+    def _invadir_zona(self, inseto_id: str, zona: str):
+        """Executa a invasão: adiciona o inseto na zona escolhida."""
+        from src.cerco_isectum import DADOS_INIMIGOS, aplicar_delta
+
         s = self.state
         e = s.estado
-        principe = s.heroi_atual
-        if not principe:
-            return
 
-        px, py = principe.pos_x, principe.pos_y
-        inimigos_vivos = [
-            p for p in s.motor.combatentes
-            if getattr(p, "time", "A") == "B" and p.hp_atual > 0
-        ]
+        info = DADOS_INIMIGOS.get(inseto_id, {})
+        nome = info.get("nome", inseto_id)
+        emoji = info.get("emoji", "🐛")
 
-        # Tenta atacar inimigo adjacente (corpo-a-corpo)
-        if self._tentar_atacar(px, py, inimigos_vivos):
-            return
+        # Incrementa contador de invasores na zona
+        invasores = dict(e.get("invasores", {}))
+        invasores[zona] = invasores.get(zona, 0) + 1
+        s.estado = aplicar_delta(e, {"invasores": invasores})
 
-        # Tenta mover em direção ao inimigo mais próximo que ameaça zonas internas
-        mov = e.get("pontos_movimento", 0)
-        if mov > 0 and inimigos_vivos:
-            self._mover_para_objetivo(px, py, inimigos_vivos)
-            return
+        # Aplica efeito especial da casta
+        s._aplicar_efeito_inimigo(inseto_id)
 
-        # Se estiver em zona de trabalho, trabalha
-        if e.get("pontos_trabalho", 0) > 0:
-            s._processar_acoes_automaticas()
-            return
-
-        # Se estiver em zona de escavação, escava
-        if e.get("pontos_escavacao", 0) > 0:
-            s._processar_acoes_automaticas()
-            return
-
-        s._push("IA", "🤔 Lysander espera — sem ações úteis disponíveis.")
-
-    def _tentar_atacar(self, px, py, inimigos_vivos) -> bool:
-        """Tenta atacar o inimigo mais fraco ao alcance. Retorna True se atacou."""
-        from ...juiz_combate import resolver_melee, resolver_distancia
-        from ...cerco_isectum import aplicar_delta
-
-        s = self.state
-        principe = s.heroi_atual
-        if not principe:
-            return False
-
-        alcance = getattr(principe, "alcance", 1)
-        alvos_alcance = [
-            p for p in inimigos_vivos
-            if _distancia(px, py, p.pos_x, p.pos_y) <= alcance + 0.5
-        ]
-
-        if not alvos_alcance:
-            return False
-
-        # Prioriza o inimigo com menos HP (mata o mais fraco primeiro)
-        alvo = min(alvos_alcance, key=lambda p: p.hp_atual)
-
-        try:
-            if alcance <= 1:
-                resultado = resolver_melee(principe, alvo, s.estado, s.motor.tabuleiro)
-            else:
-                resultado = resolver_distancia(principe, alvo, s.estado, s.motor.tabuleiro)
-
-            for tipo, msg in resultado.get("logs", []):
-                s._push(tipo, msg)
-
-            if alvo.hp_atual <= 0:
-                s._push("IA", f"💀 Lysander abateu {alvo.nome}!")
-                s.motor.combatentes.remove(alvo)
-                if hasattr(s.motor, "time_b") and alvo in s.motor.time_b:
-                    s.motor.time_b.remove(alvo)
-                # Remove do tabuleiro
-                tab = s.motor.tabuleiro
-                if (0 <= alvo.pos_y < len(tab.grid) and
-                        0 <= alvo.pos_x < len(tab.grid[0]) and
-                        tab.grid[alvo.pos_y][alvo.pos_x] is alvo):
-                    tab.grid[alvo.pos_y][alvo.pos_x] = None
-                s.map_backbuffer_sujo = True
-            else:
-                s._push("IA", f"⚔️ Lysander atacou {alvo.nome} ({alvo.hp_atual}/{alvo.hp_max} HP restante)!")
-        except Exception as exc:
-            # Fallback: ataque simples
-            dano = random.randint(8, 18)
-            alvo.hp_atual = max(0, alvo.hp_atual - dano)
-            s._push("IA", f"⚔️ Lysander causou {dano} de dano em {alvo.nome}!")
-            if alvo.hp_atual <= 0:
-                s._push("IA", f"💀 {alvo.nome} foi derrotado!")
-
+        # Sincroniza o tabuleiro com o novo estado
+        s._sincronizar_inimigos_tabuleiro()
         s.map_backbuffer_sujo = True
-        return True
 
-    def _mover_para_objetivo(self, px, py, inimigos_vivos):
-        """Move o Príncipe em direção à maior ameaça ou zona estratégica."""
-        from ...cerco_isectum import aplicar_delta
-        from ...resolvedor_acoes import (
-            obter_zona_por_coordenada, obter_celulas_alcancaveis,
-            executar_mover, validar_mover,
+        s._push(
+            "INIMIGO",
+            f"👑 Filho do Imperador envia {emoji} {nome} → {zona.replace('_', ' ').upper()}!"
         )
 
-        s = self.state
-        e = s.estado
-        principe = s.heroi_atual
-        if not principe:
-            return
-
-        mov = e.get("pontos_movimento", 0)
-        if mov <= 0:
-            return
-
-        # Prioridade: inimigo em zona interna (muralha ou patio) mais próximo
-        zonas_prioritarias = {"patio", "muralha_norte", "muralha_sul",
-                              "muralha_oeste", "muralha_leste",
-                              "torre_nw", "torre_ne", "torre_sw", "torre_se"}
-
-        inimigos_internos = [
-            p for p in inimigos_vivos
-            if obter_zona_por_coordenada(p.pos_x, p.pos_y) in zonas_prioritarias
-        ]
-
-        alvos = inimigos_internos if inimigos_internos else inimigos_vivos
-        if not alvos:
-            return
-
-        # Alvo mais próximo
-        alvo = min(alvos, key=lambda p: _distancia(px, py, p.pos_x, p.pos_y))
-        dest_x, dest_y = alvo.pos_x, alvo.pos_y
-
-        # Obter células alcançáveis
-        alcancaveis = obter_celulas_alcancaveis(s.motor, (px, py), mov)
-        if not alcancaveis:
-            return
-
-        # Escolher a célula alcançável mais próxima do alvo (sem ocupar a célula do alvo)
-        candidatas = [
-            (cx, cy) for (cx, cy) in alcancaveis
-            if s.motor.tabuleiro.get_personagem_em(cx, cy) is None
-            and (cx, cy) != (dest_x, dest_y)
-        ]
-        if not candidatas:
-            return
-
-        melhor = min(candidatas, key=lambda c: _distancia(c[0], c[1], dest_x, dest_y))
-        novo_x, novo_y = melhor
-
-        # Executar movimento
-        ok, msg_v = validar_mover(e, novo_x, novo_y)
-        if not ok:
-            # Tenta mover sem validação formal (fallback direto)
-            tab = s.motor.tabuleiro
-            if tab.grid[py][px] is principe:
-                tab.grid[py][px] = None
-            tab.grid[novo_y][novo_x] = principe
-            principe.pos_x = novo_x
-            principe.pos_y = novo_y
-
-            nova_zona = obter_zona_por_coordenada(novo_x, novo_y) or "camara_central"
-            s.estado = aplicar_delta(e, {
-                "heroi_x": novo_x, "heroi_y": novo_y,
-                "pos_heroi": nova_zona,
-                "pontos_movimento": 0,
-            })
-        else:
-            custo = _distancia(px, py, novo_x, novo_y) * 3
-            delta, logs = executar_mover(e, novo_x, novo_y, int(custo))
-            s.estado = aplicar_delta(e, delta)
-            for tipo, msg in logs:
-                s._push(tipo, msg)
-
-            tab = s.motor.tabuleiro
-            if tab.grid[py][px] is principe:
-                tab.grid[py][px] = None
-            tab.grid[novo_y][novo_x] = principe
-            principe.pos_x = novo_x
-            principe.pos_y = novo_y
-
-        nova_zona = obter_zona_por_coordenada(novo_x, novo_y) or "camara_central"
-        s._push("IA", f"🚶 Lysander moveu-se para ({novo_x}, {novo_y}) [{nova_zona}]")
-        s.map_backbuffer_sujo = True
-
-        # Tenta atacar após mover
-        inimigos_vivos_atuais = [
-            p for p in s.motor.combatentes
-            if getattr(p, "time", "A") == "B" and p.hp_atual > 0
-        ]
-        self._tentar_atacar(novo_x, novo_y, inimigos_vivos_atuais)
-
-    # ── FIM DO TURNO ──────────────────────────────────────────────────
+    # ── FIM DO TURNO ─────────────────────────────────────────────────
     def _finalizar_turno(self):
-        """Limpa mão restante e passa para a próxima fase."""
-        from ...cerco_isectum import aplicar_delta
-
+        """Finaliza o turno do Filho do Imperador e passa para a Fase de Ameaça."""
         s = self.state
-        e = s.estado
-
-        # Descarta cartas restantes da mão
-        mao = list(e.get("mao", []))
-        descarte = list(e.get("descarte", [])) + mao
-        s.estado = aplicar_delta(e, {"mao": [], "descarte": descarte})
-
-        s._push("IA", "✅ Lysander encerrou seu turno.")
-        s._feedback("✅ Lysander encerrou o turno.", (100, 255, 140))
-
-        # Delega para o fluxo normal de fim de turno
-        # Força mão vazia para que _fim_turno_heroi não bloqueie
-        s.estado["mao"] = []
-        s._fim_turno_heroi()
+        s._push("INIMIGO", "👑 Filho do Imperador encerrou o turno. Fase de Ameaça!")
+        s._feedback("⚔ As castas imperiais invadiram! Fase de Ameaça iniciando...", (255, 120, 60))
+        self._ativo = False
+        self.banner_timer = 0
+        # Inicia a fase de ameaça
+        s._iniciar_fase_ameaca()

@@ -226,6 +226,54 @@ class CercoSetupState(GameState):
             if selecionado:
                 pygame.draw.circle(tela, C_VERDE, (rect.right - 14, rect.y + 14), 5)
 
+        # ── Card fixo do Príncipe Lysander (sempre na equipe, IA) ──────────
+        ia_row = len(HEROIS_DISPONIVEIS) // cols
+        ia_col = len(HEROIS_DISPONIVEIS) % cols
+        ia_x = r.x + 20 + ia_col * (cw + 10)
+        ia_y = y0 + ia_row * (ch + 10)
+        ia_rect = pygame.Rect(ia_x, ia_y, cw, ch)
+
+        import math as _math
+        pulso_ia = (_math.sin(pygame.time.get_ticks() * 0.003) + 1.0) / 2.0
+        cor_ia_fundo = (
+            int(18 + 10 * pulso_ia),
+            int(8 + 5 * pulso_ia),
+            int(38 + 15 * pulso_ia),
+        )
+        cor_ia_borda = (
+            int(140 + 80 * pulso_ia),
+            int(60 + 60 * pulso_ia),
+            255,
+        )
+
+        pygame.draw.rect(tela, cor_ia_fundo, ia_rect, border_radius=8)
+        pygame.draw.rect(tela, cor_ia_borda, ia_rect, 2, border_radius=8)
+
+        # Avatar com ícone de coroa
+        ia_av_rect = pygame.Rect(ia_x + 12, ia_y + (ch - 64) // 2, 64, 64)
+        pygame.draw.rect(tela, (10, 5, 25), ia_av_rect, border_radius=6)
+        pygame.draw.rect(tela, cor_ia_borda, ia_av_rect, 1, border_radius=6)
+        icone_ia = self.fT.render("👑", True, cor_ia_borda)
+        tela.blit(icone_ia, (
+            ia_av_rect.centerx - icone_ia.get_width() // 2,
+            ia_av_rect.centery - icone_ia.get_height() // 2,
+        ))
+
+        # Texto
+        tx_ia = ia_x + 12 + 64 + 12
+        nt_ia = self.fG.render("Pr. Lysander", True, cor_ia_borda)
+        tela.blit(nt_ia, (tx_ia, ia_y + 14))
+        ct_ia = self.fP.render("Filho do Imperador", True, (160, 130, 210))
+        tela.blit(ct_ia, (tx_ia, ia_y + 40))
+        ai_tag = self.fMi.render("⚙ CONTROLADO POR IA", True, cor_ia_borda)
+        tela.blit(ai_tag, (tx_ia, ia_y + 62))
+
+        # Badge "FIXO" no canto
+        pygame.draw.circle(tela, cor_ia_borda, (ia_rect.right - 14, ia_rect.y + 14), 5)
+        tag_fixo = self.fMi.render("AUTO", True, cor_ia_borda)
+        tela.blit(tag_fixo, (ia_rect.right - 14 - tag_fixo.get_width() // 2, ia_rect.y + 22))
+
+
     def _draw_dificuldade(self, tela):
         r = self.area_dificuldade
         pygame.draw.rect(tela, C_PAINEL, r, border_radius=10)

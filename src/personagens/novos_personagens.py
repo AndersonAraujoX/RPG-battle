@@ -198,3 +198,79 @@ class Darwin(Personagem):
         self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
         self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
         self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
+
+
+class FilhoDoImperador(Personagem):
+    """
+    Príncipe Lysander — Filho do Imperador.
+
+    Guerreiro-mago de elite treinado nas academias imperiais.
+    Controlado por IA durante o modo Cerco, age como aliado autônomo
+    que defende a fortaleza com táticas superiores.
+    """
+    def __init__(self, nome="Príncipe Lysander", time="A", nivel=7, sound_player=None):
+        super().__init__(nome, time, nivel, sound_player)
+        self.classe_nome = "FilhoDoImperador"
+        self.hp_max = 80
+        self.hp_atual = 80
+        self.mana_atual = 50
+        self.mana_max = 50
+        self.ac_base = 18
+        self._forca += 6
+        self._destreza += 4
+        self._inteligencia += 5
+        self._constituicao += 5
+        self._carisma += 6
+        self.alcance = 2      # Lâmina imperial de longo alcance
+        self._velocidade = 5
+
+        # Atributos especiais
+        self.is_ia_controlado = True      # Sinaliza que é controlado por IA
+        self.titulo = "Filho do Imperador"
+        self.inicializar_habilidades()
+
+    def inicializar_habilidades(self):
+        # Golpe Imperial: ataque corpo-a-corpo devastador
+        self.habilidades['golpe_imperial'] = {
+            "nome": "Golpe Imperial",
+            "descricao": "Ataque supremo com a espada imperial, ignora parte da armadura.",
+            "custo": 10, "custo_recurso": "mana",
+            "tipo": "acao", "alvo": "inimigo", "alcance": 2,
+            "dano_extra": 20, "tipo_dano": "Cortante"
+        }
+        self.custo_habilidades['golpe_imperial'] = 10
+
+        # Escudo Arcano: barreira mágica que absorve dano
+        self.habilidades['escudo_arcano'] = {
+            "nome": "Escudo Arcano",
+            "descricao": "Projeta uma barreira mágica aumentando a AC drasticamente.",
+            "custo": 8, "custo_recurso": "mana",
+            "tipo": "acao", "alvo": "self", "alcance": 0,
+            "buff": "aumentar_ac"
+        }
+        self.custo_habilidades['escudo_arcano'] = 8
+
+        # Presença Imperial: inspira aliados próximos (buff de grupo)
+        self.habilidades['presenca_imperial'] = {
+            "nome": "Presença Imperial",
+            "descricao": "Sua presença inspira aliados: +2 AC e +4 ATK para todos próximos.",
+            "custo": 0, "cooldown": 4,
+            "tipo": "acao", "alvo": "area_aliados", "alcance": 3,
+            "buff": "inspirar"
+        }
+        self.cooldown_max['presenca_imperial'] = 4
+
+        # Tiro de Relâmpago: projétil mágico de longo alcance
+        self.habilidades['raio_imperial'] = {
+            "nome": "Raio Imperial",
+            "descricao": "Dispara um raio de energia imperial que atordoa o alvo.",
+            "custo": 15, "custo_recurso": "mana",
+            "tipo": "acao", "alvo": "inimigo", "alcance": 8,
+            "dano_extra": 16, "tipo_dano": "Relâmpago"
+        }
+        self.custo_habilidades['raio_imperial'] = 15
+
+        self.custo_habilidades.update({k: v.get('custo', 0) for k, v in self.habilidades.items()})
+        self.cooldown_max.update({k: v.get('cooldown', 0) for k, v in self.habilidades.items()})
+        self.cooldowns.update({k: 0 for k, v in self.habilidades.items() if 'cooldown' in v})
+

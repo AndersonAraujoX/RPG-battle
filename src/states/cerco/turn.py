@@ -90,7 +90,18 @@ class CercoStateTurnMixin:
         self.estado = aplicar_delta(self.estado, {"mao": [], "descarte": desc})
         self.alcancaveis = {}
         self.modo_acao   = MODO_NENHUM
-        self._iniciar_fase_ameaca()
+
+        # Verifica se há o Filho do Imperador como IA inimiga ativa
+        ia_cmd = getattr(self, 'ia_comandante', None)
+        if ia_cmd is not None:
+            # Antes da Fase de Ameaça, o Filho do Imperador age como inimigo
+            self.fase = "TURNO_FILHO_IMPERADOR"
+            self.map_backbuffer_sujo = True
+            self._push("SISTEMA", "👑 Vez do Filho do Imperador! A IA invasora age...")
+            self._feedback("👑 FILHO DO IMPERADOR — Preparando invasão!", (220, 60, 30))
+        else:
+            self._iniciar_fase_ameaca()
+
 
     # ── PROCESSAMENTO AUTOMÁTICO ─────────────────────────────────────
     def _processar_acoes_automaticas(self, mostrar_erro_se_falhar=False):
