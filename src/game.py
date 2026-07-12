@@ -324,17 +324,19 @@ class Game:
         keys = pygame.key.get_pressed()
         
         # Debounce Q key (Rotate Counter-Clockwise 90 degrees)
+        # Note: CCW camera rotation results in CW rotation of coordinates on screen
         if keys[pygame.K_q]:
             if not self.key_q_pressed:
-                self.target_angulo_rotacao -= math.pi / 2
+                self.target_angulo_rotacao += math.pi / 2
                 self.key_q_pressed = True
         else:
             self.key_q_pressed = False
             
         # Debounce E key (Rotate Clockwise 90 degrees)
+        # Note: CW camera rotation results in CCW rotation of coordinates on screen
         if keys[pygame.K_e]:
             if not self.key_e_pressed:
-                self.target_angulo_rotacao += math.pi / 2
+                self.target_angulo_rotacao -= math.pi / 2
                 self.key_e_pressed = True
         else:
             self.key_e_pressed = False
@@ -342,17 +344,23 @@ class Game:
         # Keep target_angulo_rotacao within range to avoid floating overflow
         self.target_angulo_rotacao = self.target_angulo_rotacao % (2 * math.pi)
         
-        # Smoothly interpolate angulo_rotacao towards target_angulo_rotacao
+        # Smoothly interpolate angulo_rotacao towards target_angulo_rotacao (Easing Out)
         diff = (self.target_angulo_rotacao - self.angulo_rotacao)
         # Normalize diff to range [-pi, pi] to take shortest path
         diff = (diff + math.pi) % (2 * math.pi) - math.pi
         
-        if abs(diff) > 0.01:
-            step = 0.08  # speed of rotation animation
-            if abs(diff) < step:
+        if abs(diff) > 0.001:
+            # Easing factor: 0.15 (move 15% of the remaining distance per frame)
+            step = diff * 0.15
+            # Speed clamping to ensure it doesn't get infinitely slow at the end
+            min_step = 0.012
+            if abs(step) < min_step:
+                step = min_step if diff > 0 else -min_step
+                
+            if abs(diff) < abs(step):
                 self.angulo_rotacao = self.target_angulo_rotacao
             else:
-                self.angulo_rotacao = (self.angulo_rotacao + (step if diff > 0 else -step)) % (2 * math.pi)
+                self.angulo_rotacao = (self.angulo_rotacao + step) % (2 * math.pi)
         else:
             self.angulo_rotacao = self.target_angulo_rotacao
 

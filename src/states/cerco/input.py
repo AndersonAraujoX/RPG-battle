@@ -253,13 +253,13 @@ class CercoStateInputMixin:
 
                             if btn_amarelo.collidepoint(mouse):
                                 nova_carta = random.choice(CARTAS_UPGRADE_AMARELO)
-                                deck_nome = "Amarelo"
+                                deck_nome = "Fraco"
                             elif btn_cinza.collidepoint(mouse):
                                 nova_carta = random.choice(CARTAS_UPGRADE_CINZA)
-                                deck_nome = "Cinza"
+                                deck_nome = "Médio"
                             elif btn_vermelho.collidepoint(mouse):
                                 nova_carta = random.choice(CARTAS_UPGRADE_VERMELHO)
-                                deck_nome = "Vermelho"
+                                deck_nome = "Forte"
 
                             if nova_carta:
                                 from ...cerco_isectum import aplicar_delta

@@ -227,42 +227,86 @@ class DueloStateDrawMixin:
             cy = area.y + 20 if micro else area.y + 25
             c_rect = pygame.Rect(cx, cy, card_w, card_h)
             
-            # Desenha mini carta compacta
-            dados = DADOS_INIMIGOS.get(cid, {})
-            pygame.draw.rect(tela, C_CARD_BG, c_rect, border_radius=4)
-            pygame.draw.rect(tela, C_BORDA, c_rect, 1, border_radius=4)
-            
-            em = self.fM.render(dados.get("emoji", "🐛"), True, C_TEXTO)
-            tela.blit(em, (c_rect.centerx - em.get_width() // 2, c_rect.y + (6 if micro else 12)))
-            
             if not micro:
-                nome_p = dados.get("nome", cid).split()[0]
-                nm = self.fMi.render(nome_p[:7], True, C_TEXTO)
-                tela.blit(nm, (c_rect.centerx - nm.get_width() // 2, c_rect.y + 44))
+                self._draw_carta_mesa(tela, c_rect, cid, hover=False)
+            else:
+                # Desenha mini carta compacta micro com gradiente sutil
+                dados = DADOS_INIMIGOS.get(cid, {})
+                classe = dados.get("classe", "")
+                
+                if classe in ("Guerreiro", "Bárbaro"):
+                    c_top, c_bot = (35, 10, 15), (16, 5, 8)
+                elif classe in ("Mago", "Bruxo", "Druida"):
+                    c_top, c_bot = (25, 8, 32), (12, 4, 18)
+                elif classe in ("Ladino", "Arqueiro", "Batedor"):
+                    c_top, c_bot = (12, 20, 35), (6, 9, 16)
+                else:
+                    c_top, c_bot = (24, 10, 16), (12, 5, 10)
+                    
+                grad = pygame.Surface((2, 2))
+                grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
+                grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
+                grad_scaled = pygame.transform.smoothscale(grad, (c_rect.width, c_rect.height))
+                tela.blit(grad_scaled, c_rect.topleft)
+                pygame.draw.rect(tela, C_BORDA, c_rect, 1, border_radius=4)
+                
+                em = self.fM.render(dados.get("emoji", "🐛"), True, C_TEXTO)
+                tela.blit(em, (c_rect.centerx - em.get_width() // 2, c_rect.y + 8))
 
     def _draw_carta_mesa(self, tela, rect, cid, hover=False):
-        """Desenha uma mini carta na mesa."""
+        """Desenha uma mini carta na mesa com estilo TCG premium."""
         dados = DADOS_INIMIGOS.get(cid, {})
         emoji = dados.get("emoji", "🐛")
         nome = dados.get("nome", cid).split()[0]
+        classe = dados.get("classe", "")
 
-        bg = C_CARD_HOVER if hover else C_CARD_BG
+        # 1. Determina cores de gradiente com base na classe
+        if classe in ("Guerreiro", "Bárbaro"):
+            c_top = (55, 15, 25) if hover else (35, 10, 15)
+            c_bot = (16, 5, 8)
+        elif classe in ("Mago", "Bruxo", "Druida"):
+            c_top = (38, 12, 50) if hover else (25, 8, 32)
+            c_bot = (12, 4, 18)
+        elif classe in ("Ladino", "Arqueiro", "Batedor"):
+            c_top = (18, 32, 52) if hover else (12, 20, 35)
+            c_bot = (6, 9, 16)
+        elif classe in ("Chefe", "ReiGoblin", "LordeLich"):
+            c_top = (75, 45, 10) if hover else (50, 30, 6)
+            c_bot = (22, 12, 4)
+        else:
+            c_top = (35, 15, 22) if hover else (24, 10, 16)
+            c_bot = (12, 5, 10)
+
+        # 2. Renderiza Fundo Gradiente
+        grad = pygame.Surface((2, 2))
+        grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
+        grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
+        grad_scaled = pygame.transform.smoothscale(grad, (rect.width, rect.height))
+        tela.blit(grad_scaled, rect.topleft)
+
+        # 3. Molduras e Chanfros
         border = C_ACENTO if hover else C_BORDA
-
-        pygame.draw.rect(tela, bg, rect, border_radius=6)
         pygame.draw.rect(tela, border, rect, 1, border_radius=6)
+        pygame.draw.rect(tela, (c_top[0]+15, c_top[1]+15, c_top[2]+15) if hover else (c_top[0]+8, c_top[1]+8, c_top[2]+8), rect.inflate(-2, -2), 1, border_radius=5)
+        pygame.draw.rect(tela, (4, 4, 6), rect.inflate(-4, -4), 1, border_radius=4)
 
+        # 4. Emoji (Centralizado)
         e_txt = self.fM.render(emoji, True, C_TEXTO)
-        tela.blit(e_txt, (rect.centerx - e_txt.get_width() // 2, rect.y + 12))
+        tela.blit(e_txt, (rect.centerx - e_txt.get_width() // 2, rect.y + 8))
 
+        # 5. Header de Título
+        banner_r = pygame.Rect(rect.x + 4, rect.y + 42, rect.width - 8, 15)
+        pygame.draw.rect(tela, (5, 5, 8, 180), banner_r, border_radius=2)
+        
         n_txt = self.fMi.render(nome[:8], True, C_TEXTO)
-        tela.blit(n_txt, (rect.centerx - n_txt.get_width() // 2, rect.y + 44))
+        tela.blit(n_txt, (rect.centerx - n_txt.get_width() // 2, rect.y + 43))
 
-        c_txt = self.fMi.render(dados.get("classe", "")[:8], True, C_DIM)
+        # 6. Classe
+        c_txt = self.fMi.render(classe[:8], True, C_DIM)
         tela.blit(c_txt, (rect.centerx - c_txt.get_width() // 2, rect.y + 64))
 
     def _draw_mao_jogador_deck(self, tela, max_w, H, mouse):
-        """Renderiza as cartas na mão do jogador ativo no rodapé."""
+        """Renderiza as cartas na mão do jogador ativo no rodapé com design premium."""
         card_w, card_h = 94, 120
         gap = 12
         ativo = self.get_jogador_ativo()
@@ -292,42 +336,91 @@ class DueloStateDrawMixin:
             self.mao_jogador_rects.append(card_rect)
 
             sel = (i == self.carta_selecionada_idx)
-            bg = C_CARD_HOVER if is_hover else C_CARD_BG
-            border = C_CARD_SELECT if sel else (C_ACENTO if is_hover else C_BORDA)
-
-            pygame.draw.rect(tela, bg, card_rect, border_radius=6)
-            pygame.draw.rect(tela, border, card_rect, 2 if sel or is_hover else 1, border_radius=6)
-
             dados = DADOS_INIMIGOS.get(cid, {})
+            classe = dados.get("classe", "")
+
+            # 1. Determina cores de gradiente com base na classe do inseto
+            if classe in ("Guerreiro", "Bárbaro"):
+                c_top = (65, 18, 30) if is_hover else (45, 12, 20)
+                c_bot = (22, 6, 10)
+            elif classe in ("Mago", "Bruxo", "Druida"):
+                c_top = (45, 16, 60) if is_hover else (32, 10, 42)
+                c_bot = (16, 6, 22)
+            elif classe in ("Ladino", "Arqueiro", "Batedor"):
+                c_top = (22, 38, 62) if is_hover else (14, 25, 42)
+                c_bot = (8, 12, 20)
+            elif classe in ("Chefe", "ReiGoblin", "LordeLich"):
+                c_top = (85, 52, 12) if is_hover else (60, 36, 8)
+                c_bot = (28, 16, 6)
+            else:
+                c_top = (42, 18, 28) if is_hover else (28, 12, 20)
+                c_bot = (16, 6, 12)
+
+            # 2. Desenha Fundo (Gradiente de alta fidelidade)
+            grad = pygame.Surface((2, 2))
+            grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
+            grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
+            grad_scaled = pygame.transform.smoothscale(grad, (card_w, card_h))
+            tela.blit(grad_scaled, card_rect.topleft)
+
+            # 3. Moldura e Chanfro
+            borda_cor = C_CARD_SELECT if sel else (C_ACENTO if is_hover else C_BORDA)
+            pygame.draw.rect(tela, borda_cor, card_rect, 2 if sel or is_hover else 1, border_radius=6)
             
+            cor_chanfro = (c_top[0]+20, c_top[1]+20, c_top[2]+20) if is_hover else (c_top[0]+10, c_top[1]+10, c_top[2]+10)
+            pygame.draw.rect(tela, cor_chanfro, card_rect.inflate(-4, -4), 1, border_radius=5)
+            pygame.draw.rect(tela, (4, 4, 6), card_rect.inflate(-6, -6), 1, border_radius=4)
+
+            # 4. Caixa de Arte
+            art_rect = pygame.Rect(cx + 6, cy + 24, card_w - 12, 38)
+            pygame.draw.rect(tela, (8, 6, 12), art_rect, border_radius=4)
+            pygame.draw.rect(tela, (36, 36, 48), art_rect, 1, border_radius=4)
+
+            # Elementos vetoriais abstratos na caixa de arte (Isectum)
+            if classe in ("Guerreiro", "Bárbaro"):
+                # Garras/Impactos
+                pygame.draw.line(tela, (255, 60, 60), (art_rect.x + 10, art_rect.y + 8), (art_rect.x + 15, art_rect.bottom - 8), 2)
+                pygame.draw.line(tela, (255, 60, 60), (art_rect.right - 10, art_rect.y + 8), (art_rect.right - 15, art_rect.bottom - 8), 2)
+            elif classe in ("Mago", "Bruxo", "Druida"):
+                # Redemoinho mágico roxo
+                pygame.draw.circle(tela, (120, 60, 200), (art_rect.centerx, art_rect.centery), 10, 1)
+                pygame.draw.circle(tela, (200, 100, 255), (art_rect.centerx, art_rect.centery), 5)
+            elif classe in ("Ladino", "Arqueiro", "Batedor"):
+                # Linha de velocidade furtiva ciano
+                pygame.draw.line(tela, (60, 160, 255), (art_rect.x + 8, art_rect.centery), (art_rect.right - 8, art_rect.centery), 2)
+                pygame.draw.circle(tela, (100, 210, 255), (art_rect.centerx, art_rect.centery), 3)
+            elif classe in ("Chefe", "ReiGoblin", "LordeLich"):
+                # Coroa dourada simplificada/cristais
+                pygame.draw.polygon(tela, (255, 215, 80), [(art_rect.centerx, art_rect.y + 6), (art_rect.centerx + 8, art_rect.bottom - 8), (art_rect.centerx - 8, art_rect.bottom - 8)])
+                pygame.draw.circle(tela, (255, 250, 200), (art_rect.centerx, art_rect.y + 6), 2)
+            else:
+                # Olho de inseto brilhante
+                pygame.draw.circle(tela, (180, 40, 60), (art_rect.centerx, art_rect.centery), 6)
+                pygame.draw.circle(tela, (255, 100, 120), (art_rect.centerx - 2, art_rect.centery - 2), 2)
+
+            # 5. Emoji (Centralizado sobre a arte)
             em_t = self.fG.render(dados.get("emoji", "🐛"), True, C_TEXTO)
-            tela.blit(em_t, (cx + 6, cy + 6))
+            tela.blit(em_t, (art_rect.centerx - em_t.get_width() // 2, art_rect.centery - em_t.get_height() // 2))
 
+            # 6. Banner do Título
+            banner_rect = pygame.Rect(cx + 6, cy + 66, card_w - 12, 17)
+            pygame.draw.rect(tela, (6, 6, 8, 210), banner_rect, border_radius=3)
+            pygame.draw.rect(tela, (40, 40, 50), banner_rect, 1, border_radius=3)
+            
             nome_c = dados.get("nome", cid).split()[0]
-            nome_t = self.fM.render(nome_c, True, C_OURO if sel else C_TEXTO)
-            tela.blit(nome_t, (cx + 30, cy + 10))
+            nome_t = self.fMi.render(nome_c[:11], True, C_OURO if sel else C_TEXTO)
+            tela.blit(nome_t, (banner_rect.centerx - nome_t.get_width() // 2, banner_rect.y + 2))
 
-            tipo_t = self.fMi.render(dados.get("classe", ""), True, C_DIM)
-            tela.blit(tipo_t, (cx + 6, cy + 30))
+            # 7. Tipo/Classe
+            tipo_t = self.fMi.render(classe[:14], True, C_DIM)
+            tela.blit(tipo_t, (cx + 10, cy + 86))
 
-            # Descrição rápida
+            # 8. Descrição Rápida
             efeito = dados.get("efeito", "")
-            palavras = efeito.split()
-            linhas = []
-            l_atual = ""
-            for p in palavras:
-                if len(l_atual + " " + p) < 13:
-                    l_atual += (" " if l_atual else "") + p
-                else:
-                    linhas.append(l_atual)
-                    l_atual = p
-            if l_atual:
-                linhas.append(l_atual)
-
-            ly = cy + 50
-            for linha in linhas[:3]:
-                tela.blit(self.fMi.render(linha, True, C_TEXTO if sel else C_DIM), (cx + 6, ly))
-                ly += 14
+            if efeito:
+                desc_cortada = efeito[:16] + "..." if len(efeito) > 16 else efeito
+                desc_t = self.fMi.render(desc_cortada, True, C_DIM)
+                tela.blit(desc_t, (cx + 10, cy + 102))
 
     def _draw_tooltip_hover(self, tela, W, H):
         """Mostra uma descrição expandida no hover da carta da mão."""

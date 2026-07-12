@@ -69,7 +69,7 @@ def draw_alpha_polygon(tela, color, points):
     pygame.draw.polygon(surf, color, translated_points)
     tela.blit(surf, (min_x, min_y))
 
-def desenhar_celula_tactica(tela, cx, cy, w, h, cor_base, cor_borda, estilo='movimento'):
+def desenhar_celula_tactica(tela, x, y, el, y_offset, theta, cor_base, cor_borda, estilo='movimento'):
     t = pygame.time.get_ticks()
     # Fator de pulsação suave
     pulso = (math.sin(t * 0.007) + 1.0) / 2.0  # 0.0 a 1.0
@@ -81,13 +81,13 @@ def desenhar_celula_tactica(tela, cx, cy, w, h, cor_base, cor_borda, estilo='mov
     
     fill_color = (cor_base[0], cor_base[1], cor_base[2], alpha)
     
-    # 1. Desenhar o preenchimento semi-transparente
-    pts_outer = [
-        (cx, cy - h // 2),
-        (cx + w // 2, cy),
-        (cx, cy + h // 2),
-        (cx - w // 2, cy)
-    ]
+    # Obter os cantos rotacionados da célula
+    p0 = get_iso_coords(x - 0.5, y - 0.5, el, y_offset, theta)
+    p1 = get_iso_coords(x + 0.5, y - 0.5, el, y_offset, theta)
+    p2 = get_iso_coords(x + 0.5, y + 0.5, el, y_offset, theta)
+    p3 = get_iso_coords(x - 0.5, y + 0.5, el, y_offset, theta)
+    
+    pts_outer = [p0, p1, p2, p3]
     draw_alpha_polygon(tela, fill_color, pts_outer)
     
     # 2. Desenhar a borda externa brilhante com largura 2
@@ -100,37 +100,37 @@ def desenhar_celula_tactica(tela, cx, cy, w, h, cor_base, cor_borda, estilo='mov
     pygame.draw.polygon(tela, cor_borda_pulsante, pts_outer, 2)
     
     # 3. Desenhar losango interno concêntrico de grade de energia
-    w_inner = int(w * 0.7)
-    h_inner = int(h * 0.7)
+    cx = (p0[0] + p1[0] + p2[0] + p3[0]) / 4
+    cy = (p0[1] + p1[1] + p2[1] + p3[1]) / 4
+    
     pts_inner = [
-        (cx, cy - h_inner // 2),
-        (cx + w_inner // 2, cy),
-        (cx, cy + h_inner // 2),
-        (cx - w_inner // 2, cy)
+        (int(cx + 0.7 * (p0[0] - cx)), int(cy + 0.7 * (p0[1] - cy))),
+        (int(cx + 0.7 * (p1[0] - cx)), int(cy + 0.7 * (p1[1] - cy))),
+        (int(cx + 0.7 * (p2[0] - cx)), int(cy + 0.7 * (p2[1] - cy))),
+        (int(cx + 0.7 * (p3[0] - cx)), int(cy + 0.7 * (p3[1] - cy)))
     ]
     cor_inner = (cor_borda[0], cor_borda[1], cor_borda[2], int(40 + 20 * pulso))
     draw_alpha_polygon(tela, cor_inner, pts_inner)
     pygame.draw.polygon(tela, cor_borda, pts_inner, 1)
 
     # 4. Desenhar cantoneiras
-    bracket_w = max(2, w // 7)
-    bracket_h = max(1, h // 7)
+    f = 1/7
     
-    # Canto superior (cx, cy - h//2)
-    pygame.draw.line(tela, (255, 255, 255), (cx, cy - h // 2), (cx - bracket_w, cy - h // 2 + bracket_h), 2)
-    pygame.draw.line(tela, (255, 255, 255), (cx, cy - h // 2), (cx + bracket_w, cy - h // 2 + bracket_h), 2)
+    # Canto superior (p0)
+    pygame.draw.line(tela, (255, 255, 255), p0, (int(p0[0] + f * (p3[0] - p0[0])), int(p0[1] + f * (p3[1] - p0[1]))), 2)
+    pygame.draw.line(tela, (255, 255, 255), p0, (int(p0[0] + f * (p1[0] - p0[0])), int(p0[1] + f * (p1[1] - p0[1]))), 2)
     
-    # Canto inferior (cx, cy + h//2)
-    pygame.draw.line(tela, (255, 255, 255), (cx, cy + h // 2), (cx - bracket_w, cy + h // 2 - bracket_h), 2)
-    pygame.draw.line(tela, (255, 255, 255), (cx, cy + h // 2), (cx + bracket_w, cy + h // 2 - bracket_h), 2)
+    # Canto inferior (p2)
+    pygame.draw.line(tela, (255, 255, 255), p2, (int(p2[0] + f * (p3[0] - p2[0])), int(p2[1] + f * (p3[1] - p2[1]))), 2)
+    pygame.draw.line(tela, (255, 255, 255), p2, (int(p2[0] + f * (p1[0] - p2[0])), int(p2[1] + f * (p1[1] - p2[1]))), 2)
     
-    # Canto esquerdo (cx - w//2, cy)
-    pygame.draw.line(tela, (255, 255, 255), (cx - w // 2, cy), (cx - w // 2 + bracket_w, cy - bracket_h), 2)
-    pygame.draw.line(tela, (255, 255, 255), (cx - w // 2, cy), (cx - w // 2 + bracket_w, cy + bracket_h), 2)
+    # Canto esquerdo (p3)
+    pygame.draw.line(tela, (255, 255, 255), p3, (int(p3[0] + f * (p0[0] - p3[0])), int(p3[1] + f * (p0[1] - p3[1]))), 2)
+    pygame.draw.line(tela, (255, 255, 255), p3, (int(p3[0] + f * (p2[0] - p3[0])), int(p3[1] + f * (p2[1] - p3[1]))), 2)
     
-    # Canto direito (cx + w//2, cy)
-    pygame.draw.line(tela, (255, 255, 255), (cx + w // 2, cy), (cx + w // 2 - bracket_w, cy - bracket_h), 2)
-    pygame.draw.line(tela, (255, 255, 255), (cx + w // 2, cy), (cx + w // 2 - bracket_w, cy + bracket_h), 2)
+    # Canto direito (p1)
+    pygame.draw.line(tela, (255, 255, 255), p1, (int(p1[0] + f * (p0[0] - p1[0])), int(p1[1] + f * (p0[1] - p1[1]))), 2)
+    pygame.draw.line(tela, (255, 255, 255), p1, (int(p1[0] + f * (p2[0] - p1[0])), int(p1[1] + f * (p2[1] - p1[1]))), 2)
 
 def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
     w = motor.tabuleiro.largura
@@ -152,13 +152,11 @@ def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
     for _, x, y in cells:
         visibilidade = visibilidade_map[y][x]
         if visibilidade == 0:
-            cx, cy = get_iso_coords(x, y, 0, y_offset, theta)
-            points = [
-                (cx, cy - TILE_HEIGHT // 2),
-                (cx + TILE_WIDTH // 2, cy),
-                (cx, cy + TILE_HEIGHT // 2),
-                (cx - TILE_WIDTH // 2, cy)
-            ]
+            p0 = get_iso_coords(x - 0.5, y - 0.5, 0, y_offset, theta)
+            p1 = get_iso_coords(x + 0.5, y - 0.5, 0, y_offset, theta)
+            p2 = get_iso_coords(x + 0.5, y + 0.5, 0, y_offset, theta)
+            p3 = get_iso_coords(x - 0.5, y + 0.5, 0, y_offset, theta)
+            points = [p0, p1, p2, p3]
             pygame.draw.polygon(tela, (10, 10, 10), points)
             pygame.draw.polygon(tela, (25, 25, 25), points, 1)
             continue
@@ -171,37 +169,42 @@ def desenhar_cenario(tela, motor, game_images, y_offset, visibilidade_map):
             r, g, b = cor_base
             cor_base = (int(r * 0.45), int(g * 0.45), int(b * 0.45))
         
-        cx, cy = get_iso_coords(x, y, el, y_offset, theta)
-        thickness = el * ELEVATION_SCALE
+        top_el = el + (1.5 if terreno == TERRENO_PAREDE else 0)
+        thickness = top_el * ELEVATION_SCALE
         
-        if terreno == TERRENO_PAREDE:
-            thickness += 12
-            cy -= 12
-        
-        top_points = [
-            (cx, cy - TILE_HEIGHT // 2),
-            (cx + TILE_WIDTH // 2, cy),
-            (cx, cy + TILE_HEIGHT // 2),
-            (cx - TILE_WIDTH // 2, cy)
-        ]
+        p0 = get_iso_coords(x - 0.5, y - 0.5, top_el, y_offset, theta)
+        p1 = get_iso_coords(x + 0.5, y - 0.5, top_el, y_offset, theta)
+        p2 = get_iso_coords(x + 0.5, y + 0.5, top_el, y_offset, theta)
+        p3 = get_iso_coords(x - 0.5, y + 0.5, top_el, y_offset, theta)
+        top_points = [p0, p1, p2, p3]
         
         if thickness > 0:
+            p0_bot = get_iso_coords(x - 0.5, y - 0.5, 0, y_offset, theta)
+            p1_bot = get_iso_coords(x + 0.5, y - 0.5, 0, y_offset, theta)
+            p2_bot = get_iso_coords(x + 0.5, y + 0.5, 0, y_offset, theta)
+            p3_bot = get_iso_coords(x - 0.5, y + 0.5, 0, y_offset, theta)
+            
+            p = [p0, p1, p2, p3]
+            p_bot = [p0_bot, p1_bot, p2_bot, p3_bot]
+            
+            idx_left = min(range(4), key=lambda i: p[i][0])
+            idx_right = max(range(4), key=lambda i: p[i][0])
+            idx_bottom = max(range(4), key=lambda i: p_bot[i][1])
+            
+            v_left = p[idx_left]
+            v_left_bot = p_bot[idx_left]
+            v_bottom = p[idx_bottom]
+            v_bottom_bot = p_bot[idx_bottom]
+            v_right = p[idx_right]
+            v_right_bot = p_bot[idx_right]
+            
+            left_points = [v_left, v_bottom, v_bottom_bot, v_left_bot]
+            right_points = [v_bottom, v_right, v_right_bot, v_bottom_bot]
+            
             r, g, b = cor_base
             cor_left = (int(r * 0.7), int(g * 0.7), int(b * 0.7))
             cor_right = (int(r * 0.5), int(g * 0.5), int(b * 0.5))
             
-            left_points = [
-                (cx - TILE_WIDTH // 2, cy),
-                (cx, cy + TILE_HEIGHT // 2),
-                (cx, cy + TILE_HEIGHT // 2 + thickness),
-                (cx - TILE_WIDTH // 2, cy + thickness)
-            ]
-            right_points = [
-                (cx, cy + TILE_HEIGHT // 2),
-                (cx + TILE_WIDTH // 2, cy),
-                (cx + TILE_WIDTH // 2, cy + thickness),
-                (cx, cy + TILE_HEIGHT // 2 + thickness)
-            ]
             pygame.draw.polygon(tela, cor_left, left_points)
             pygame.draw.polygon(tela, cor_right, right_points)
             pygame.draw.polygon(tela, (20, 20, 20), left_points, 1)
@@ -406,8 +409,7 @@ def desenhar_pre_visualizacao_ataque(tela, motor, hovered_enemy, game_images, y_
     for p in motor.combatentes:
         if p.esta_vivo and p.time == TIME_A:
             if calcular_distancia(p, hovered_enemy) <= p.alcance:
-                cx, cy = get_iso_coords(p.pos_x, p.pos_y, p.elevacao, y_offset, theta)
-                desenhar_celula_tactica(tela, cx, cy, TILE_WIDTH, TILE_HEIGHT, (255, 200, 0, 60), (255, 215, 0), estilo='ataque')
+                desenhar_celula_tactica(tela, p.pos_x, p.pos_y, p.elevacao, y_offset, theta, (255, 200, 0, 60), (255, 215, 0), estilo='ataque')
 
 def desenhar_alcance_movimento(tela, motor, personagem_ativo, y_offset):
     if not personagem_ativo or personagem_ativo.time != TIME_A:
@@ -417,8 +419,7 @@ def desenhar_alcance_movimento(tela, motor, personagem_ativo, y_offset):
     movimentos_validos = motor.get_movimento_valido(personagem_ativo)
     for x, y in movimentos_validos:
         el = motor.tabuleiro.get_elevation_em(x, y)
-        cx, cy = get_iso_coords(x, y, el, y_offset, theta)
-        desenhar_celula_tactica(tela, cx, cy, TILE_WIDTH, TILE_HEIGHT, (0, 100, 255, 50), (0, 180, 255), estilo='movimento')
+        desenhar_celula_tactica(tela, x, y, el, y_offset, theta, (0, 100, 255, 50), (0, 180, 255), estilo='movimento')
 
 def desenhar_alcance_habilidade(tela, motor, personagem_ativo, habilidade_key, y_offset, mouse_pos=None):
     tiles, tipo = motor.get_alcance_habilidade(personagem_ativo, habilidade_key)
@@ -426,8 +427,7 @@ def desenhar_alcance_habilidade(tela, motor, personagem_ativo, habilidade_key, y
     
     for x, y in tiles:
         el = motor.tabuleiro.get_elevation_em(x, y)
-        cx, cy = get_iso_coords(x, y, el, y_offset, theta)
-        desenhar_celula_tactica(tela, cx, cy, TILE_WIDTH, TILE_HEIGHT, (138, 43, 226, 60), (180, 120, 255), estilo='habilidade')
+        desenhar_celula_tactica(tela, x, y, el, y_offset, theta, (138, 43, 226, 60), (180, 120, 255), estilo='habilidade')
         
     if mouse_pos:
         grid_pos = screen_to_grid(mouse_pos[0], mouse_pos[1], motor)
@@ -442,8 +442,7 @@ def desenhar_alcance_habilidade(tela, motor, personagem_ativo, habilidade_key, y
                               tx, ty = gx + dx, gy + dy
                               if 0 <= tx < 20 and 0 <= ty < 20:
                                   el = motor.tabuleiro.get_elevation_em(tx, ty)
-                                  cx, cy = get_iso_coords(tx, ty, el, y_offset, theta)
-                                  desenhar_celula_tactica(tela, cx, cy, TILE_WIDTH, TILE_HEIGHT, (255, 100, 0, 70), (255, 150, 0), estilo='ataque')
+                                  desenhar_celula_tactica(tela, tx, ty, el, y_offset, theta, (255, 100, 0, 70), (255, 150, 0), estilo='ataque')
 
 def desenhar_barra_iniciativa(tela, ordem_de_combate, personagem_ativo, game_images, mostrar=True):
     BARRA_ALTURA = 80 
@@ -640,16 +639,14 @@ def desenhar_feedback_jogador(tela, unidade, motor, y_offset):
             if 0 <= nx < motor.tabuleiro.largura and 0 <= ny < motor.tabuleiro.altura:
                 if motor.tabuleiro.get_personagem_em(nx, ny) is None and motor.tabuleiro.get_terrain_em(nx, ny) != TERRENO_PAREDE:
                     el = motor.tabuleiro.get_elevation_em(nx, ny)
-                    cx, cy = get_iso_coords(nx, ny, el, y_offset, theta)
-                    desenhar_celula_tactica(tela, cx, cy, TILE_WIDTH, TILE_HEIGHT, (0, 100, 255, 40), (0, 180, 255), estilo='movimento')
+                    desenhar_celula_tactica(tela, nx, ny, el, y_offset, theta, (0, 100, 255, 40), (0, 180, 255), estilo='movimento')
 
     for inimigo in motor.combatentes:
         if inimigo.time != unidade.time and inimigo.esta_vivo:
             dist = abs(x - inimigo.pos_x) + abs(y - inimigo.pos_y)
             if dist <= unidade.alcance:
                 el = motor.tabuleiro.get_elevation_em(inimigo.pos_x, inimigo.pos_y)
-                cx, cy = get_iso_coords(inimigo.pos_x, inimigo.pos_y, el, y_offset, theta)
-                desenhar_celula_tactica(tela, cx, cy, TILE_WIDTH, TILE_HEIGHT, (255, 50, 0, 70), (255, 100, 100), estilo='ataque')
+                desenhar_celula_tactica(tela, inimigo.pos_x, inimigo.pos_y, el, y_offset, theta, (255, 50, 0, 70), (255, 100, 100), estilo='ataque')
 
 def desenhar_comandos(tela, fonte, y_offset, botoes, mouse_pos, personagem_ativo=None):
     skill_menu_open = any(k == 'voltar_skills' for k in botoes.keys())

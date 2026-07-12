@@ -64,18 +64,38 @@ class CercoStateDrawMixin:
         pygame.draw.polygon(surf, color, translated_points)
         tela.blit(surf, (min_x, min_y))
 
-    def _draw_celula_tactica(self, tela, cx, cy, w, h, cor_base, cor_borda, estilo='movimento'):
+    def _draw_celula_tactica(self, tela, gx, gy, el, cor_base, cor_borda, estilo='movimento'):
         pulso = (math.sin(self.timer * 0.1) + 1.0) / 2.0
         alpha_base = cor_base[3] if len(cor_base) > 3 else 70
         alpha = int(alpha_base - 20 + 40 * pulso)
         alpha = max(20, min(230, alpha))
         fill_color = (cor_base[0], cor_base[1], cor_base[2], alpha)
-        pts_outer = [
-            (cx, cy - h // 2),
-            (cx + w // 2, cy),
-            (cx, cy + h // 2),
-            (cx - w // 2, cy)
-        ]
+        
+        theta = self.game.angulo_rotacao
+        theta_cos = math.cos(theta)
+        theta_sin = math.sin(theta)
+        TW = max(6, int(24 * self.zoom))
+        TH = max(3, int(12 * self.zoom))
+        ES = max(2, int(8 * self.zoom))
+        r = self.mapa_rect
+        CX = r.centerx
+        CY = r.centery - 5
+
+        def _iso_func(gx_, gy_, el_):
+            dx = gx_ - 9.5
+            dy = gy_ - 9.5
+            rx = dx * theta_cos - dy * theta_sin
+            ry = dx * theta_sin + dy * theta_cos
+            sx = (rx - ry) * (TW // 2) + CX
+            sy = (rx + ry) * (TH // 2) - el_ * ES + CY
+            return int(sx), int(sy)
+
+        p0 = _iso_func(gx - 0.5, gy - 0.5, el)
+        p1 = _iso_func(gx + 0.5, gy - 0.5, el)
+        p2 = _iso_func(gx + 0.5, gy + 0.5, el)
+        p3 = _iso_func(gx - 0.5, gy + 0.5, el)
+        pts_outer = [p0, p1, p2, p3]
+        
         self._draw_alpha_polygon(tela, fill_color, pts_outer)
         r_b, g_b, b_b = cor_borda[:3]
         cor_borda_pulsante = (
@@ -84,27 +104,29 @@ class CercoStateDrawMixin:
             max(0, min(255, int(b_b * (0.8 + 0.3 * pulso))))
         )
         pygame.draw.polygon(tela, cor_borda_pulsante, pts_outer, 2)
-        w_inner = int(w * 0.7)
-        h_inner = int(h * 0.7)
+        
+        cx = (p0[0] + p1[0] + p2[0] + p3[0]) / 4
+        cy = (p0[1] + p1[1] + p2[1] + p3[1]) / 4
+        
         pts_inner = [
-            (cx, cy - h_inner // 2),
-            (cx + w_inner // 2, cy),
-            (cx, cy + h_inner // 2),
-            (cx - w_inner // 2, cy)
+            (int(cx + 0.7 * (p0[0] - cx)), int(cy + 0.7 * (p0[1] - cy))),
+            (int(cx + 0.7 * (p1[0] - cx)), int(cy + 0.7 * (p1[1] - cy))),
+            (int(cx + 0.7 * (p2[0] - cx)), int(cy + 0.7 * (p2[1] - cy))),
+            (int(cx + 0.7 * (p3[0] - cx)), int(cy + 0.7 * (p3[1] - cy)))
         ]
         cor_inner = (cor_borda[0], cor_borda[1], cor_borda[2], int(40 + 20 * pulso))
         self._draw_alpha_polygon(tela, cor_inner, pts_inner)
         pygame.draw.polygon(tela, cor_borda, pts_inner, 1)
-        bracket_w = max(2, w // 7)
-        bracket_h = max(1, h // 7)
-        pygame.draw.line(tela, (255, 255, 255), (cx, cy - h // 2), (cx - bracket_w, cy - h // 2 + bracket_h), 2)
-        pygame.draw.line(tela, (255, 255, 255), (cx, cy - h // 2), (cx + bracket_w, cy - h // 2 + bracket_h), 2)
-        pygame.draw.line(tela, (255, 255, 255), (cx, cy + h // 2), (cx - bracket_w, cy + h // 2 - bracket_h), 2)
-        pygame.draw.line(tela, (255, 255, 255), (cx, cy + h // 2), (cx + bracket_w, cy + h // 2 - bracket_h), 2)
-        pygame.draw.line(tela, (255, 255, 255), (cx - w // 2, cy), (cx - w // 2 + bracket_w, cy - bracket_h), 2)
-        pygame.draw.line(tela, (255, 255, 255), (cx - w // 2, cy), (cx - w // 2 + bracket_w, cy + bracket_h), 2)
-        pygame.draw.line(tela, (255, 255, 255), (cx + w // 2, cy), (cx + w // 2 - bracket_w, cy - bracket_h), 2)
-        pygame.draw.line(tela, (255, 255, 255), (cx + w // 2, cy), (cx + w // 2 - bracket_w, cy + bracket_h), 2)
+        
+        f = 1/7
+        pygame.draw.line(tela, (255, 255, 255), p0, (int(p0[0] + f * (p3[0] - p0[0])), int(p0[1] + f * (p3[1] - p0[1]))), 2)
+        pygame.draw.line(tela, (255, 255, 255), p0, (int(p0[0] + f * (p1[0] - p0[0])), int(p0[1] + f * (p1[1] - p0[1]))), 2)
+        pygame.draw.line(tela, (255, 255, 255), p2, (int(p2[0] + f * (p3[0] - p2[0])), int(p2[1] + f * (p3[1] - p2[1]))), 2)
+        pygame.draw.line(tela, (255, 255, 255), p2, (int(p2[0] + f * (p1[0] - p2[0])), int(p2[1] + f * (p1[1] - p2[1]))), 2)
+        pygame.draw.line(tela, (255, 255, 255), p3, (int(p3[0] + f * (p0[0] - p3[0])), int(p3[1] + f * (p0[1] - p3[1]))), 2)
+        pygame.draw.line(tela, (255, 255, 255), p3, (int(p3[0] + f * (p2[0] - p3[0])), int(p3[1] + f * (p2[1] - p3[1]))), 2)
+        pygame.draw.line(tela, (255, 255, 255), p1, (int(p1[0] + f * (p0[0] - p1[0])), int(p1[1] + f * (p0[1] - p1[1]))), 2)
+        pygame.draw.line(tela, (255, 255, 255), p1, (int(p1[0] + f * (p2[0] - p1[0])), int(p1[1] + f * (p2[1] - p1[1]))), 2)
 
     # ── SPRITES DE TERRENO ────────────────────────────────────────────
     def _init_terrain_textures(self):
@@ -427,13 +449,14 @@ class CercoStateDrawMixin:
             CX_local = r.width // 2
             CY_local = r.height // 2 - 5
 
-            def _losango_local(cx_, cy_):
-                return [
-                    (cx_,           cy_ - TH // 2),
-                    (cx_ + TW // 2, cy_),
-                    (cx_,           cy_ + TH // 2),
-                    (cx_ - TW // 2, cy_),
-                ]
+            def _iso_local(gx_, gy_, el_):
+                dx_ = gx_ - 9.5
+                dy_ = gy_ - 9.5
+                rx_ = dx_ * theta_cos - dy_ * theta_sin
+                ry_ = dx_ * theta_sin + dy_ * theta_cos
+                sx_ = (rx_ - ry_) * (TW // 2) + CX_local
+                sy_ = (rx_ + ry_) * (TH // 2) - el_ * ES + CY_local
+                return int(sx_), int(sy_)
 
             for ground_depth, cy_coord, gx, gy, zona_key, el, rx, ry in cells:
                 paleta = PALETA.get(zona_key, PALETA["_exterior"])
@@ -442,42 +465,58 @@ class CercoStateDrawMixin:
                 cy_ = int(cy_coord + CY_local)
                 if not local_r.inflate(TW + 4, TH + 4).collidepoint(cx_, cy_):
                     continue
-                top_pts = _losango_local(cx_, cy_)
+                
+                p0 = _iso_local(gx - 0.5, gy - 0.5, el)
+                p1 = _iso_local(gx + 0.5, gy - 0.5, el)
+                p2 = _iso_local(gx + 0.5, gy + 0.5, el)
+                p3 = _iso_local(gx - 0.5, gy + 0.5, el)
+                top_pts = [p0, p1, p2, p3]
+                
                 thick = el * ES
                 if thick > 0:
-                    left_pts = [
-                        (cx_ - TW // 2, cy_),
-                        (cx_,           cy_ + TH // 2),
-                        (cx_,           cy_ + TH // 2 + thick),
-                        (cx_ - TW // 2, cy_ + thick),
-                    ]
-                    right_pts = [
-                        (cx_,           cy_ + TH // 2),
-                        (cx_ + TW // 2, cy_),
-                        (cx_ + TW // 2, cy_ + thick),
-                        (cx_,           cy_ + TH // 2 + thick),
-                    ]
+                    p0_bot = _iso_local(gx - 0.5, gy - 0.5, 0)
+                    p1_bot = _iso_local(gx + 0.5, gy - 0.5, 0)
+                    p2_bot = _iso_local(gx + 0.5, gy + 0.5, 0)
+                    p3_bot = _iso_local(gx - 0.5, gy + 0.5, 0)
+                    
+                    p = [p0, p1, p2, p3]
+                    p_bot = [p0_bot, p1_bot, p2_bot, p3_bot]
+                    
+                    idx_left = min(range(4), key=lambda i: p[i][0])
+                    idx_right = max(range(4), key=lambda i: p[i][0])
+                    idx_bottom = max(range(4), key=lambda i: p_bot[i][1])
+                    
+                    v_left = p[idx_left]
+                    v_left_bot = p_bot[idx_left]
+                    v_bottom = p[idx_bottom]
+                    v_bottom_bot = p_bot[idx_bottom]
+                    v_right = p[idx_right]
+                    v_right_bot = p_bot[idx_right]
+                    
+                    left_pts = [v_left, v_bottom, v_bottom_bot, v_left_bot]
+                    right_pts = [v_bottom, v_right, v_right_bot, v_bottom_bot]
+                    
                     pygame.draw.polygon(self.map_backbuffer, cor_left,  left_pts)
                     pygame.draw.polygon(self.map_backbuffer, cor_right, right_pts)
                     h_step = max(5, int(8 * self.zoom))
                     c_mortar_l = (max(0, cor_left[0] - 35),  max(0, cor_left[1] - 35),  max(0, cor_left[2] - 35))
                     c_mortar_r = (max(0, cor_right[0] - 35), max(0, cor_right[1] - 35), max(0, cor_right[2] - 35))
                     for h in range(h_step, thick, h_step):
-                        pygame.draw.line(self.map_backbuffer, c_mortar_l, (cx_ - TW // 2, cy_ + h), (cx_, cy_ + TH // 2 + h), 1)
-                        pygame.draw.line(self.map_backbuffer, c_mortar_r, (cx_, cy_ + TH // 2 + h), (cx_ + TW // 2, cy_ + h), 1)
+                        pygame.draw.line(self.map_backbuffer, c_mortar_l, (v_left[0], v_left[1] + h), (v_bottom[0], v_bottom[1] + h), 1)
+                        pygame.draw.line(self.map_backbuffer, c_mortar_r, (v_bottom[0], v_bottom[1] + h), (v_right[0], v_right[1] + h), 1)
                     row_idx = 0
                     for h in range(0, thick, h_step):
                         j_h = min(h_step, thick - h)
                         if j_h <= 2: continue
                         fractions = [0.5] if row_idx % 2 == 0 else [0.25, 0.75]
                         for f in fractions:
-                            jx = cx_ - TW // 2 + int(f * (TW // 2))
-                            jy = cy_ + int(f * (TH // 2)) + h
-                            pygame.draw.line(self.map_backbuffer, c_mortar_l, (jx, jy), (jx, jy + j_h), 1)
+                            jx = int(v_left[0] + f * (v_bottom[0] - v_left[0]))
+                            jy = int(v_left[1] + f * (v_bottom[1] - v_left[1]))
+                            pygame.draw.line(self.map_backbuffer, c_mortar_l, (jx, jy + h), (jx, jy + h + j_h), 1)
                         for f in fractions:
-                            jx = cx_ + int(f * (TW // 2))
-                            jy = cy_ + TH // 2 - int(f * (TH // 2)) + h
-                            pygame.draw.line(self.map_backbuffer, c_mortar_r, (jx, jy), (jx, jy + j_h), 1)
+                            jx = int(v_bottom[0] + f * (v_right[0] - v_bottom[0]))
+                            jy = int(v_bottom[1] + f * (v_right[1] - v_bottom[1]))
+                            pygame.draw.line(self.map_backbuffer, c_mortar_r, (jx, jy + h), (jx, jy + h + j_h), 1)
                         row_idx += 1
                     pygame.draw.polygon(self.map_backbuffer, (15, 15, 20), left_pts, 1)
                     pygame.draw.polygon(self.map_backbuffer, (15, 15, 20), right_pts, 1)
@@ -838,13 +877,6 @@ class CercoStateDrawMixin:
             sy = (rx + ry) * (TH // 2) - el * ES + CY
             return int(sx), int(sy)
 
-        def _losango(cx_, cy_):
-            return [
-                (cx_,           cy_ - TH // 2),
-                (cx_ + TW // 2, cy_),
-                (cx_,           cy_ + TH // 2),
-                (cx_ - TW // 2, cy_),
-            ]
 
         def _campo_direcao(gx, gy):
             if gy < GRID_MIN:   return "campo_norte"
@@ -856,28 +888,32 @@ class CercoStateDrawMixin:
         tab = self.motor.tabuleiro
         e = self.estado
 
+        mx_draw, my_draw = pygame.mouse.get_pos()
+        hovered_g = self._screen_to_grid(mx_draw, my_draw)
+
         for ground_depth, cy_coord, gx, gy, zona_key, el, rx, ry in cells:
             cx_ = int((rx - ry) * (TW // 2) + CX)
             cy_ = int(cy_coord + CY)
             if not r.inflate(TW + 4, TH + 4).collidepoint(cx_, cy_):
                 continue
-            top_pts = _losango(cx_, cy_)
-            mx_draw, my_draw = pygame.mouse.get_pos()
-            dx_ = abs(mx_draw - cx_) / (TW / 2 + 0.001)
-            dy_ = abs(my_draw - cy_) / (TH / 2 + 0.001)
-            is_hover = (dx_ + dy_ <= 1.0) and r.collidepoint(mx_draw, my_draw)
+            p0 = _iso(gx - 0.5, gy - 0.5, el)
+            p1 = _iso(gx + 0.5, gy - 0.5, el)
+            p2 = _iso(gx + 0.5, gy + 0.5, el)
+            p3 = _iso(gx - 0.5, gy + 0.5, el)
+            top_pts = [p0, p1, p2, p3]
+            is_hover = (gx, gy) == hovered_g
             is_move_hl = self.modo_acao == MODO_MOVER and (gx, gy) in self.alcancaveis
             campo_dir = _campo_direcao(gx, gy)
             if is_hover:
                 self._draw_alpha_polygon(tela, (255, 255, 255, 30), top_pts)
                 pygame.draw.polygon(tela, (255, 255, 255), top_pts, 1)
             if is_move_hl:
-                self._draw_celula_tactica(tela, cx_, cy_, TW, TH, (0, 150, 0, 45), (100, 255, 100), estilo='movimento')
+                self._draw_celula_tactica(tela, gx, gy, el, (0, 150, 0, 45), (100, 255, 100), estilo='movimento')
             if campo_dir and zona_key == "_campo":
                 inv_campo = e.get(campo_dir, 0)
                 if inv_campo > 0:
                     pulso = abs((self.timer % 90) - 45) / 45.0
-                    self._draw_celula_tactica(tela, cx_, cy_, TW, TH, (255, 0, 0, int(35 + 25 * pulso)), (255, 50, 50), estilo='ataque')
+                    self._draw_celula_tactica(tela, gx, gy, el, (255, 0, 0, int(35 + 25 * pulso)), (255, 50, 50), estilo='ataque')
             if zona_key not in labels_pendentes and zona_key in ZONA_LABELS:
                 from src.resolvedor_acoes import ZONAS_GRID as _ZG
                 if zona_key in _ZG:
@@ -1040,15 +1076,15 @@ class CercoStateDrawMixin:
                     btn_w = (sr.width - 16) // 3
                     b_amarelo = pygame.Rect(sr.x + 4, sr.y + 4, btn_w, 30)
                     pygame.draw.rect(tela, (70, 60, 10), b_amarelo, border_radius=4)
-                    lbl_a = self.fMi.render("Amarelo", True, (255, 230, 120))
+                    lbl_a = self.fMi.render("Fraco", True, (255, 230, 120))
                     tela.blit(lbl_a, (b_amarelo.centerx - lbl_a.get_width() // 2, b_amarelo.centery - lbl_a.get_height() // 2))
                     b_cinza = pygame.Rect(sr.x + 8 + btn_w, sr.y + 4, btn_w, 30)
                     pygame.draw.rect(tela, (50, 50, 56), b_cinza, border_radius=4)
-                    lbl_c = self.fMi.render("Cinza", True, (220, 220, 230))
+                    lbl_c = self.fMi.render("Médio", True, (220, 220, 230))
                     tela.blit(lbl_c, (b_cinza.centerx - lbl_c.get_width() // 2, b_cinza.centery - lbl_c.get_height() // 2))
                     b_vermelho = pygame.Rect(sr.x + 12 + 2 * btn_w, sr.y + 4, btn_w, 30)
                     pygame.draw.rect(tela, (80, 20, 20), b_vermelho, border_radius=4)
-                    lbl_v = self.fMi.render("Vermelho", True, (255, 180, 180))
+                    lbl_v = self.fMi.render("Forte", True, (255, 180, 180))
                     tela.blit(lbl_v, (b_vermelho.centerx - lbl_v.get_width() // 2, b_vermelho.centery - lbl_v.get_height() // 2))
                 else:
                     pygame.draw.rect(tela, (18, 20, 38), sr, border_radius=5)
@@ -1262,70 +1298,148 @@ class CercoStateDrawMixin:
                 deslocamento_y = -8 if hover else 0
                 crect = pygame.Rect(cx, cy + deslocamento_y, cw, ch)
                 self.carta_rects.append(crect)
-            sprite = None
-            if hasattr(self, 'card_sprites') and self.card_sprites:
-                if carta.get("movimento"):
-                    sprite = self.card_sprites.get("azul")
-                elif carta.get("trabalho"):
-                    sprite = self.card_sprites.get("verde")
-                elif carta.get("escavacao"):
-                    sprite = self.card_sprites.get("amarela")
-                else:
-                    sprite = self.card_sprites.get("cinza")
-            if sprite:
-                scaled_sprite = pygame.transform.smoothscale(sprite, (cw, ch))
-                tela.blit(scaled_sprite, crect.topleft)
-                if sel:
-                    pygame.draw.rect(tela, C_ACENTO, crect, 2, border_radius=7)
-                elif hover:
-                    pygame.draw.rect(tela, C_OURO, crect, 2, border_radius=7)
-            else:
-                grad = pygame.Surface((2, 2))
-                c_top = (14, 20, 36) if not hover else (26, 34, 58)
-                c_bot = (32, 18, 48) if not hover else (50, 28, 75)
-                grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
-                grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
-                grad_scaled = pygame.transform.smoothscale(grad, (cw, ch))
-                tela.blit(grad_scaled, crect.topleft)
-                borda_cor = C_ACENTO if sel else (C_OURO if hover else C_BORDA)
-                pygame.draw.rect(tela, borda_cor, crect, 1, border_radius=7)
+            # 1. Determina o tipo de gema e a cor do acento/tema
             tipo_gema = "movimento"
             if carta.get("trabalho"):  tipo_gema = "trabalho"
             if carta.get("escavacao"): tipo_gema = "escavacao"
             cor_gema = GEMAS_COR.get(tipo_gema, (200, 200, 200))
+
+            # 2. Renderiza Fundo (Força a renderização procedural premium)
+            sprite = None
+
+            # Determina cores do gradiente de acordo com o tipo
+            if tipo_gema == "movimento":
+                c_top = (26, 46, 82) if hover else (14, 26, 50)
+                c_bot = (12, 18, 32)
+            elif tipo_gema == "trabalho":
+                c_top = (24, 64, 34) if hover else (12, 42, 22)
+                c_bot = (10, 20, 12)
+            elif tipo_gema == "escavacao":
+                c_top = (75, 55, 14) if hover else (50, 36, 8)
+                c_bot = (26, 16, 6)
+            else:
+                c_top = (40, 40, 50) if hover else (25, 25, 30)
+                c_bot = (15, 15, 18)
+
+            if sprite:
+                scaled_sprite = pygame.transform.smoothscale(sprite, (cw, ch))
+                tela.blit(scaled_sprite, crect.topleft)
+            else:
+                # Gradiente processado via smoothscale
+                grad = pygame.Surface((2, 2))
+                grad.set_at((0, 0), c_top); grad.set_at((1, 0), c_top)
+                grad.set_at((0, 1), c_bot); grad.set_at((1, 1), c_bot)
+                grad_scaled = pygame.transform.smoothscale(grad, (cw, ch))
+                tela.blit(grad_scaled, crect.topleft)
+
+            # 3. Moldura Externa e Chanfros Internos
+            borda_cor = C_ACENTO if sel else (C_OURO if hover else C_BORDA)
+            pygame.draw.rect(tela, borda_cor, crect, 2 if sel or hover else 1, border_radius=7)
+            
+            # Linha de chanfro interna brilhante
+            cor_chanfro = (c_top[0]+25, c_top[1]+25, c_top[2]+25) if hover else (c_top[0]+12, c_top[1]+12, c_top[2]+12)
+            pygame.draw.rect(tela, cor_chanfro, crect.inflate(-4, -4), 1, border_radius=6)
+            
+            # Linha de chanfro interna escura para profundidade
+            pygame.draw.rect(tela, (4, 4, 6), crect.inflate(-6, -6), 1, border_radius=5)
+
+            # 4. Caixa de Arte Procedural (Desenha apenas se NÃO houver imagem de asset de fundo)
+            if not sprite:
+                art_rect = pygame.Rect(crect.x + 6, crect.y + 24, cw - 12, 38)
+                pygame.draw.rect(tela, (8, 6, 12), art_rect, border_radius=4)
+                pygame.draw.rect(tela, (36, 36, 48), art_rect, 1, border_radius=4)
+                
+                # Desenhos vetoriais abstratos baseados no tipo
+                if tipo_gema == "movimento":
+                    # Linhas de vento/velocidade ciano
+                    pygame.draw.line(tela, (60, 160, 255), (art_rect.x + 8, art_rect.bottom - 8), (art_rect.right - 15, art_rect.y + 8), 2)
+                    pygame.draw.line(tela, (120, 220, 255), (art_rect.x + 20, art_rect.bottom - 8), (art_rect.right - 6, art_rect.y + 8), 1)
+                    pygame.draw.circle(tela, (30, 80, 160), (art_rect.centerx, art_rect.centery), 6)
+                    pygame.draw.circle(tela, (100, 210, 255), (art_rect.centerx, art_rect.centery), 3)
+                elif tipo_gema == "trabalho":
+                    # Engrenagem/projeto verde
+                    pygame.draw.circle(tela, (40, 110, 60), (art_rect.centerx, art_rect.centery), 12, 1)
+                    pygame.draw.circle(tela, (90, 220, 110), (art_rect.centerx, art_rect.centery), 6, 1)
+                    pygame.draw.line(tela, (70, 170, 90), (art_rect.x + 8, art_rect.centery), (art_rect.right - 8, art_rect.centery), 1)
+                    pygame.draw.line(tela, (70, 170, 90), (art_rect.centerx, art_rect.y + 4), (art_rect.centerx, art_rect.bottom - 4), 1)
+                elif tipo_gema == "escavacao":
+                    # Cristais geométricos dourados
+                    p1 = [(art_rect.centerx, art_rect.y + 6), (art_rect.centerx + 7, art_rect.centery), (art_rect.centerx, art_rect.bottom - 6), (art_rect.centerx - 7, art_rect.centery)]
+                    p2 = [(art_rect.centerx - 9, art_rect.y + 10), (art_rect.centerx - 4, art_rect.centery + 3), (art_rect.centerx - 9, art_rect.bottom - 10), (art_rect.centerx - 14, art_rect.centery + 3)]
+                    p3 = [(art_rect.centerx + 9, art_rect.y + 10), (art_rect.centerx + 14, art_rect.centery + 3), (art_rect.centerx + 9, art_rect.bottom - 10), (art_rect.centerx + 4, art_rect.centery + 3)]
+                    pygame.draw.polygon(tela, (180, 130, 30), p2)
+                    pygame.draw.polygon(tela, (180, 130, 30), p3)
+                    pygame.draw.polygon(tela, (255, 215, 80), p1)
+                    pygame.draw.line(tela, (255, 250, 210), (art_rect.centerx, art_rect.y + 6), (art_rect.centerx - 7, art_rect.centery), 1)
+                else:
+                    # Padrão de grade genérico
+                    pygame.draw.line(tela, (40, 40, 50), (art_rect.x + 10, art_rect.y + 10), (art_rect.right - 10, art_rect.bottom - 10), 1)
+                    pygame.draw.line(tela, (40, 40, 50), (art_rect.right - 10, art_rect.y + 10), (art_rect.x + 10, art_rect.bottom - 10), 1)
+
+            # 5. Gema de Custo de Energia (Refinada 3D)
             rx_center = crect.centerx
-            ry_center = crect.y + 20
-            pygame.draw.circle(tela, (8, 9, 16), (rx_center, ry_center), 10)
+            ry_center = crect.y + 13
+            pygame.draw.circle(tela, (2, 2, 4), (rx_center, ry_center), 11)
+            
             gem_pts = [
-                (rx_center, ry_center - 6),
-                (rx_center + 6, ry_center),
-                (rx_center, ry_center + 6),
-                (rx_center - 6, ry_center)
+                (rx_center, ry_center - 8),
+                (rx_center + 8, ry_center),
+                (rx_center, ry_center + 8),
+                (rx_center - 8, ry_center)
             ]
             pygame.draw.polygon(tela, cor_gema, gem_pts)
-            pygame.draw.polygon(tela, C_TEXTO, gem_pts, 1)
-            nome_cortado = carta["nome"][:16]
-            nt = self.fMi.render(nome_cortado, True, C_TEXTO)
-            tela.blit(nt, (crect.centerx - nt.get_width() // 2, crect.y + 36))
+            pygame.draw.polygon(tela, (255, 255, 255), gem_pts, 1)
+            # Linhas de brilho da faceta da gema
+            pygame.draw.line(tela, (255, 255, 255), (rx_center, ry_center - 7), (rx_center - 7, ry_center), 1)
+            pygame.draw.line(tela, (255, 255, 255), (rx_center, ry_center), (rx_center - 7, ry_center), 1)
+
+            # 6. Banner de Título & Nome da Carta
+            banner_rect = pygame.Rect(crect.x + 8, crect.y + 66, cw - 16, 18)
+            pygame.draw.rect(tela, (8, 8, 12, 220), banner_rect, border_radius=4)
+            pygame.draw.rect(tela, (42, 42, 54), banner_rect, 1, border_radius=4)
+            
+            nome_cortado = carta["nome"][:14]
+            nt = self.fMi.render(nome_cortado, True, C_OURO if sel else C_TEXTO)
+            tela.blit(nt, (banner_rect.centerx - nt.get_width() // 2, banner_rect.y + 3))
+
+            # 7. Descrição
             desc = carta.get("descricao", "")
             if desc:
-                lbl_desc = self.fMi.render(desc, True, C_DIM)
-                tela.blit(lbl_desc, (crect.centerx - lbl_desc.get_width() // 2, crect.y + 68))
+                lbl_desc = self.fMi.render(desc[:22], True, C_DIM)
+                tela.blit(lbl_desc, (crect.centerx - lbl_desc.get_width() // 2, crect.y + 88))
+
+            # 8. Status/Atributos Segmentados (Layout Premium de TCG)
             stats = []
-            if carta.get("movimento"): stats.append(f"M{carta['movimento']}")
-            if carta.get("trabalho"):  stats.append(f"T{carta['trabalho']}")
-            if carta.get("escavacao"): stats.append(f"E{carta['escavacao']}")
-            st_text = " ".join(stats)
-            st2 = self.fMi.render(st_text, True, cor_gema)
-            stat_bg = pygame.Rect(crect.centerx - st2.get_width() // 2 - 4, crect.y + ch - 22, st2.get_width() + 8, 16)
-            pygame.draw.rect(tela, (12, 14, 24), stat_bg, border_radius=3)
-            pygame.draw.rect(tela, (28, 30, 48), stat_bg, 1, border_radius=3)
-            tela.blit(st2, (crect.centerx - st2.get_width() // 2, crect.y + ch - 21))
+            if carta.get("movimento"): stats.append(("M", str(carta["movimento"]), (80, 180, 255)))
+            if carta.get("trabalho"):  stats.append(("T", str(carta["trabalho"]), (100, 220, 120)))
+            if carta.get("escavacao"): stats.append(("E", str(carta["escavacao"]), (255, 215, 80)))
+            
+            if stats:
+                y_status = crect.y + ch - 22
+                box_w = 26
+                box_h = 16
+                gap = 4
+                total_w = len(stats) * box_w + (len(stats) - 1) * gap
+                start_bx = crect.centerx - total_w // 2
+                
+                for idx_stat, (letra, valor, cor_attr) in enumerate(stats):
+                    bx = start_bx + idx_stat * (box_w + gap)
+                    by = y_status
+                    rect_stat = pygame.Rect(bx, by, box_w, box_h)
+                    
+                    pygame.draw.rect(tela, (10, 12, 18), rect_stat, border_radius=3)
+                    pygame.draw.rect(tela, cor_attr, rect_stat, 1, border_radius=3)
+                    
+                    lbl_s = self.fMi.render(f"{letra}{valor}", True, cor_attr)
+                    tela.blit(lbl_s, (rect_stat.centerx - lbl_s.get_width() // 2, rect_stat.centery - lbl_s.get_height() // 2))
+
+            # 9. Overlay de Descarte/Queima
             if sel:
                 ql = self.fMi.render("DESCARTE", True, C_PERIGO)
-                ql_bg = pygame.Rect(crect.centerx - ql.get_width() // 2 - 2, crect.y + 54, ql.get_width() + 4, 14)
-                pygame.draw.rect(tela, (30, 10, 10), ql_bg, border_radius=2)
-                tela.blit(ql, (crect.centerx - ql.get_width() // 2, crect.y + 54))
+                ql_bg = pygame.Rect(crect.centerx - ql.get_width() // 2 - 4, crect.y + 42, ql.get_width() + 8, 16)
+                pygame.draw.rect(tela, (40, 10, 10), ql_bg, border_radius=3)
+                pygame.draw.rect(tela, C_PERIGO, ql_bg, 1, border_radius=3)
+                tela.blit(ql, (crect.centerx - ql.get_width() // 2, crect.y + 43))
 
     # ── BOTÕES DE AÇÃO ───────────────────────────────────────────────────
     def _draw_botoes_acao(self, tela, W, H):
