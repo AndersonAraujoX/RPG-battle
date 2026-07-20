@@ -231,7 +231,7 @@ def validar_escavar(estado, pontos: int):
     if zona != ZONA_ESCAVACAO:
         return False, 0, "Vá até o Pátio / Área de Escavação para cavar!"
     if estado["brutamontes"] > 0 or estado.get("infiltradores", 0) > 0:
-        return False, 0, "Bloqueado! Há Goblins ou Trolls presentes no Pátio."
+        return False, 0, "Bloqueado! Há Formigas Infiltradoras ou Besouros presentes no Pátio."
     if estado["pedregulhos"] <= 0:
         return False, 0, "Sem pedregulhos."
     if pontos <= 0:
@@ -252,10 +252,10 @@ def executar_escavar(estado, qtd: int) -> tuple[dict, list]:
     if novo <= 0:
         delta["desafio_final_ativo"] = True
         delta["infiltradores"] = estado.get("infiltradores", 0) + 2
-        logs.append(("CERCO", "O túnel foi concluído! Mas a saída está bloqueada por 2 Goblins de Elite perigosos! Derrote-os para vencer!"))
+        logs.append(("CERCO", "O túnel foi concluído! Mas a saída está bloqueada por 2 Formigas Infiltradoras de Elite perigosas! Derrote-as para vencer!"))
     elif novo % 4 == 0 and novo < estado["pedregulhos_max"]:
         delta["infiltradores"] = estado.get("infiltradores", 0) + 2
-        logs.append(("CERCO", "Emboscada! Seção de túnel de madeira limpa. 2 Goblins invadiram o Pátio!"))
+        logs.append(("CERCO", "Emboscada! Seção de túnel de madeira limpa. 2 Formigas Infiltradoras invadiram o Pátio!"))
 
     return delta, logs
 
@@ -263,7 +263,7 @@ def executar_escavar(estado, qtd: int) -> tuple[dict, list]:
 def validar_subornar(estado, recurso: str):
     inf = estado.get("infiltradores", 0)
     if inf <= 0:
-        return False, "Nenhum Goblin pacífico para negociar."
+        return False, "Nenhuma Formiga Infiltradora pacífica para negociar."
     dep = estado.get("recursos_depositados", {})
     if dep.get(recurso, 0) <= 0:
         return False, f"Sem {NOME_RECURSO.get(recurso, recurso)} para entregar."
@@ -277,7 +277,7 @@ def executar_subornar(estado, recurso: str) -> tuple[dict, list]:
         "infiltradores":        max(0, estado.get("infiltradores", 0) - 1),
         "recursos_depositados": dep,
     }
-    logs = [("HEROI", f"Goblin negociou pacificamente em troca de 1x {NOME_RECURSO.get(recurso, recurso)}!")]
+    logs = [("HEROI", f"Formiga Infiltradora negociou pacificamente em troca de 1x {NOME_RECURSO.get(recurso, recurso)}!")]
     return delta, logs
 
 

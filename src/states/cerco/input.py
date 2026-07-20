@@ -233,71 +233,60 @@ class CercoStateInputMixin:
             if self.fase == "REPOVOAR_MERCADO":
                 if getattr(self, 'btn_concluir_reposicao_rect', None) and self.btn_concluir_reposicao_rect.collidepoint(mouse):
                     self._concluir_fim_turno_completo()
-                    self._feedback("Fase de Ameaça Iniciada!", C_PERIGO)
+                    self._slot_ativo_reposicao = None
+                    self._tab_tier_reposicao = "todos"
+                    self._feedback("Fase de Ameaca Iniciada!", C_PERIGO)
                     return
 
+                from ...cerco_isectum import aplicar_delta, CARTAS_UPGRADE
+
+                # 1) Clique numa tab de tier
+                for tab_id in ["todos", "amarelo", "cinza", "vermelho"]:
+                    tr = self._slot_rects_cache.get(("tab_tier", tab_id))
+                    if tr and tr.collidepoint(mouse):
+                        self._tab_tier_reposicao = tab_id
+                        return
+
+                # 2) Clique num slot vazio → ativar esse slot
                 for slot in e["slots_upgrade"]:
                     sid = slot["id"]
-                    rect = self._slot_rect(sid)
-                    if rect and rect.collidepoint(mouse):
-                        is_vazio = slot.get("adquirido") or slot.get("carta_id") is None
-                        if is_vazio:
-                            btn_w = (rect.width - 16) // 3
-                            btn_amarelo = pygame.Rect(rect.x + 4, rect.y + 4, btn_w, 30)
-                            btn_cinza = pygame.Rect(rect.x + 8 + btn_w, rect.y + 4, btn_w, 30)
-                            btn_vermelho = pygame.Rect(rect.x + 12 + 2 * btn_w, rect.y + 4, btn_w, 30)
+                    is_vazio = slot.get("adquirido") or slot.get("carta_id") is None
+                    if is_vazio:
+                        sr = self._slot_rects_cache.get(sid)
+                        if sr and sr.collidepoint(mouse):
+                            self._slot_ativo_reposicao = sid
+                            self._feedback(f"Slot {sid+1} selecionado. Escolha uma carta.", C_ACENTO)
+                            return
 
-                            from src.cerco_isectum import CARTAS_UPGRADE_AMARELO, CARTAS_UPGRADE_CINZA, CARTAS_UPGRADE_VERMELHO
-                            nova_carta = None
-                            deck_nome = ""
+                # 3) Clique numa carta da lista → preenche o slot ativo
+                slot_ativo_id = getattr(self, '_slot_ativo_reposicao', None)
+                if slot_ativo_id is not None:
+                    for carta in CARTAS_UPGRADE:
+                        cr = self._slot_rects_cache.get(("reposicao_carta", carta["id"]))
+                        if cr and cr.collidepoint(mouse):
+                            slots = [dict(s) for s in self.estado["slots_upgrade"]]
+                            s = slots[slot_ativo_id]
+                            s["nome"] = carta["nome"]
+                            s["simbolo"] = carta["simbolo"]
+                            s["carta_id"] = carta["id"]
+                            s["custo"] = dict(carta["custo"])
+                            s["descricao"] = carta.get("descricao", "")
+                            s["adquirido"] = False
+                            s["bloqueado"] = False
+                            s["recursos_alocados"] = {"madeira": 0, "couro": 0, "metal": 0}
+                            self.estado = aplicar_delta(self.estado, {"slots_upgrade": slots})
+                            self._push("CARTA", f"Slot {slot_ativo_id+1}: [{carta['nome']}] adicionada ao mercado.")
+                            self._feedback(f"[{carta['nome']}] adicionada ao Slot {slot_ativo_id+1}!", C_VERDE)
 
-                            if btn_amarelo.collidepoint(mouse):
-                                nova_carta = random.choice(CARTAS_UPGRADE_AMARELO)
-                                deck_nome = "Fraco"
-                            elif btn_cinza.collidepoint(mouse):
-                                nova_carta = random.choice(CARTAS_UPGRADE_CINZA)
-                                deck_nome = "Médio"
-                            elif btn_vermelho.collidepoint(mouse):
-                                nova_carta = random.choice(CARTAS_UPGRADE_VERMELHO)
-                                deck_nome = "Forte"
+                            # Avança para o próximo slot vazio
+                            prox = None
+                            for sv in self.estado["slots_upgrade"]:
+                                if (sv.get("adquirido") or sv.get("carta_id") is None) and sv["id"] != slot_ativo_id:
+                                    prox = sv["id"]
+                                    break
+                            self._slot_ativo_reposicao = prox
+                            return
 
-                            if nova_carta:
-                                from ...cerco_isectum import aplicar_delta
-                                slots = [dict(s) for s in self.estado["slots_upgrade"]]
-                                s = slots[sid]
-                                s["nome"] = nova_carta["nome"]
-                                s["simbolo"] = nova_carta["simbolo"]
-                                s["carta_id"] = nova_carta["id"]
-                                s["custo"] = dict(nova_carta["custo"])
-                                s["descricao"] = nova_carta["descricao"]
-                                s["adquirido"] = False
-                                s["bloqueado"] = False
-                                s["recursos_alocados"] = {"madeira": 0, "couro": 0, "metal": 0}
-                                self.estado = aplicar_delta(self.estado, {"slots_upgrade": slots})
-                                self._push("CARTA", f"Comprada nova carta do Deck {deck_nome} no slot {sid+1}.")
-                                self._feedback(f"Carta [{nova_carta['nome']}] adicionada!", C_VERDE)
-                                return
-                        else:
-                            btn_descartar = pygame.Rect(rect.right - 44, rect.y + 4, 40, 30)
-                            if btn_descartar.collidepoint(mouse):
-                                from ...cerco_isectum import aplicar_delta
-                                alocados = slot.get("recursos_alocados", {"madeira": 0, "couro": 0, "metal": 0})
-                                for res, qtd in alocados.items():
-                                    if qtd > 0:
-                                        self._push("SISTEMA", f"Devolvido {qtd}x {res.upper()} para a oficina correspondente.")
-                                slots = [dict(s) for s in self.estado["slots_upgrade"]]
-                                s = slots[sid]
-                                s["carta_id"] = None
-                                s["nome"] = "Slot Vazio"
-                                s["simbolo"] = ""
-                                s["custo"] = {}
-                                s["descricao"] = ""
-                                s["adquirido"] = True
-                                s["recursos_alocados"] = {"madeira": 0, "couro": 0, "metal": 0}
-                                self.estado = aplicar_delta(self.estado, {"slots_upgrade": slots})
-                                self._push("CARTA", f"Carta do slot {sid+1} removida do mercado.")
-                                self._feedback("Carta removida do mercado!", C_PERIGO)
-                                return
                 return
 
             for slot in e["slots_upgrade"]:

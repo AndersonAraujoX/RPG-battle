@@ -77,10 +77,13 @@ class CercoStateTurnMixin:
 
             if pos_heroi == "camara_central" and tem_slot_vazio:
                 self.fase = "REPOVOAR_MERCADO"
-                self._feedback("Reposição: Escolha de qual deck comprar no painel lateral!", C_OURO)
-                self._push("SISTEMA", "Base Central: Escolha de qual deck repovoar cada slot vazio no mercado.")
+                self._feedback("Reposicao: Escolha uma carta para cada slot vazio!", C_OURO)
+                self._push("SISTEMA", "Base Central: Escolha cartas para repovoar os slots vazios do mercado.")
                 self.alcancaveis = {}
                 self.modo_acao = MODO_NENHUM
+                # Reset de estado de seleção de reposição
+                self._slot_ativo_reposicao = None
+                self._tab_tier_reposicao = "todos"
             else:
                 self._concluir_fim_turno_completo()
 
@@ -137,7 +140,7 @@ class CercoStateTurnMixin:
                 if self.estado.get("desafio_final_ativo") and self.estado.get("infiltradores", 0) == 0:
                     self.estado = aplicar_delta(self.estado, {
                         "vitoria": True,
-                        "msg_vitoria": "Desafio Final concluído! Os Goblins de Elite foram derrotados e os anões escaparam!"
+                        "msg_vitoria": "Desafio Final concluído! As Formigas Infiltradoras de Elite foram derrotadas e os anões escaparam!"
                     })
                     self._push("VITORIA", "Desafio Final concluído! Vitória!")
                     self.fase = "FIM"

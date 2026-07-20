@@ -323,6 +323,7 @@ class CercoState(
         e = self.estado
         c_invasores = dict(e["invasores"])
         c_invasores["_brutamontes"] = e.get("brutamontes", 0)
+        c_invasores["_infiltradores"] = e.get("infiltradores", 0)
         if (
             not hasattr(self, "_ultimo_estado_invasores")
             or self._ultimo_estado_invasores != c_invasores
@@ -348,6 +349,11 @@ class CercoState(
         curr_dep = self.estado.get("recursos_depositados", {})
         if not hasattr(self, '_ultimo_recursos') or self._ultimo_recursos != curr_dep:
             self._ultimo_recursos = dict(curr_dep)
+            self.map_backbuffer_sujo = True
+
+        curr_pedras = self.estado.get("pedregulhos", 8)
+        if not hasattr(self, '_ultimo_pedregulhos') or self._ultimo_pedregulhos != curr_pedras:
+            self._ultimo_pedregulhos = curr_pedras
             self.map_backbuffer_sujo = True
 
         if (

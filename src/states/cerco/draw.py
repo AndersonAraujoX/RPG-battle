@@ -1139,165 +1139,361 @@ class CercoStateDrawMixin:
         pr = self.painel_rect
         pygame.draw.rect(tela, C_PAINEL, pr, border_radius=10)
         pygame.draw.rect(tela, C_BORDA,  pr, 1, border_radius=10)
+        # Clip rendering to panel bounds
+        old_clip = tela.get_clip()
+        tela.set_clip(pr.inflate(-2, -2))
         x, y, pw, ph = pr.x, pr.y, pr.width, pr.height
         dep = self.estado.get("recursos_depositados", {})
         yt = y + 8
+
+        # ── RECURSOS DEPOSITADOS ─────────────────────────────────────────
         tt = self.fMi.render("RECURSOS DEPOSITADOS", True, C_ACENTO)
-        tela.blit(tt, (x + pw // 2 - tt.get_width() // 2, yt)); yt += 18
+        tela.blit(tt, (x + pw // 2 - tt.get_width() // 2, yt)); yt += 16
+
         res_info = [
-            ("MAD", "madeira", (120, 200, 100)),
-            ("COU", "couro",   (200, 150,  80)),
-            ("MET", "metal",   (180, 180, 220))
+            ("[W] MAD", "madeira", (100, 200,  90)),
+            ("[L] COU", "couro",   (210, 150,  60)),
+            ("[I] MET", "metal",   (160, 180, 240))
         ]
         slot_w = (pw - 24) // 3
         rx = x + 8
         for label, key, cor in res_info:
-            s_rect = pygame.Rect(rx, yt, slot_w, 36)
-            pygame.draw.rect(tela, (18, 20, 32), s_rect, border_radius=4)
-            pygame.draw.rect(tela, C_BORDA, s_rect, 1, border_radius=4)
-            lbl = self.fMi.render(label, True, C_DIM)
-            tela.blit(lbl, (s_rect.centerx - lbl.get_width() // 2, s_rect.y + 4))
-            val = self.fP.render(str(dep.get(key, 0)), True, cor)
-            tela.blit(val, (s_rect.centerx - val.get_width() // 2, s_rect.y + 16))
+            s_rect = pygame.Rect(rx, yt, slot_w, 40)
+            qtd = dep.get(key, 0)
+            fundo = (30, 35, 50) if qtd > 0 else (14, 16, 26)
+            pygame.draw.rect(tela, fundo, s_rect, border_radius=5)
+            pygame.draw.rect(tela, cor if qtd > 0 else C_BORDA, s_rect, 1, border_radius=5)
+            lbl = self.fMi.render(label, True, cor if qtd > 0 else C_DIM)
+            tela.blit(lbl, (s_rect.centerx - lbl.get_width() // 2, s_rect.y + 5))
+            val = self.fP.render(str(qtd), True, C_OURO if qtd > 0 else C_DIM)
+            tela.blit(val, (s_rect.centerx - val.get_width() // 2, s_rect.y + 22))
             rx += slot_w + 4
-        yt += 42
+        yt += 46
+
+        # ── Tamanho do deck ──────────────────────────────────────────────
+        deck_atual = len(self.estado.get("deck_heroi", [])) + len(self.estado.get("mao", [])) + len(self.estado.get("descarte", []))
+        deck_max = self.estado.get("tamanho_deck_max", 12)
+        deck_cor = C_PERIGO if deck_atual >= deck_max else C_VERDE
+        deck_txt = self.fMi.render(f"Deck: {deck_atual}/{deck_max} cartas", True, deck_cor)
+        tela.blit(deck_txt, (x + pw // 2 - deck_txt.get_width() // 2, yt))
+        # Barra de deck
+        bar_w = pw - 24
+        bar_rect = pygame.Rect(x + 12, yt + 14, bar_w, 6)
+        pygame.draw.rect(tela, (30, 30, 50), bar_rect, border_radius=3)
+        fill_w = int(bar_w * min(1.0, deck_atual / max(1, deck_max)))
+        if fill_w > 0:
+            pygame.draw.rect(tela, deck_cor, pygame.Rect(bar_rect.x, bar_rect.y, fill_w, 6), border_radius=3)
+        yt += 26
+
         pygame.draw.line(tela, C_BORDA, (x + 6, yt), (x + pw - 6, yt), 1); yt += 6
-        ut = self.fMi.render("MERCADO DE MELHORIAS", True, C_ACENTO)
-        tela.blit(ut, (x + pw // 2 - ut.get_width() // 2, yt)); yt += 18
+
+        # ── MERCADO DE MELHORIAS ─────────────────────────────────────────
+        ut = self.fM.render(">> MERCADO <<", True, C_ACENTO)
+        tela.blit(ut, (x + pw // 2 - ut.get_width() // 2, yt)); yt += 20
+
         self._slot_y_start = yt
-        for slot in self.estado["slots_upgrade"]:
-            sr = pygame.Rect(x + 6, yt, pw - 12, 38)
-            self._slot_rects_cache[slot["id"]] = sr
-            is_slot_vazio = slot.get("adquirido") or slot.get("carta_id") is None
-            if self.fase == "REPOVOAR_MERCADO":
-                if is_slot_vazio:
-                    pygame.draw.rect(tela, (20, 20, 26), sr, border_radius=5)
-                    pygame.draw.rect(tela, C_BORDA, sr, 1, border_radius=5)
-                    btn_w = (sr.width - 16) // 3
-                    b_amarelo = pygame.Rect(sr.x + 4, sr.y + 4, btn_w, 30)
-                    pygame.draw.rect(tela, (70, 60, 10), b_amarelo, border_radius=4)
-                    lbl_a = self.fMi.render("Fraco", True, (255, 230, 120))
-                    tela.blit(lbl_a, (b_amarelo.centerx - lbl_a.get_width() // 2, b_amarelo.centery - lbl_a.get_height() // 2))
-                    b_cinza = pygame.Rect(sr.x + 8 + btn_w, sr.y + 4, btn_w, 30)
-                    pygame.draw.rect(tela, (50, 50, 56), b_cinza, border_radius=4)
-                    lbl_c = self.fMi.render("Médio", True, (220, 220, 230))
-                    tela.blit(lbl_c, (b_cinza.centerx - lbl_c.get_width() // 2, b_cinza.centery - lbl_c.get_height() // 2))
-                    b_vermelho = pygame.Rect(sr.x + 12 + 2 * btn_w, sr.y + 4, btn_w, 30)
-                    pygame.draw.rect(tela, (80, 20, 20), b_vermelho, border_radius=4)
-                    lbl_v = self.fMi.render("Forte", True, (255, 180, 180))
-                    tela.blit(lbl_v, (b_vermelho.centerx - lbl_v.get_width() // 2, b_vermelho.centery - lbl_v.get_height() // 2))
+
+        # Cores por tier da carta
+        TIER_COR = {
+            "mestre_1": (200, 180, 60), "corrida_1": (200, 180, 60), "perfurador": (200, 180, 60),
+            "trabalhador_ef": (200, 180, 60), "mestre_ef": (200, 180, 60), "engenheiro": (200, 180, 60),
+            "forjador": (190, 190, 210), "explorador": (190, 190, 210), "guarda_mur": (190, 190, 210),
+            "lider_eq": (190, 190, 210), "corredor": (190, 190, 210),
+            "super_camp": (220, 100, 100), "escavador_r": (220, 100, 100), "mestre_const": (220, 100, 100),
+            "arquiteto": (220, 100, 100),
+        }
+        SIMB_REC = {"madeira": "[W]", "couro": "[L]", "metal": "[I]"}
+        COR_REC  = {"madeira": (100, 200, 90), "couro": (210, 150, 60), "metal": (160, 180, 240)}
+
+        if self.fase == "REPOVOAR_MERCADO":
+            # ── FASE DE REPOSIÇÃO: seleciona slot ativo e mostra todas as cartas ──
+            from src.cerco_isectum import CARTAS_UPGRADE, CARTAS_UPGRADE_AMARELO, CARTAS_UPGRADE_CINZA, CARTAS_UPGRADE_VERMELHO
+
+            # Determina slots vazios
+            slots_vazios = [s for s in self.estado["slots_upgrade"]
+                            if s.get("adquirido") or s.get("carta_id") is None]
+
+            # Slot ativo = primeiro vazio (ou o selecionado pelo jogador)
+            if not hasattr(self, '_slot_ativo_reposicao') or self._slot_ativo_reposicao is None:
+                self._slot_ativo_reposicao = slots_vazios[0]["id"] if slots_vazios else None
+
+            # Aba de tier ativa
+            if not hasattr(self, '_tab_tier_reposicao'):
+                self._tab_tier_reposicao = "todos"
+
+            # --- Indicador: slots ocupados (compactos) ---
+            for slot in self.estado["slots_upgrade"]:
+                sid = slot["id"]
+                is_vazio = slot.get("adquirido") or slot.get("carta_id") is None
+
+                if not is_vazio:
+                    # Já tem carta — compacto, com borda verde
+                    sr = pygame.Rect(x + 6, yt, pw - 12, 24)
+                    self._slot_rects_cache[sid] = sr
+                    pygame.draw.rect(tela, (12, 35, 12), sr, border_radius=4)
+                    pygame.draw.rect(tela, C_VERDE, sr, 1, border_radius=4)
+                    nt = self.fMi.render(f"Slot {sid+1}: {slot['nome'][:18]}", True, C_VERDE)
+                    tela.blit(nt, (sr.x + 4, sr.centery - nt.get_height() // 2))
+                    yt += 28
                 else:
-                    pygame.draw.rect(tela, (18, 20, 38), sr, border_radius=5)
-                    pygame.draw.rect(tela, C_BORDA, sr, 1, border_radius=5)
-                    nt = self.fMi.render(slot['nome'][:20], True, C_TEXTO)
-                    tela.blit(nt, (sr.x + 4, sr.y + 4))
-                    from ...resolvedor_acoes import CUSTO_ADICIONAL_SLOT
-                    custo_base = slot.get("custo", {})
-                    custo_adicional = CUSTO_ADICIONAL_SLOT.get(slot["id"], {})
-                    custo_total = {}
-                    for r_type in ["madeira", "couro", "metal"]:
-                        qtd_req = custo_base.get(r_type, 0) + custo_adicional.get(r_type, 0)
-                        if qtd_req > 0:
-                            custo_total[r_type] = qtd_req
-                    alocados = slot.get("recursos_alocados", {"madeira": 0, "couro": 0, "metal": 0})
-                    partes_custo = []
-                    for r_type, qtd_total in custo_total.items():
-                        qtd_alocada = alocados.get(r_type, 0)
-                        simb_r = "W" if r_type == "madeira" else "L" if r_type == "couro" else "I"
-                        partes_custo.append(f"{simb_r}:{qtd_alocada}/{qtd_total}")
-                    custo_txt = " ".join(partes_custo)
-                    ct2 = self.fMi.render(custo_txt, True, C_DIM)
-                    tela.blit(ct2, (sr.x + 4, sr.y + 20))
-                    b_descartar = pygame.Rect(sr.right - 44, sr.y + 4, 40, 30)
-                    pygame.draw.rect(tela, (80, 20, 20), b_descartar, border_radius=4)
-                    lbl_x = self.fMi.render("X", True, (255, 255, 255))
-                    tela.blit(lbl_x, (b_descartar.centerx - lbl_x.get_width() // 2, b_descartar.centery - lbl_x.get_height() // 2))
+                    # Vazio — destaque por cor
+                    sr = pygame.Rect(x + 6, yt, pw - 12, 24)
+                    self._slot_rects_cache[sid] = sr
+                    is_ativo = sid == self._slot_ativo_reposicao
+                    bg = (40, 20, 60) if is_ativo else (20, 15, 30)
+                    borda = C_ACENTO if is_ativo else C_BORDA
+                    pygame.draw.rect(tela, bg, sr, border_radius=4)
+                    pygame.draw.rect(tela, borda, sr, 2 if is_ativo else 1, border_radius=4)
+                    lbl_v = self.fMi.render(f"Slot {sid+1}: [VAZIO]" + (" << Preenchendo" if is_ativo else " (clique para ativar)"), True, C_ACENTO if is_ativo else C_DIM)
+                    tela.blit(lbl_v, (sr.x + 4, sr.centery - lbl_v.get_height() // 2))
+                    yt += 28
+
+            yt += 4
+            pygame.draw.line(tela, C_BORDA, (x + 6, yt), (x + pw - 6, yt), 1); yt += 6
+
+            if self._slot_ativo_reposicao is not None and slots_vazios:
+                # --- Tabs de tier ---
+                tabs = [("todos", "Todas"), ("amarelo", "Fraco"), ("cinza", "Medio"), ("vermelho", "Forte")]
+                tab_w = (pw - 12) // len(tabs)
+                tab_y = yt
+                TIER_CORES = {"todos": (160,160,160), "amarelo":(200,180,60), "cinza":(160,160,200), "vermelho":(220,80,80)}
+                for ti, (tab_id, tab_label) in enumerate(tabs):
+                    tr = pygame.Rect(x + 6 + ti * tab_w, tab_y, tab_w - 2, 20)
+                    is_sel = tab_id == self._tab_tier_reposicao
+                    pygame.draw.rect(tela, TIER_CORES[tab_id] if is_sel else (20,20,35), tr, border_radius=3)
+                    pygame.draw.rect(tela, TIER_CORES[tab_id], tr, 1, border_radius=3)
+                    tl = self.fMi.render(tab_label, True, (0,0,0) if is_sel else TIER_CORES[tab_id])
+                    tela.blit(tl, (tr.centerx - tl.get_width()//2, tr.centery - tl.get_height()//2))
+                    # Guarda rect da tab para clique
+                    self._slot_rects_cache[("tab_tier", tab_id)] = tr
+                yt += 24
+
+                # --- Lista de cartas disponíveis ---
+                tier_map = {
+                    "todos": CARTAS_UPGRADE,
+                    "amarelo": CARTAS_UPGRADE_AMARELO,
+                    "cinza": CARTAS_UPGRADE_CINZA,
+                    "vermelho": CARTAS_UPGRADE_VERMELHO,
+                }
+                cartas_filtradas = tier_map.get(self._tab_tier_reposicao, CARTAS_UPGRADE)
+
+                lbl_escolha = self.fMi.render(f"Escolha carta para Slot {self._slot_ativo_reposicao + 1}:", True, C_OURO)
+                tela.blit(lbl_escolha, (x + pw//2 - lbl_escolha.get_width()//2, yt)); yt += 16
+
+                for carta in cartas_filtradas:
+                    card_h = 56
+                    sr = pygame.Rect(x + 6, yt, pw - 12, card_h)
+                    self._slot_rects_cache[("reposicao_carta", carta["id"])] = sr
+
+                    # Cor de tier
+                    if carta in CARTAS_UPGRADE_AMARELO:
+                        tier_cor = (180, 160, 50)
+                    elif carta in CARTAS_UPGRADE_CINZA:
+                        tier_cor = (160, 160, 200)
+                    else:
+                        tier_cor = (200, 80, 80)
+
+                    # Fundo + borda
+                    mx, my = pygame.mouse.get_pos()
+                    hover = sr.collidepoint(mx, my)
+                    bg = (35, 28, 50) if hover else (14, 16, 30)
+                    pygame.draw.rect(tela, bg, sr, border_radius=6)
+                    pygame.draw.rect(tela, tier_cor, sr, 2 if hover else 1, border_radius=6)
+
+                    # Nome
+                    nome_s = self.fP.render(carta["nome"][:22], True, (240, 240, 255))
+                    tela.blit(nome_s, (sr.x + 6, sr.y + 5))
+
+                    # Stats
+                    stats = []
+                    if carta.get("movimento", 0): stats.append(f"+{carta['movimento']}MOV")
+                    if carta.get("trabalho",  0): stats.append(f"+{carta['trabalho']}TRAB")
+                    if carta.get("escavacao", 0): stats.append(f"+{carta['escavacao']}ESC")
+                    if carta.get("efeito_extra") == "draw_1": stats.append("+1carta")
+                    stats_s = self.fMi.render("  ".join(stats) if stats else "", True, (140, 240, 160))
+                    tela.blit(stats_s, (sr.x + 6, sr.y + 22))
+
+                    # Custo
+                    custo_partes = []
+                    for res, qtd in carta.get("custo", {}).items():
+                        simbr = "W" if res == "madeira" else "L" if res == "couro" else "I"
+                        custo_partes.append(f"{simbr}:{qtd}")
+                    custo_s = self.fMi.render("Custo: " + " ".join(custo_partes) if custo_partes else "", True, C_DIM)
+                    tela.blit(custo_s, (sr.x + 6, sr.y + 36))
+
+                    # Seta de hover à direita
+                    if hover:
+                        arr = self.fP.render(">>", True, tier_cor)
+                        tela.blit(arr, (sr.right - arr.get_width() - 8, sr.centery - arr.get_height()//2))
+
+                    yt += card_h + 4
             else:
+                # Nenhum slot vazio
+                ok_s = self.fP.render("Todos os slots preenchidos!", True, C_VERDE)
+                tela.blit(ok_s, (x + pw//2 - ok_s.get_width()//2, yt)); yt += 24
+
+            yt += 4
+
+        else:
+            # ── MODO NORMAL: Cards grandes com barra de progresso ───────
+            for slot in self.estado["slots_upgrade"]:
+                sid = slot["id"]
+                card_h = 80
+                sr = pygame.Rect(x + 6, yt, pw - 12, card_h)
+                self._slot_rects_cache[sid] = sr
+
+                carta_id = slot.get("carta_id")
+                tier_cor = TIER_COR.get(carta_id, C_BORDA)
+                is_slot_vazio = slot.get("adquirido") or carta_id is None
+
                 if slot.get("bloqueado"):
-                    scor = (50, 15, 15)
-                    bcor = C_PERIGO
+                    bg_cor, borda_cor = (40, 10, 10), C_PERIGO
                 elif slot.get("adquirido"):
-                    scor = (12, 40, 12)
-                    bcor = C_VERDE
-                elif self.idx_slot_upgrade == slot["id"]:
-                    scor = (30, 20, 60)
-                    bcor = C_ACENTO
+                    bg_cor, borda_cor = (10, 35, 10), C_VERDE
+                elif self.idx_slot_upgrade == sid:
+                    bg_cor, borda_cor = (28, 18, 55), C_ACENTO
                 else:
-                    scor = (18, 20, 38)
-                    bcor = C_BORDA
-                pygame.draw.rect(tela, scor, sr, border_radius=5)
-                pygame.draw.rect(tela, bcor, sr, 1, border_radius=5)
+                    bg_cor, borda_cor = (14, 16, 30), tier_cor if not is_slot_vazio else C_BORDA
+
+                pygame.draw.rect(tela, bg_cor, sr, border_radius=7)
+                pygame.draw.rect(tela, borda_cor, sr, 2 if not is_slot_vazio else 1, border_radius=7)
+
                 if is_slot_vazio:
-                    nt = self.fMi.render("[VAZIO]", True, C_DIM)
-                    tela.blit(nt, (sr.x + 4, sr.y + 12))
+                    lbl_vazio = self.fP.render("[ VAZIO ]", True, C_DIM)
+                    tela.blit(lbl_vazio, (sr.centerx - lbl_vazio.get_width()//2, sr.centery - lbl_vazio.get_height()//2))
                 else:
-                    st_nome = (f"[BLOQUEADO] {slot['nome']}" if slot.get("bloqueado") else
-                               f"[ADQUIRIDO] {slot['nome']}" if slot.get("adquirido") else
-                               f"[*] {slot['nome']}")
-                    nt = self.fMi.render(st_nome[:26], True,
-                                         C_PERIGO if slot.get("bloqueado") else
-                                         C_VERDE  if slot.get("adquirido") else C_TEXTO)
-                    tela.blit(nt, (sr.x + 4, sr.y + 4))
+                    # Nome da carta
+                    if slot.get("bloqueado"):
+                        prefixo = "[X] "
+                        nome_cor = C_PERIGO
+                    elif slot.get("adquirido"):
+                        prefixo = "[OK] "
+                        nome_cor = C_VERDE
+                    elif self.idx_slot_upgrade == sid:
+                        prefixo = "[>>] "
+                        nome_cor = C_ACENTO
+                    else:
+                        prefixo = ""
+                        nome_cor = (240, 240, 255)
+
+                    nome_s = self.fP.render((prefixo + slot['nome'])[:22], True, nome_cor)
+                    tela.blit(nome_s, (sr.x + 6, sr.y + 6))
+
+                    # Stats da carta (busca nos dicionários de cartas)
+                    from src.cerco_isectum import CARTAS_UPGRADE
+                    carta_data = next((c for c in CARTAS_UPGRADE if c["id"] == carta_id), None)
+                    if carta_data:
+                        stats = []
+                        if carta_data.get("movimento",  0): stats.append(f"+{carta_data['movimento']}MOV")
+                        if carta_data.get("trabalho",   0): stats.append(f"+{carta_data['trabalho']}TRAB")
+                        if carta_data.get("escavacao",  0): stats.append(f"+{carta_data['escavacao']}ESC")
+                        if carta_data.get("efeito_extra") == "draw_1": stats.append("+1carta")
+                        stats_s = self.fMi.render("  ".join(stats) if stats else "Efeito especial", True, (140, 230, 150))
+                        tela.blit(stats_s, (sr.x + 6, sr.y + 22))
+
+                    # Custo e barra de progresso
                     from ...resolvedor_acoes import CUSTO_ADICIONAL_SLOT
-                    sid = slot["id"]
                     custo_base = slot.get("custo", {})
                     custo_adicional = CUSTO_ADICIONAL_SLOT.get(sid, {})
-                    custo_total = {}
-                    for r_type in ["madeira", "couro", "metal"]:
-                        qtd = custo_base.get(r_type, 0) + custo_adicional.get(r_type, 0)
-                        if qtd > 0:
-                            custo_total[r_type] = qtd
-                    alocados = slot.get("recursos_alocados", {"madeira": 0, "couro": 0, "metal": 0})
-                    partes_custo = []
-                    for r_type, qtd_total in custo_total.items():
-                        qtd_alocada = alocados.get(r_type, 0)
-                        simb_r = "W" if r_type == "madeira" else "L" if r_type == "couro" else "I"
-                        partes_custo.append(f"{simb_r}:{qtd_alocada}/{qtd_total}")
-                    custo_txt = " ".join(partes_custo)
-                    esta_completo = all(alocados.get(r_type, 0) >= qtd for r_type, qtd in custo_total.items())
-                    cor_custo = C_VERDE if esta_completo else C_DIM
+                    alocados = slot.get("recursos_alocados", {})
+
                     if slot.get("adquirido"):
-                        custo_txt = "Completado e Adquirido"
-                        cor_custo = C_VERDE
+                        status_s = self.fMi.render("[OK] Adquirido - no seu deck!", True, C_VERDE)
+                        tela.blit(status_s, (sr.x + 6, sr.y + 38))
                     elif slot.get("bloqueado"):
-                        custo_txt = "Slot Destruído"
-                        cor_custo = C_PERIGO
-                    elif esta_completo:
-                        custo_txt = custo_txt + "  [PRONTO]"
-                        cor_custo = C_OURO
-                    ct2 = self.fMi.render(custo_txt, True, cor_custo)
-                    tela.blit(ct2, (sr.x + 4, sr.y + 20))
-            yt += 42
+                        status_s = self.fMi.render("[X] Destruido pela catapulta", True, C_PERIGO)
+                        tela.blit(status_s, (sr.x + 6, sr.y + 38))
+                    else:
+                        # Mostra barras de recurso lado a lado
+                        custo_total = {}
+                        for r_type in ["madeira", "couro", "metal"]:
+                            req = custo_base.get(r_type, 0) + custo_adicional.get(r_type, 0)
+                            if req > 0:
+                                custo_total[r_type] = req
+
+                        n_res = len(custo_total)
+                        if n_res > 0:
+                            bar_total_w = pw - 24
+                            bar_unit_w = bar_total_w // n_res - 4
+                            bx = sr.x + 6
+                            by = sr.y + 40
+                            for r_type, req in custo_total.items():
+                                aloc = alocados.get(r_type, 0)
+                                completo = aloc >= req
+                                cor_res = COR_REC.get(r_type, C_DIM)
+                                # Label
+                                simbr = SIMB_REC.get(r_type, r_type[0].upper())
+                                lbl_r = self.fMi.render(f"{simbr} {aloc}/{req}", True, C_VERDE if completo else cor_res)
+                                tela.blit(lbl_r, (bx, by))
+                                # Barra
+                                bar_bg = pygame.Rect(bx, by + 12, bar_unit_w, 5)
+                                pygame.draw.rect(tela, (30, 30, 50), bar_bg, border_radius=2)
+                                fill = int(bar_unit_w * min(1.0, aloc / max(1, req)))
+                                if fill > 0:
+                                    pygame.draw.rect(tela, C_VERDE if completo else cor_res,
+                                                     pygame.Rect(bx, by + 12, fill, 5), border_radius=2)
+                                bx += bar_unit_w + 6
+
+                        # Indicador "PRONTO!"
+                        esta_completo = all(alocados.get(r, 0) >= req for r, req in custo_total.items()) if custo_total else False
+                        if esta_completo and not slot.get("adquirido"):
+                            pulso = abs((self.timer % 60) - 30) / 30.0
+                            cor_pronto = (int(220 + 35 * pulso), int(180 + 50 * pulso), 0)
+                            pronto_s = self.fMi.render(">> PRONTO! Clique para comprar", True, cor_pronto)
+                            tela.blit(pronto_s, (sr.x + 6, sr.y + 62))
+
+                # Hover
+                mx, my = pygame.mouse.get_pos()
+                if sr.collidepoint(mx, my) and not slot.get("adquirido") and not slot.get("bloqueado"):
+                    hover_ov = pygame.Surface((sr.width, sr.height), pygame.SRCALPHA)
+                    hover_ov.fill((255, 255, 255, 12))
+                    tela.blit(hover_ov, sr.topleft)
+
+                yt += card_h + 6
+
+        # ── Botão concluir reposição ──────────────────────────────────────
         if self.fase == "REPOVOAR_MERCADO":
             self.btn_concluir_reposicao_rect = pygame.Rect(x + 6, yt, pw - 12, 34)
-            pygame.draw.rect(tela, (25, 80, 25), self.btn_concluir_reposicao_rect, border_radius=5)
-            lbl_done = self.fG.render("CONCLUIR REPOSICAO", True, (255, 255, 255))
-            tela.blit(lbl_done, (self.btn_concluir_reposicao_rect.centerx - lbl_done.get_width() // 2, self.btn_concluir_reposicao_rect.centery - lbl_done.get_height() // 2))
+            mx, my = pygame.mouse.get_pos()
+            hover_btn = self.btn_concluir_reposicao_rect.collidepoint(mx, my)
+            pygame.draw.rect(tela, (30, 100, 30) if hover_btn else (20, 70, 20),
+                             self.btn_concluir_reposicao_rect, border_radius=5)
+            pygame.draw.rect(tela, C_VERDE, self.btn_concluir_reposicao_rect, 1, border_radius=5)
+            lbl_done = self.fP.render("[OK] CONCLUIR REPOSICAO", True, (255, 255, 255))
+            tela.blit(lbl_done, (self.btn_concluir_reposicao_rect.centerx - lbl_done.get_width() // 2,
+                                  self.btn_concluir_reposicao_rect.centery - lbl_done.get_height() // 2))
             yt += 38
         else:
             self.btn_concluir_reposicao_rect = None
-        pygame.draw.line(tela, C_BORDA, (x + 6, yt), (x + pw - 6, yt), 1); yt += 6
-        log_bg = pygame.Rect(x + 6, yt, pw - 12, ph - (yt - y) - 8)
-        pygame.draw.rect(tela, (8, 9, 16), log_bg, border_radius=4)
-        pygame.draw.rect(tela, (25, 27, 42), log_bg, 1, border_radius=4)
-        max_lin = max(1, (log_bg.height - 8) // 14)
-        entries = self.log[-(max_lin):]
-        cor_map = {"DERROTA": C_PERIGO, "VITORIA": C_VERDE, "AMEACA": C_INVASOR,
-                   "CERCO": C_CERCO, "CARTA": C_OURO, "HEROI": C_VERDE,
-                   "SISTEMA": C_DIM}
-        pre_map = {"DERROTA": "[X]", "VITORIA": "[V]", "AMEACA": "[!]", "CERCO": "[C]",
-                   "CARTA": "[#]", "HEROI": "[*]", "SISTEMA": "[o]"}
-        yt_log = log_bg.y + 6
-        for tipo, msg in entries:
-            cor = cor_map.get(tipo, C_TEXTO)
-            pre = pre_map.get(tipo, "-")
-            linha = f"{pre} {msg}"
-            for part in [linha[i:i + 36] for i in range(0, len(linha), 36)]:
-                lt = self.fMi.render(part, True, cor)
-                tela.blit(lt, (log_bg.x + 6, yt_log))
-                yt_log += 14
-                if yt_log > log_bg.bottom - 12:
-                    break
+
+        pygame.draw.line(tela, C_BORDA, (x + 6, min(yt, pr.bottom - 60)), (x + pw - 6, min(yt, pr.bottom - 60)), 1)
+        yt = min(yt + 6, pr.bottom - 55)
+        log_h = ph - (yt - y) - 8
+        if log_h >= 20:
+            log_bg = pygame.Rect(x + 6, yt, pw - 12, log_h)
+            pygame.draw.rect(tela, (8, 9, 16), log_bg, border_radius=4)
+            pygame.draw.rect(tela, (25, 27, 42), log_bg, 1, border_radius=4)
+            max_lin = max(1, (log_bg.height - 8) // 14)
+            entries = self.log[-(max_lin):]
+            cor_map = {"DERROTA": C_PERIGO, "VITORIA": C_VERDE, "AMEACA": C_INVASOR,
+                       "CERCO": C_CERCO, "CARTA": C_OURO, "HEROI": C_VERDE,
+                       "SISTEMA": C_DIM}
+            pre_map = {"DERROTA": "[X]", "VITORIA": "[V]", "AMEACA": "[!]", "CERCO": "[C]",
+                       "CARTA": "[#]", "HEROI": "[*]", "SISTEMA": "[o]"}
+            yt_log = log_bg.y + 6
+            for tipo, msg in entries:
+                cor = cor_map.get(tipo, C_TEXTO)
+                pre = pre_map.get(tipo, "-")
+                linha = f"{pre} {msg}"
+                for part in [linha[i:i + 36] for i in range(0, len(linha), 36)]:
+                    lt = self.fMi.render(part, True, cor)
+                    tela.blit(lt, (log_bg.x + 6, yt_log))
+                    yt_log += 14
+                    if yt_log > log_bg.bottom - 12:
+                        break
+
+        # Restore clip
+        tela.set_clip(old_clip)
 
     # ── MÃO DO HERÓI ──────────────────────────────────────────────────────
     def _draw_mao(self, tela):

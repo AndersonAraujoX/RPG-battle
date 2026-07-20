@@ -178,12 +178,12 @@ def resolver_melee(estado: dict, zona_combate: str, num_dados: int = 2, num_alia
         dano_restante -= mortos
         logs.append(("HEROI", f"{mortos} invasor(es) comum(ns) eliminado(s) em [{zona_combate}]!"))
 
-    # 1.5) Mata Goblins (infiltradores) na área do Pátio
+    # 1.5) Mata Formigas Infiltradoras (infiltradores) na área do Pátio
     if dano_restante > 0 and zona_combate == "patio" and estado.get("infiltradores", 0) > 0:
         goblins_mortos = min(dano_restante, estado.get("infiltradores", 0))
         delta["infiltradores"] = estado.get("infiltradores", 0) - goblins_mortos
         dano_restante -= goblins_mortos
-        logs.append(("HEROI", f"{goblins_mortos} Goblin(s) eliminado(s) no Pátio!"))
+        logs.append(("HEROI", f"{goblins_mortos} Formiga(s) Infiltradora(s) eliminada(s) no Pátio!"))
 
     # 2) Aplica dano restante ao Brutamonte (se houver e dano suficiente)
     if dano_restante > 0 and estado.get("brutamontes", 0) > 0:
