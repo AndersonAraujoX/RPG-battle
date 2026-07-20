@@ -179,6 +179,11 @@ class CercoStateEnemyMixin:
                         self.motor.time_b = []
                     self.motor.time_b.append(inimigo)
 
+                    tot = self.estado.get("total_inimigos_gerados", 0) + 1
+                    self.estado = aplicar_delta(self.estado, {"total_inimigos_gerados": tot})
+                    if tot % 4 == 0:
+                        self._push("CERCO", f"🍄 Insetos consumiram a matéria orgânica! Uma árvore se tornou morta fúngica! (Total: {tot // 4} árvore(s))")
+
                     self._aplicar_efeito_inimigo(carta_ini)
 
                     inimigo._zona_campo = zona_dest if "campo" in zona_dest else None

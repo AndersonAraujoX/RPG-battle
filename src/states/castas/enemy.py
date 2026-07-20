@@ -133,6 +133,12 @@ class CastasEnemyMixin:
                     self.motor.combatentes.append(mob)
                     if hasattr(self.motor, 'time_b'):
                         self.motor.time_b.append(mob)
+
+                    tot = self.estado.get("total_inimigos_gerados", 0) + 1
+                    self.estado = aplicar_delta(self.estado, {"total_inimigos_gerados": tot})
+                    if tot % 4 == 0:
+                        self._push("CERCO", f"🍄 Insetos consumiram a matéria orgânica! Uma árvore se tornou morta fúngica! (Total: {tot // 4} árvore(s))")
+
                     # Dispara habilidade de entrada imediata
                     self._aplicar_habilidade_entrada(mob, zona_dest)
 

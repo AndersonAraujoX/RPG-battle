@@ -356,6 +356,11 @@ class CercoState(
             self._ultimo_pedregulhos = curr_pedras
             self.map_backbuffer_sujo = True
 
+        curr_tot_ini = self.estado.get("total_inimigos_gerados", 0)
+        if not hasattr(self, '_ultimo_total_inimigos') or self._ultimo_total_inimigos != curr_tot_ini:
+            self._ultimo_total_inimigos = curr_tot_ini
+            self.map_backbuffer_sujo = True
+
         if (
             hasattr(self, 'animacoes_cartas_compra')
             and self.animacoes_cartas_compra

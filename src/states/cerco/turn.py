@@ -149,7 +149,7 @@ class CercoStateTurnMixin:
 
         self._verificar_derrota_imediata()
 
-    # ── VERIFICAÇÃO DE DERROTA ────────────────────────────────────────
+    # ── VERIFICAÇÃO DE FIM DE JOGO ────────────────────────────────────
     def _verificar_derrota_imediata(self):
         from ...cerco_isectum import aplicar_delta
         e = self.estado
@@ -165,9 +165,6 @@ class CercoStateTurnMixin:
         elif e.get("brutamontes", 0) >= 3:
             derrota = True
             msg = "3 Brutamontes/Trolls invadiram o túnel! DERROTA!"
-        elif not self.deck:
-            derrota = True
-            msg = "O deck de Cerco de Ameaças acabou! DERROTA!"
         elif len(e.get("deck_catapulta", [1, 2, 3, 4])) <= 0:
             derrota = True
             msg = "O deck de munição de Catapulta esgotou! DERROTA!"
@@ -180,6 +177,16 @@ class CercoStateTurnMixin:
             self._push("DERROTA", msg)
             self.fase = "FIM"
             return True
+
+        if not self.deck:
+            self.estado = aplicar_delta(self.estado, {
+                "vitoria": True,
+                "msg_vitoria": "Todas as cartas de ameaça dos inimigos acabaram! A fortaleza resistiu e você VENCEU!"
+            })
+            self._push("VITORIA", "Todas as cartas de ameaça dos inimigos acabaram! Vitória!")
+            self.fase = "FIM"
+            return True
+
         return False
 
     # ── FASE AMEAÇA ───────────────────────────────────────────────────

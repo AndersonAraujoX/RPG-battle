@@ -303,12 +303,12 @@ class CastasStateTurnMixin:
             self._comprar_mao()
             self._push("SISTEMA", f"=== Rodada {nova_rodada} ===")
 
-    # ── VERIFICAÇÃO DE DERROTA ───────────────────────────────────────────
+    # ── VERIFICAÇÃO DE FIM DE JOGO ────────────────────────────────────
     def _verificar_derrota_imediata(self):
-        from src.cerco_isectum import aplicar_delta
-        e     = self.estado
-        msg   = ""
+        from ...cerco_isectum import aplicar_delta
+        e = self.estado
         derro = False
+        msg   = ""
 
         if e.get("tesouro", 10) <= 0:
             derro = True; msg = "Todo o ouro da Câmara foi roubado pelos Insectum! DERROTA!"
@@ -316,12 +316,20 @@ class CastasStateTurnMixin:
             derro = True; msg = "Reservas esgotadas! As castas invadiram! DERROTA!"
         elif e.get("brutamontes", 0) >= 3:
             derro = True; msg = "3 Insectum-Brutamontes invadiram o túnel! DERROTA!"
-        elif not self.deck:
-            derro = True; msg = "O deck de Ameaças acabou! DERROTA!"
 
         if derro:
             self.estado = aplicar_delta(e, {"derrota": True, "msg_derrota": msg})
             self._push("DERROTA", msg)
             self.fase = "FIM"
             return True
+
+        if not self.deck:
+            self.estado = aplicar_delta(e, {
+                "vitoria": True,
+                "msg_vitoria": "Todas as cartas de ameaça dos Insectum acabaram! A fortaleza resistiu e você VENCEU!"
+            })
+            self._push("VITORIA", "Todas as cartas de ameaça dos Insectum acabaram! Vitória!")
+            self.fase = "FIM"
+            return True
+
         return False

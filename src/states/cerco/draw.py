@@ -573,28 +573,61 @@ class CercoStateDrawMixin:
                 else:
                     cor_top = paleta[0]
                     pygame.draw.polygon(self.map_backbuffer, cor_top, top_pts)
-                has_tree_outside = False
+                tg = getattr(self.motor.tabuleiro, 'terrain_grid', None)
+                terreno_tile = tg[gy][gx] if (tg and 0 <= gy < len(tg) and 0 <= gx < len(tg[0])) else None
+                has_tree = False
                 if zona_key in ("_campo", "_exterior"):
                     val = zlib.adler32(f"tree_{gx}_{gy}".encode())
                     if val % 100 < 30:
-                        has_tree_outside = True
-                if has_tree_outside:
+                        has_tree = True
+                elif terreno_tile == "floresta":
+                    has_tree = True
+
+                if has_tree:
+                    # A cada 4 inimigos gerados, 1 árvore fica morta/fúngica
+                    num_arvores_mortas = self.estado.get("total_inimigos_gerados", 0) // 4
+                    tree_order = (zlib.adler32(f"tree_order_{gx}_{gy}".encode())) % 30
+                    is_morta = tree_order < num_arvores_mortas
+
                     trunk_w = max(2, int(6 * self.zoom))
                     trunk_h = max(4, int(16 * self.zoom))
                     sombra = pygame.Surface((int(24 * self.zoom), int(12 * self.zoom)), pygame.SRCALPHA)
                     pygame.draw.ellipse(sombra, (0, 0, 0, 70), (0, 0, sombra.get_width(), sombra.get_height()))
                     self.map_backbuffer.blit(sombra, (cx_ - sombra.get_width() // 2, cy_ - sombra.get_height() // 2))
-                    pygame.draw.rect(self.map_backbuffer, (85, 55, 30), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h))
-                    pygame.draw.rect(self.map_backbuffer, (55, 35, 20), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h), 1)
+
                     r1 = max(4, int(13 * self.zoom))
                     r2 = max(3, int(10 * self.zoom))
                     r3 = max(2, int(7 * self.zoom))
-                    pygame.draw.circle(self.map_backbuffer, (28, 98, 43), (cx_, cy_ - trunk_h), r1)
-                    pygame.draw.circle(self.map_backbuffer, (18, 68, 28), (cx_, cy_ - trunk_h), r1, 1)
-                    pygame.draw.circle(self.map_backbuffer, (38, 128, 53), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2)
-                    pygame.draw.circle(self.map_backbuffer, (23, 88, 33), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2, 1)
-                    pygame.draw.circle(self.map_backbuffer, (48, 158, 63), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3)
-                    pygame.draw.circle(self.map_backbuffer, (33, 108, 43), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3, 1)
+
+                    if is_morta:
+                        # Árvore morta fúngica (tronco seco cinza e copa roxa/magenta com esporos)
+                        pygame.draw.rect(self.map_backbuffer, (50, 42, 38), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h))
+                        pygame.draw.rect(self.map_backbuffer, (30, 25, 20), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h), 1)
+
+                        pygame.draw.circle(self.map_backbuffer, (75, 40, 85), (cx_, cy_ - trunk_h), r1)
+                        pygame.draw.circle(self.map_backbuffer, (45, 20, 55), (cx_, cy_ - trunk_h), r1, 1)
+                        pygame.draw.circle(self.map_backbuffer, (105, 50, 115), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2)
+                        pygame.draw.circle(self.map_backbuffer, (65, 30, 75), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2, 1)
+                        pygame.draw.circle(self.map_backbuffer, (130, 65, 140), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3)
+                        pygame.draw.circle(self.map_backbuffer, (85, 40, 95), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3, 1)
+
+                        # Detalhes de esporos fúngicos (pontos amarelo-esverdeados bio-luminescentes)
+                        sp_off = int(4 * self.zoom)
+                        sp_r = max(1, int(2 * self.zoom))
+                        pygame.draw.circle(self.map_backbuffer, (190, 210, 110), (cx_ - sp_off, cy_ - trunk_h - sp_off), sp_r)
+                        pygame.draw.circle(self.map_backbuffer, (210, 180, 90), (cx_ + sp_off, cy_ - trunk_h - int(9 * self.zoom)), sp_r)
+                        pygame.draw.circle(self.map_backbuffer, (160, 230, 140), (cx_, cy_ - trunk_h - int(14 * self.zoom)), sp_r)
+                    else:
+                        # Árvore verde saudável
+                        pygame.draw.rect(self.map_backbuffer, (85, 55, 30), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h))
+                        pygame.draw.rect(self.map_backbuffer, (55, 35, 20), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h), 1)
+
+                        pygame.draw.circle(self.map_backbuffer, (28, 98, 43), (cx_, cy_ - trunk_h), r1)
+                        pygame.draw.circle(self.map_backbuffer, (18, 68, 28), (cx_, cy_ - trunk_h), r1, 1)
+                        pygame.draw.circle(self.map_backbuffer, (38, 128, 53), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2)
+                        pygame.draw.circle(self.map_backbuffer, (23, 88, 33), (cx_, cy_ - trunk_h - int(7 * self.zoom)), r2, 1)
+                        pygame.draw.circle(self.map_backbuffer, (48, 158, 63), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3)
+                        pygame.draw.circle(self.map_backbuffer, (33, 108, 43), (cx_, cy_ - trunk_h - int(13 * self.zoom)), r3, 1)
                 ZONA_CONTORNOS = {
                     "camara_central": (235, 195, 30),
                     "curtume":        (220, 120, 40),
