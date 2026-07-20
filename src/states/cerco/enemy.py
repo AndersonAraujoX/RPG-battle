@@ -12,6 +12,16 @@ class CercoStateEnemyMixin:
 
     # ── SINCRONIZAR INIMIGOS ──────────────────────────────────────────
     def _sincronizar_inimigos_tabuleiro(self):
+        # Guarda de reentrância: evita chamadas recursivas via _aplicar_efeito_inimigo
+        if getattr(self, '_sincronizando', False):
+            return
+        self._sincronizando = True
+        try:
+            self._sincronizar_inimigos_tabuleiro_impl()
+        finally:
+            self._sincronizando = False
+
+    def _sincronizar_inimigos_tabuleiro_impl(self):
         from src.resolvedor_acoes import ZONAS_GRID, obter_zona_por_coordenada
         from src.personagens.minions import Goblin, Esqueleto, Kobold, Troll
         from src.personagens import DragaoAnciao, ReiGoblin
@@ -221,7 +231,14 @@ class CercoStateEnemyMixin:
                 self.motor.time_b.remove(monstro)
 
     # ── EFEITO ESPECIAL ───────────────────────────────────────────────
-    def _aplicar_efeito_inimigo(self, carta_key: str):
+    def _aplicar_efeito_inimigo(self, carta_key: str, _visitados=None):
+        if _visitados is None:
+            _visitados = set()
+        if carta_key in _visitados or len(_visitados) >= 4:
+            return
+        _visitados = set(_visitados)
+        _visitados.add(carta_key)
+
         from ...cerco_isectum import DADOS_INIMIGOS, aplicar_delta
         info = DADOS_INIMIGOS.get(carta_key)
         if not info:
@@ -270,20 +287,21 @@ class CercoStateEnemyMixin:
         elif carta_key == "viuva_canibal":
             desc_ini = self.estado.get("descarte_inimigos", [])
             machos = ["louva_deus", "gafanhoto_praga", "carrapato_vampiro", "besouro_gorgulho", "tarantula_golias", "mariposa_esfinge", "escaravelho_necrofago", "mosca_tse_tse"]
-            validos = [c for c in desc_ini if c in machos]
+            validos = [c for c in desc_ini if c in machos and c not in _visitados]
             if validos:
                 alvo = random.choice(validos)
                 self._push("SISTEMA", f"Viúva-Canibal copia o efeito de {alvo.upper()}!")
-                self._aplicar_efeito_inimigo(alvo)
+                self._aplicar_efeito_inimigo(alvo, _visitados=_visitados)
             else:
                 self._push("SISTEMA", "Nenhum inseto macho elegível no descarte para copiar.")
 
         elif carta_key == "escaravelho_necrofago":
             desc_ini = self.estado.get("descarte_inimigos", [])
-            if len(desc_ini) > 1:
-                topo = desc_ini[-2]
+            validos = [c for c in desc_ini if c not in _visitados]
+            if validos:
+                topo = validos[-1]
                 self._push("SISTEMA", f"Escaravelho reativa o topo do descarte: {topo.upper()}")
-                self._aplicar_efeito_inimigo(topo)
+                self._aplicar_efeito_inimigo(topo, _visitados=_visitados)
             else:
                 self._push("SISTEMA", "Pilha de descarte de inimigos vazia.")
 
@@ -324,10 +342,11 @@ class CercoStateEnemyMixin:
 
         elif carta_key == "cigarra_ressonante":
             desc_ini = self.estado.get("descarte_inimigos", [])
-            if desc_ini:
-                alvo = random.choice(desc_ini)
+            validos = [c for c in desc_ini if c not in _visitados]
+            if validos:
+                alvo = random.choice(validos)
                 self._push("SISTEMA", f"Cigarra-Ressonante reativa {alvo.upper()}!")
-                self._aplicar_efeito_inimigo(alvo)
+                self._aplicar_efeito_inimigo(alvo, _visitados=_visitados)
 
         elif carta_key == "enxame_rainha":
             for h_nome in herois_nomes:
@@ -350,9 +369,10 @@ class CercoStateEnemyMixin:
 
         elif carta_key == "tarantula_golias":
             desc_ini = self.estado.get("descarte_inimigos", [])
-            if desc_ini:
-                alvo = random.choice(desc_ini)
-                self._aplicar_efeito_inimigo(alvo)
+            validos = [c for c in desc_ini if c not in _visitados]
+            if validos:
+                alvo = random.choice(validos)
+                self._aplicar_efeito_inimigo(alvo, _visitados=_visitados)
 
         elif carta_key == "formiga_correicao":
             for _ in range(3):

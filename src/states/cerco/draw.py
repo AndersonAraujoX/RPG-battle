@@ -580,8 +580,6 @@ class CercoStateDrawMixin:
                     val = zlib.adler32(f"tree_{gx}_{gy}".encode())
                     if val % 100 < 30:
                         has_tree = True
-                elif terreno_tile == "floresta":
-                    has_tree = True
 
                 if has_tree:
                     # A cada 4 inimigos gerados, 1 árvore fica morta/fúngica
