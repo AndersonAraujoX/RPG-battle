@@ -582,22 +582,24 @@ class CercoStateDrawMixin:
                         has_tree = True
 
                 if has_tree:
-                    # A cada 4 inimigos gerados, 1 árvore fica morta/fúngica
-                    num_arvores_mortas = self.estado.get("total_inimigos_gerados", 0) // 4
+                    # A cada 4 inimigos gerados, 1 árvore fica morta/fúngica (máx 30 posições possíveis)
+                    num_arvores_mortas = min(30, self.estado.get("total_inimigos_gerados", 0) // 4)
                     tree_order = (zlib.adler32(f"tree_order_{gx}_{gy}".encode())) % 30
                     is_morta = tree_order < num_arvores_mortas
 
                     trunk_w = max(2, int(6 * self.zoom))
                     trunk_h = max(4, int(16 * self.zoom))
-                    sombra = pygame.Surface((int(24 * self.zoom), int(12 * self.zoom)), pygame.SRCALPHA)
-                    pygame.draw.ellipse(sombra, (0, 0, 0, 70), (0, 0, sombra.get_width(), sombra.get_height()))
-                    self.map_backbuffer.blit(sombra, (cx_ - sombra.get_width() // 2, cy_ - sombra.get_height() // 2))
 
                     r1 = max(4, int(13 * self.zoom))
                     r2 = max(3, int(10 * self.zoom))
                     r3 = max(2, int(7 * self.zoom))
 
                     if is_morta:
+                        # Sombra esverdeada/roxa sutil apenas sob o tronco
+                        sombra_base = pygame.Surface((int(14 * self.zoom), int(7 * self.zoom)), pygame.SRCALPHA)
+                        pygame.draw.ellipse(sombra_base, (40, 0, 50, 55), (0, 0, sombra_base.get_width(), sombra_base.get_height()))
+                        self.map_backbuffer.blit(sombra_base, (cx_ - sombra_base.get_width() // 2, cy_ - sombra_base.get_height() // 2))
+
                         # Árvore morta fúngica (tronco seco cinza e copa roxa/magenta com esporos)
                         pygame.draw.rect(self.map_backbuffer, (50, 42, 38), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h))
                         pygame.draw.rect(self.map_backbuffer, (30, 25, 20), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h), 1)
@@ -616,7 +618,11 @@ class CercoStateDrawMixin:
                         pygame.draw.circle(self.map_backbuffer, (210, 180, 90), (cx_ + sp_off, cy_ - trunk_h - int(9 * self.zoom)), sp_r)
                         pygame.draw.circle(self.map_backbuffer, (160, 230, 140), (cx_, cy_ - trunk_h - int(14 * self.zoom)), sp_r)
                     else:
-                        # Árvore verde saudável
+                        # Árvore verde saudável — com sombra oval normal
+                        sombra = pygame.Surface((int(24 * self.zoom), int(12 * self.zoom)), pygame.SRCALPHA)
+                        pygame.draw.ellipse(sombra, (0, 0, 0, 70), (0, 0, sombra.get_width(), sombra.get_height()))
+                        self.map_backbuffer.blit(sombra, (cx_ - sombra.get_width() // 2, cy_ - sombra.get_height() // 2))
+
                         pygame.draw.rect(self.map_backbuffer, (85, 55, 30), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h))
                         pygame.draw.rect(self.map_backbuffer, (55, 35, 20), (cx_ - trunk_w // 2, cy_ - trunk_h, trunk_w, trunk_h), 1)
 

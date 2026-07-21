@@ -179,19 +179,105 @@ class CercoStateTurnMixin:
             return True
 
         if not self.deck:
-            self.estado = aplicar_delta(self.estado, {
-                "vitoria": True,
-                "msg_vitoria": "Todas as cartas de ameaça dos inimigos acabaram! A fortaleza resistiu e você VENCEU!"
-            })
-            self._push("VITORIA", "Todas as cartas de ameaça dos inimigos acabaram! Vitória!")
-            self.fase = "FIM"
-            return True
+            if not self.estado.get("mao_rei_spawnou"):
+                self._spawn_mao_rei()
+            return False
 
         return False
+
+    # ── SPAWN DO MÃO REI ─────────────────────────────────────────────
+    def _spawn_mao_rei(self):
+        """Spawna o boss final A Mão Rei após o deck de ameaças ser esgotado."""
+        from ...cerco_isectum import aplicar_delta
+        from src.personagens.mao_rei import MaoRei
+        from src.resolvedor_acoes import ZONAS_GRID
+
+        self.estado = aplicar_delta(self.estado, {"mao_rei_spawnou": True})
+
+        tab = self.motor.tabuleiro
+        # Tenta posicionar em campo_norte primeiro, depois em outras regiões
+        zonas_tentativa = ["campo_norte", "campo_sul", "campo_leste", "campo_oeste",
+                           "muralha_norte", "muralha_sul"]
+        cx, cy = 0, 0
+        for zona_spawn in zonas_tentativa:
+            if zona_spawn not in ZONAS_GRID:
+                continue
+            x1, y1, x2, y2 = ZONAS_GRID[zona_spawn]
+            x1c = max(0, min(19, x1))
+            x2c = max(0, min(19, x2))
+            y1c = max(0, min(19, y1))
+            y2c = max(0, min(19, y2))
+            candidatas = [
+                (gx, gy)
+                for gy in range(y1c, y2c + 1)
+                for gx in range(x1c, x2c + 1)
+                if tab.get_terrain_em(gx, gy) != "parede" and tab.grid[gy][gx] is None
+            ]
+            if candidatas:
+                import random as _rnd
+                cx, cy = _rnd.choice(candidatas)
+                break
+
+        boss = MaoRei("👁️ A Mão Rei", "B", nivel=18)
+        boss._zona_campo = None
+        boss._is_boss = True
+
+        sucesso = tab.adicionar_personagem(boss, cx, cy)
+        if sucesso:
+            self.motor.combatentes.append(boss)
+            if not hasattr(self.motor, 'time_b'):
+                self.motor.time_b = []
+            self.motor.time_b.append(boss)
+            self.map_backbuffer_sujo = True
+
+        self._push("CERCO",
+            "⚠️ As cartas de ameaça esgotaram... mas a guerra não acabou!")
+        self._push("BOSS",
+            "👁️ A MÃO REI surge do horizonte! O emissário pessoal do Imperador Insectum "
+            "avança sobre a fortaleza! Derrotem-no para vencer!")
+        self._feedback("👁️ A MÃO REI apareceu! Derrotem o boss para vencer!", (220, 0, 220))
+
+    # ── VERIFICAÇÃO DE VITÓRIA POR DERROTA DO BOSS ────────────────────
+    def _verificar_vitoria_boss(self):
+        """Verifica se o Mão Rei foi derrotado — encerra com vitória."""
+        from ...cerco_isectum import aplicar_delta
+        if not self.estado.get("mao_rei_spawnou"):
+            return
+        if self.estado.get("vitoria") or self.estado.get("derrota"):
+            return
+
+        mao_rei_vivo = any(
+            getattr(p, "_is_boss", False) and p.hp_atual > 0
+            for p in self.motor.combatentes
+        )
+        mao_rei_existe = any(
+            getattr(p, "_is_boss", False)
+            for p in self.motor.combatentes
+        )
+
+        if mao_rei_existe and not mao_rei_vivo:
+            self.estado = aplicar_delta(self.estado, {
+                "vitoria": True,
+                "msg_vitoria": "A Mão Rei foi derrotada! O Imperador Insectum recua — a fortaleza resistiu! VITÓRIA TOTAL!"
+            })
+            self._push("VITORIA",
+                "👁️ A Mão Rei foi derrotada! A fortaleza resistiu ao Imperador Insectum! VITÓRIA!")
+            self._feedback("🏆 VITÓRIA TOTAL! A Mão Rei foi derrotada!", (255, 215, 0))
+            self.fase = "FIM"
 
     # ── FASE AMEAÇA ───────────────────────────────────────────────────
     def _iniciar_fase_ameaca(self):
         if self._verificar_derrota_imediata():
+            return
+        self._verificar_vitoria_boss()
+        if self.estado.get("vitoria"):
+            self.fase = "FIM"
+            return
+        # Se o deck acabou e o boss já foi spawnar, aguarda a batalha do boss
+        if not self.deck:
+            if self.estado.get("mao_rei_spawnou"):
+                self.fase = "JOGAR_CARTA"
+                self._comprar_mao()
             return
         self.fase = "FASE_AMEACA"
         self.carta_cerco = self.deck.pop()
@@ -217,6 +303,8 @@ class CercoStateTurnMixin:
 
         if self._verificar_derrota_imediata():
             return
+
+        self._verificar_vitoria_boss()
 
         if self.estado.get("derrota") or self.estado.get("vitoria"):
             self.fase = "FIM"

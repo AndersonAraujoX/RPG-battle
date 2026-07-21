@@ -16,6 +16,7 @@ from .minions import Goblin, Esqueleto, Kobold
 from .protagonistas import Novak, Koema, Rilem, Yukito, Aquele
 from .sienna import Sienna, SiennaPhoenix
 from .novos_personagens import Stark, Elden, Doom, Gruu, Kuro, Darwin
+from .mao_rei import MaoRei
 
 def get_class_by_name(name):
     cls_map = {

@@ -388,3 +388,7 @@ class CercoState(
         # Decrementa banner do inimigo
         if ia_cmd is not None and getattr(ia_cmd, 'banner_timer', 0) > 0:
             ia_cmd.banner_timer -= 1
+
+        # ── Verificação de vitória pelo boss (Mão Rei) ────────────────────
+        if self.estado.get("mao_rei_spawnou") and not self.estado.get("vitoria") and not self.estado.get("derrota"):
+            self._verificar_vitoria_boss()
