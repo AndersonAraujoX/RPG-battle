@@ -44,7 +44,7 @@ class DueloStateDrawMixin:
 
         # Placar de Pontos de Todos os Jogadores
         ly = py + 65
-        lbl_p = self.fM.render("🏆 Placar (Feromônios):", True, C_ACENTO)
+        lbl_p = self.fM.render("Placar (Feromônios):", True, C_ACENTO)
         tela.blit(lbl_p, (px + 15, ly))
         ly += 22
 
@@ -250,8 +250,7 @@ class DueloStateDrawMixin:
                 tela.blit(grad_scaled, c_rect.topleft)
                 pygame.draw.rect(tela, C_BORDA, c_rect, 1, border_radius=4)
                 
-                em = self.fM.render(dados.get("emoji", "🐛"), True, C_TEXTO)
-                tela.blit(em, (c_rect.centerx - em.get_width() // 2, c_rect.y + 8))
+                pass
 
     def _draw_carta_mesa(self, tela, rect, cid, hover=False):
         """Desenha uma mini carta na mesa com estilo TCG premium."""
@@ -290,9 +289,7 @@ class DueloStateDrawMixin:
         pygame.draw.rect(tela, (c_top[0]+15, c_top[1]+15, c_top[2]+15) if hover else (c_top[0]+8, c_top[1]+8, c_top[2]+8), rect.inflate(-2, -2), 1, border_radius=5)
         pygame.draw.rect(tela, (4, 4, 6), rect.inflate(-4, -4), 1, border_radius=4)
 
-        # 4. Emoji (Centralizado)
-        e_txt = self.fM.render(emoji, True, C_TEXTO)
-        tela.blit(e_txt, (rect.centerx - e_txt.get_width() // 2, rect.y + 8))
+        pass
 
         # 5. Header de Título
         banner_r = pygame.Rect(rect.x + 4, rect.y + 42, rect.width - 8, 15)
@@ -398,9 +395,7 @@ class DueloStateDrawMixin:
                 pygame.draw.circle(tela, (180, 40, 60), (art_rect.centerx, art_rect.centery), 6)
                 pygame.draw.circle(tela, (255, 100, 120), (art_rect.centerx - 2, art_rect.centery - 2), 2)
 
-            # 5. Emoji (Centralizado sobre a arte)
-            em_t = self.fG.render(dados.get("emoji", "🐛"), True, C_TEXTO)
-            tela.blit(em_t, (art_rect.centerx - em_t.get_width() // 2, art_rect.centery - em_t.get_height() // 2))
+            pass
 
             # 6. Banner do Título
             banner_rect = pygame.Rect(cx + 6, cy + 66, card_w - 12, 17)
@@ -439,7 +434,7 @@ class DueloStateDrawMixin:
         pygame.draw.rect(tela, (25, 14, 38), (tx, ty, tw, th), border_radius=6)
         pygame.draw.rect(tela, C_BORDA, (tx, ty, tw, th), 1, border_radius=6)
 
-        t_title = self.fM.render(f"{dados.get('emoji','')} {dados.get('nome','')}", True, C_OURO)
+        t_title = self.fM.render(dados.get('nome',''), True, C_OURO)
         tela.blit(t_title, (tx + 12, ty + 10))
         t_sub = self.fMi.render(f"Classe: {dados.get('classe','')} (Efeito Imediato)", True, C_ACENTO)
         tela.blit(t_sub, (tx + 12, ty + 28))

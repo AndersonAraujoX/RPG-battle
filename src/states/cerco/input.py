@@ -221,13 +221,10 @@ class CercoStateInputMixin:
                         if carta.get("tipo") in ("orc", "invasor"):
                             self._jogar_carta_invasao(i)
                             return
-                        if self.modo_acao == MODO_UPGRADE and self.idx_slot_upgrade >= 0:
-                            self.idx_carta_queimar = i
-                            self._tentar_upgrade()
-                        else:
-                            self.idx_carta_sendo_jogada = i
-                            self.fase = "ESCOLHER_ACAO_CARTA"
-                            self.fase_aberta_tick = pygame.time.get_ticks()
+                        # Cartas de upgrade: jogadas normalmente (vão p/ cartas_upgrade_ativas)
+                        self.idx_carta_sendo_jogada = i
+                        self.fase = "ESCOLHER_ACAO_CARTA"
+                        self.fase_aberta_tick = pygame.time.get_ticks()
                     return
 
             if self.fase == "REPOVOAR_MERCADO":
@@ -359,9 +356,9 @@ class CercoStateInputMixin:
                                 faltam[r] = qtd - alocados.get(r, 0)
 
                         if not faltam:
-                            self.modo_acao = MODO_UPGRADE
+                            # Custo pago! Adiciona o upgrade direto ao deck — sem precisar queimar carta
                             self.idx_slot_upgrade = sid
-                            self._feedback(f"Slot [{slot['nome']}] pronto! Escolha uma carta da mão para queimar.", C_OURO)
+                            self._adquirir_upgrade_direto(sid)
                         else:
                             recs_txt = ", ".join(f"{q}x {r.upper()}" for r, q in faltam.items())
                             self._feedback(f"Falta alocar: {recs_txt}. Colete mais recursos!", C_PERIGO)
@@ -387,7 +384,7 @@ class CercoStateInputMixin:
             MODO_TRABALHAR: "Modo TRABALHAR: clique em uma Carta no Mercado para alocar 1x [Recurso] nela!",
             MODO_ESCAVAR:   "Modo ESCAVAR: confirme no Pátio [G]",
             MODO_SUBORNAR:  "Modo SUBORNAR: escolha recurso no painel",
-            MODO_UPGRADE:   "Modo UPGRADE: Escolha carta da mão para queimar e resgatar a melhoria completa",
+            MODO_UPGRADE:   "Modo UPGRADE: Custo pago! O upgrade será adicionado ao seu deck.",
             MODO_CONVOCAR:  "Modo CONVOCAR: clique em qualquer célula vazia para colocar um aliado!",
             MODO_ATACAR:    "[A] ATACAR: clique na zona com invasores para combate melee (2D6 customizados)!",
             MODO_ATIRAR:    "[F] ATIRAR: de uma Torre, clique no alvo externo (Balestra 2D6)!",

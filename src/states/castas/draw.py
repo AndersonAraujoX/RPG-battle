@@ -137,7 +137,7 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         acoes = self.estado["acoes_diretores"].get(ativo, 0)
 
         # Título do painel
-        tt = self.fM.render(f"🐛 INVASÃO: {ativo.upper()}", True, C_DIRETOR)
+        tt = self.fM.render(f"INVASÃO: {ativo.upper()}", True, C_DIRETOR)
         tela.blit(tt, (px + 15, py + 15))
         pygame.draw.line(tela, C_BORDA, (px + 8, py + 38), (px + pw - 8, py + 38), 1)
 
@@ -158,8 +158,8 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         desc_dir = self.estado.get("descarte_diretores", {}).get(ativo, [])
         
         info_y = py + 100
-        lbl_deck = self.fM.render(f"🎴 Deck do {ativo}: {len(deck_dir)} cartas", True, C_TEXTO)
-        lbl_desc = self.fM.render(f"🗑 Pilha de Descarte: {len(desc_dir)} cartas", True, C_DIM)
+        lbl_deck = self.fM.render(f"Deck do {ativo}: {len(deck_dir)} cartas", True, C_TEXTO)
+        lbl_desc = self.fM.render(f"Pilha de Descarte: {len(desc_dir)} cartas", True, C_DIM)
         tela.blit(lbl_deck, (px + 15, info_y))
         tela.blit(lbl_desc, (px + 15, info_y + 30))
 
@@ -172,7 +172,7 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
             pygame.draw.rect(tela, (30, 10, 20), (px + 10, dy, pw - 20, 120), border_radius=6)
             pygame.draw.rect(tela, C_BORDA, (px + 10, dy, pw - 20, 120), 1, border_radius=6)
             
-            nome_lbl = self.fM.render(f"{dados['emoji']} {dados['nome']}", True, C_OURO)
+            nome_lbl = self.fM.render(dados['nome'], True, C_OURO)
             classe_lbl = self.fP.render(f"Classe Base: {dados['classe']}", True, C_INSETO)
             tela.blit(nome_lbl, (px + 20, dy + 10))
             tela.blit(classe_lbl, (px + 20, dy + 32))
@@ -265,15 +265,11 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
             pygame.draw.rect(tela, bg_color, card_rect, border_radius=6)
             pygame.draw.rect(tela, border_color, card_rect, 2 if sel or hover else 1, border_radius=6)
 
-            # Emoji
-            emoji_lbl = self.fG.render(dados.get("emoji", "🐛"), True, C_TEXTO)
-            tela.blit(emoji_lbl, (cx + 8, cy + 8))
-
             # Nome
             nome = dados.get("nome", inseto_id).split()
             nome_str = nome[0] if nome else "Inseto"
             nome_lbl = self.fP.render(nome_str, True, C_OURO if sel else C_TEXTO)
-            tela.blit(nome_lbl, (cx + 34, cy + 12))
+            tela.blit(nome_lbl, (cx + 8, cy + 12))
 
             # Classe
             classe_lbl = self.fMi.render(dados.get("classe", ""), True, C_ACENTO)

@@ -15,10 +15,10 @@ class MaoRei(Personagem):
     Nome: A Mão Rei — emissário pessoal do Imperador Insectum.
     Derrota-lo encerra o cerco em vitória total.
     """
-    NOME_EXIBIDO = "👁️ A Mão Rei"
+    NOME_EXIBIDO = "A Mão Rei"
     EMOJI = "👁️"
 
-    def __init__(self, nome="👁️ A Mão Rei", time="B", nivel=18, sound_player=None, stats=None):
+    def __init__(self, nome="A Mão Rei", time="B", nivel=18, sound_player=None, stats=None):
         super().__init__(nome, time, nivel, sound_player, stats=stats)
         # Atributos de boss: muito mais resistente e forte
         self.hp_max   = max(self.hp_max, 120)

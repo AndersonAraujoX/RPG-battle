@@ -199,8 +199,6 @@ class CastasSetupState(GameState):
         tela.blit(bar, (0, 0))
         pygame.draw.line(tela, C_BORDA, (0, 80), (W, 80), 2)
 
-        emoji_surf = self.fT.render("🐛", True, C_INSETO)
-        tela.blit(emoji_surf, (W // 2 - 240, 18))
         t1 = self.fG.render("CASTAS DOS", True, C_ACENTO)
         t2 = self.fG.render("ISECTUM", True, C_OURO)
         cx = W // 2 - (t1.get_width() + t2.get_width() + 12) // 2

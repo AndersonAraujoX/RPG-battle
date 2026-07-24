@@ -11,7 +11,7 @@ from src.personagens import (
     Guerreiro, Mago, Ladino, Arqueiro, Barbaro, Clerigo, Chefe, Paladino,
     ReiGoblin, LordeLich, DragaoAnciao, Druida, Bruxo
 )
-from src.utils import calcular_distancia, resource_path
+from src.utils import calcular_distancia, resource_path, remover_emojis
 
 # --- Constantes Isométricas ---
 TILE_WIDTH = 26
@@ -550,7 +550,7 @@ def desenhar_log(tela, fonte, logs, max_altura, y_offset):
     for log_msg, cor in logs:
         if y_offset_texto + 20 > max_altura:
             break
-        log_render = fonte.render(''.join(c for c in log_msg if c.isprintable()), True, cor)
+        log_render = fonte.render(remover_emojis(''.join(c for c in log_msg if c.isprintable())), True, cor)
         tela.blit(log_render, (LARGURA_TABULEIRO + 20, y_offset_texto))
         y_offset_texto += 20
 
@@ -568,7 +568,7 @@ def desenhar_info_personagem(tela, fonte, unidade, y_offset):
         return
 
     y = 100
-    nome_render = fonte.render(f"{unidade.nome} ({unidade.__class__.__name__})", True, (255, 215, 0))
+    nome_render = fonte.render(f"{remover_emojis(unidade.nome)} ({unidade.__class__.__name__})", True, (255, 215, 0))
     tela.blit(nome_render, (LARGURA_TABULEIRO + 20, y))
     y += 30
     

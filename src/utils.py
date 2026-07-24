@@ -1,6 +1,25 @@
 import json
 import os
 import sys
+import re
+
+_EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F000-\U0001FFFF"
+    "\u2600-\u27BF"
+    "\u2300-\u23FF"
+    "\u2B00-\u2BFF"
+    "\uFE0F"
+    "\u200D"
+    "]+",
+    flags=re.UNICODE
+)
+
+def remover_emojis(texto: str) -> str:
+    if not isinstance(texto, str):
+        return texto
+    res = _EMOJI_PATTERN.sub("", texto)
+    return res.strip()
 
 _BACKGROUNDS_CACHE = {}
 

@@ -82,25 +82,34 @@ class CercoStateHeroMixin:
         mao = list(self.estado["mao"])
         deck = list(self.estado["deck_heroi"])
         discard = list(self.estado["descarte"])
+        # Cartas de upgrade acumuladas: sempre re-entram no ciclo
+        upgrades_ativas = list(self.estado.get("cartas_upgrade_ativas", []))
         cartas_anteriores = len(mao)
         cartas_adicionadas = []
 
         while len(mao) < self.TAM_MAO:
             if not deck:
-                if not discard and not self.estado.get("excluidas_ciclo", []):
+                if not discard and not self.estado.get("excluidas_ciclo", []) and not upgrades_ativas:
                     break
                 todas = list(discard) + list(mao) + list(deck) + list(self.estado.get("excluidas_ciclo", []))
+                # Adiciona cartas de upgrade ativas que ainda não estejam em 'todas' (sem duplicar)
+                for up in upgrades_ativas:
+                    if not any(c.get("id") == up.get("id") for c in todas):
+                        todas.append(dict(up))
                 random.shuffle(todas)
                 candidatas_descarte = [c for c in todas if c not in mao]
                 excluidas = []
-                if len(candidatas_descarte) >= 2:
-                    excluidas.append(candidatas_descarte.pop(random.randrange(len(candidatas_descarte))))
-                    excluidas.append(candidatas_descarte.pop(random.randrange(len(candidatas_descarte))))
+                # Nunca exclui cartas de upgrade da rodada
+                candidatas_excl = [c for c in candidatas_descarte if c.get("tipo") != "upgrade"]
+                if len(candidatas_excl) >= 2:
+                    excluidas.append(candidatas_excl.pop(random.randrange(len(candidatas_excl))))
+                    excluidas.append(candidatas_excl.pop(random.randrange(len(candidatas_excl))))
                 deck = [c for c in todas if c not in mao and c not in excluidas]
                 discard = []
                 from ...cerco_isectum import aplicar_delta
                 self.estado = aplicar_delta(self.estado, {"excluidas_ciclo": excluidas})
-                self._push("SISTEMA", "Ciclo do Baralho: 12 cartas reembaralhadas. 2 descartadas face para baixo.")
+                self._push("SISTEMA", f"Ciclo do Baralho: cartas reembaralhadas. 2 descartadas. "
+                           f"({len(upgrades_ativas)} upgrade(s) no deck acumulado)")
             carta = deck.pop()
             mao.append(carta)
             cartas_adicionadas.append(carta)
@@ -137,19 +146,41 @@ class CercoStateHeroMixin:
         if idx < 0 or idx >= len(mao):
             return
         carta = mao.pop(idx)
-        discard = list(self.estado["descarte"]) + [carta]
-        delta = {
-            "mao":              mao,
-            "descarte":         discard,
-            "pontos_movimento": self.estado["pontos_movimento"] + carta.get("movimento", 0),
-            "pontos_trabalho":  self.estado["pontos_trabalho"]  + carta.get("trabalho",  0),
-            "pontos_escavacao": self.estado["pontos_escavacao"] + carta.get("escavacao", 0),
-        }
+
         from ...cerco_isectum import aplicar_delta
+        is_upgrade = carta.get("tipo") == "upgrade"
+        discard = list(self.estado["descarte"]) + [carta]
+
+        if is_upgrade:
+            # Cartas de upgrade acumulam em cartas_upgrade_ativas e vão para o descarte p/ ciclo
+            ativas = [dict(c) for c in self.estado.get("cartas_upgrade_ativas", [])]
+            if not any(c.get("id") == carta.get("id") for c in ativas):
+                ativas.append(dict(carta))
+            delta = {
+                "mao":                  mao,
+                "descarte":             discard,
+                "cartas_upgrade_ativas": ativas,
+                "pontos_movimento": self.estado["pontos_movimento"] + carta.get("movimento", 0),
+                "pontos_trabalho":  self.estado["pontos_trabalho"]  + carta.get("trabalho",  0),
+                "pontos_escavacao": self.estado["pontos_escavacao"] + carta.get("escavacao", 0),
+            }
+            self._push("HEROI", f"⭐ Upgrade ativado [{carta['nome']}]: acumulado! "
+                                f"+{carta.get('movimento',0)}PM "
+                                f"+{carta.get('trabalho',0)}PT +{carta.get('escavacao',0)}PE")
+            self._feedback(f"⭐ Upgrade: {carta['nome']} (acumulado!)", (255, 200, 50))
+        else:
+            delta = {
+                "mao":              mao,
+                "descarte":         discard,
+                "pontos_movimento": self.estado["pontos_movimento"] + carta.get("movimento", 0),
+                "pontos_trabalho":  self.estado["pontos_trabalho"]  + carta.get("trabalho",  0),
+                "pontos_escavacao": self.estado["pontos_escavacao"] + carta.get("escavacao", 0),
+            }
+            self._push("HEROI", f"Jogou [{carta['nome']}]: +{carta.get('movimento',0)}PM "
+                                f"+{carta.get('trabalho',0)}PT +{carta.get('escavacao',0)}PE")
+            self._feedback(f"Carta: {carta['nome']}", C_VERDE)
+
         self.estado = aplicar_delta(self.estado, delta)
-        self._push("HEROI", f"Jogou [{carta['nome']}]: +{carta.get('movimento',0)}PM "
-                            f"+{carta.get('trabalho',0)}PT +{carta.get('escavacao',0)}PE")
-        self._feedback(f"Carta: {carta['nome']}", C_VERDE)
         from ...resolvedor_acoes import obter_celulas_alcancaveis
         self.alcancaveis = obter_celulas_alcancaveis(
             self.motor, (self.estado.get("heroi_x", 9), self.estado.get("heroi_y", 9)),
@@ -168,16 +199,28 @@ class CercoStateHeroMixin:
         if idx < 0 or idx >= len(mao):
             return
         carta = mao.pop(idx)
+
+        is_upgrade = carta.get("tipo") == "upgrade"
         discard = list(self.estado["descarte"]) + [carta]
+
+        if is_upgrade:
+            ativas = [dict(c) for c in self.estado.get("cartas_upgrade_ativas", [])]
+            if not any(c.get("id") == carta.get("id") for c in ativas):
+                ativas.append(dict(carta))
+            delta = {
+                "mao": mao,
+                "descarte": discard,
+                "cartas_upgrade_ativas": ativas,
+            }
+        else:
+            delta = {
+                "mao": mao,
+                "descarte": discard,
+            }
 
         val_mov = carta.get("movimento", 0)
         val_trab = carta.get("trabalho", 0)
         val_esc = carta.get("escavacao", 0)
-
-        delta = {
-            "mao": mao,
-            "descarte": discard,
-        }
 
         efeito = carta.get("efeito_extra")
         if efeito == "draw_1":
@@ -380,29 +423,75 @@ class CercoStateHeroMixin:
             self.fase = "FIM"
 
     # ── UPGRADE ───────────────────────────────────────────────────────
-    def _tentar_upgrade(self):
-        from ...resolvedor_acoes import validar_comprar_upgrade, executar_comprar_upgrade
+    def _adquirir_upgrade_direto(self, slot_id):
+        """Adquire o upgrade e adiciona a carta direto na mão, resetando o slot do mercado com novo upgrade."""
         from ...cerco_isectum import CARTAS_UPGRADE, aplicar_delta
         e = self.estado
-        mao = e["mao"]
-        ok, msg = validar_comprar_upgrade(e, self.idx_slot_upgrade, self.idx_carta_queimar, mao)
-        if not ok:
-            self._feedback(msg, C_PERIGO)
-            return
-        deck_total = len(mao) + len(e["deck_heroi"]) + len(e["descarte"])
-        delta, logs, nova_mao = executar_comprar_upgrade(
-            e, self.idx_slot_upgrade, self.idx_carta_queimar, mao, deck_total
-        )
-        slot = e["slots_upgrade"][self.idx_slot_upgrade]
+
+        slot = e["slots_upgrade"][slot_id]
         carta_up = next((c for c in CARTAS_UPGRADE if c["id"] == slot.get("carta_id")), None)
-        if carta_up:
-            delta["mao"] = list(nova_mao) + [carta_up]
+        if not carta_up:
+            self._feedback("Carta de upgrade não encontrada!", C_PERIGO)
+            return
+
+        # 1. Adiciona em cartas_upgrade_ativas
+        ativas = [dict(c) for c in e.get("cartas_upgrade_ativas", [])]
+        if not any(c.get("id") == carta_up.get("id") for c in ativas):
+            ativas.append(dict(carta_up))
+
+        # 2. Adiciona a carta de upgrade diretamente na mão do jogador
+        nova_mao = list(e["mao"]) + [dict(carta_up)]
+
+        # 3. Reseta e repovoa o slot do mercado com a próxima carta de upgrade não comprada
+        cartas_adquiridas_ids = {c.get("id") for c in ativas}
+        cartas_no_mercado_ids = {
+            s.get("carta_id") for i, s in enumerate(e["slots_upgrade"])
+            if i != slot_id and s.get("carta_id") and not s.get("adquirido")
+        }
+
+        proxima_carta = None
+        for candidate in CARTAS_UPGRADE:
+            cid = candidate["id"]
+            if cid not in cartas_adquiridas_ids and cid not in cartas_no_mercado_ids:
+                proxima_carta = candidate
+                break
+
+        slots = [dict(s) for s in e["slots_upgrade"]]
+        if proxima_carta:
+            # Reseta o slot com a nova carta de upgrade
+            slots[slot_id] = {
+                "id": slot_id,
+                "nome": proxima_carta["nome"],
+                "simbolo": proxima_carta["simbolo"],
+                "carta_id": proxima_carta["id"],
+                "custo": dict(proxima_carta["custo"]),
+                "descricao": proxima_carta.get("descricao", ""),
+                "adquirido": False,
+                "bloqueado": False,
+                "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}
+            }
+            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido! Novo upgrade [{proxima_carta['nome']}] no mercado!"
+        else:
+            slots[slot_id]["adquirido"] = True
+            slots[slot_id]["recursos_alocados"] = {"madeira": 0, "couro": 0, "metal": 0}
+            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido! (Todas as melhorias compradas)"
+
+        delta = {
+            "slots_upgrade": slots,
+            "mao": nova_mao,
+            "cartas_upgrade_ativas": ativas,
+        }
         self.estado = aplicar_delta(e, delta)
-        for t, m in logs: self._push(t, m)
-        self._feedback(f"Upgrade [{slot['nome']}] adquirido!", C_OURO)
-        self.idx_slot_upgrade  = -1
+        self._push("HEROI", log_msg)
+        self._feedback(f"⭐ Upgrade [{slot['nome']}] adquirido!", (255, 210, 50))
+        self.idx_slot_upgrade = -1
         self.idx_carta_queimar = -1
         self.modo_acao = MODO_NENHUM
+
+    def _tentar_upgrade(self):
+        """Mantido por compatibilidade — redireciona para aquisição direta."""
+        if self.idx_slot_upgrade >= 0:
+            self._adquirir_upgrade_direto(self.idx_slot_upgrade)
 
     # ── SUBORNAR ──────────────────────────────────────────────────────
     def _subornar_recurso(self, recurso):

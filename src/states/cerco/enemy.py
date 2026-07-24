@@ -30,25 +30,34 @@ class CercoStateEnemyMixin:
         e = self.estado
         tab = self.motor.tabuleiro
 
-        inimigos_por_zona = {}
-        for zona in ZONAS_GRID.keys():
-            inimigos_por_zona[zona] = []
+        # Zonas internas da fortaleza — inimigos dentro delas estão em combate
+        # ativo e NÃO devem ser tocados pela sincronização de spawn.
+        ZONAS_INTERNAS = {
+            "camara_central", "curtume", "carpintaria", "fundicao",
+            "patio", "torre_nw", "torre_ne", "torre_sw", "torre_se",
+            "muralha_norte", "muralha_sul", "muralha_oeste", "muralha_leste",
+        }
+        # Zonas externas de spawn que a sincronização gerencia
+        ZONAS_SPAWN = {z: bounds for z, bounds in ZONAS_GRID.items() if z not in ZONAS_INTERNAS}
+
+        inimigos_por_zona = {zona: [] for zona in ZONAS_SPAWN}
 
         for p in list(self.motor.combatentes):
             if getattr(p, "time", "A") == "B" and p.hp_atual > 0:
                 zona = getattr(p, "_zona_campo", None)
                 if not zona:
                     zona = obter_zona_por_coordenada(p.pos_x, p.pos_y)
+                # Ignora inimigos em zonas internas — eles estão em combate ativo
+                if zona in ZONAS_INTERNAS:
+                    continue
                 if zona in inimigos_por_zona:
                     inimigos_por_zona[zona].append(p)
 
         excessos = []
         faltas = []
 
-        for zona, (x1, y1, x2, y2) in ZONAS_GRID.items():
+        for zona, (x1, y1, x2, y2) in ZONAS_SPAWN.items():
             esperados = e["invasores"].get(zona, 0)
-            if zona == "patio":
-                esperados += e.get("brutamontes", 0) + e.get("infiltradores", 0)
 
             atuais = inimigos_por_zona[zona]
             if len(atuais) > esperados:
@@ -158,7 +167,7 @@ class CercoStateEnemyMixin:
                 }
 
                 classe_inimigo = mapa_classes.get(info_ini["classe"], Goblin)
-                nome_inimigo = f"{info_ini['emoji']} {info_ini['nome']}"
+                nome_inimigo = info_ini['nome']
                 is_infiltrador = False
 
                 if zona_dest == "patio":
@@ -167,10 +176,10 @@ class CercoStateEnemyMixin:
 
                     if trolls_atuais < e.get("brutamontes", 0):
                         classe_inimigo = Troll
-                        nome_inimigo = "\U0001fab2 Besouro-Rinoceronte"
+                        nome_inimigo = "Besouro-Rinoceronte"
                     elif goblins_atuais < e.get("infiltradores", 0):
                         classe_inimigo = Goblin
-                        nome_inimigo = "\U0001f41c Formiga Infiltradora"
+                        nome_inimigo = "Formiga Infiltradora"
                         is_infiltrador = True
 
                 inimigo = classe_inimigo(nome_inimigo, "B", nivel=3)
@@ -484,7 +493,7 @@ class CercoStateEnemyMixin:
         }
 
         classe_inimigo = mapa_classes.get(info["classe"], Goblin)
-        nome_inimigo = f"{info['emoji']} {info['nome']} (Dev)"
+        nome_inimigo = f"{info['nome']} (Dev)"
 
         inimigo = classe_inimigo(nome_inimigo, "B", nivel=3)
         inimigo.tipo_inseto = carta_key

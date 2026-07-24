@@ -315,6 +315,7 @@ def criar_estado(pedregulhos=8, is_solo=True):
         "mao":                [],
         "descarte":           [],
         "excluidas_ciclo":    [],
+        "cartas_upgrade_ativas": [],  # Upgrades acumulados (nunca descartados)
         "pontos_movimento":   0,
         "pontos_trabalho":    0,
         "pontos_escavacao":   0,

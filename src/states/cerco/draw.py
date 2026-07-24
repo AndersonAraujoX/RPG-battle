@@ -10,6 +10,7 @@ import zlib
 import pygame
 
 from ...config import LARGURA_TELA, ALTURA_TELA
+from ...utils import remover_emojis
 from .data import (
     C_BG, C_PAINEL, C_BORDA, C_ACENTO, C_OURO, C_VERDE, C_PERIGO,
     C_CERCO, C_TEXTO, C_DIM, C_INVASOR, C_BRUTE, C_HEROI,
@@ -1046,7 +1047,7 @@ class CercoStateDrawMixin:
                         pulse = abs(self.timer % 120 - 60) / 60.0
                         pulse_r = max(2, int((4 + 3 * pulse) * self.zoom))
                         pygame.draw.circle(tela, (120, 220, 255), (cx_draw, cy_draw), pulse_r, max(1, int(2 * self.zoom)))
-                    nome_exibido = "?????" if char.nome == "Aquele" else char.nome
+                    nome_exibido = "?????" if char.nome == "Aquele" else remover_emojis(char.nome)
                     nome_s = self.fMi.render(nome_exibido, True, C_TEXTO)
                     if self.zoom != 1.0:
                         nome_s = pygame.transform.scale(nome_s,
@@ -1577,13 +1578,13 @@ class CercoStateDrawMixin:
             pygame.draw.rect(tela, (24, 16, 16), carta_ini_rect, border_radius=6)
             pygame.draw.rect(tela, C_PERIGO, carta_ini_rect, 1, border_radius=6)
             from ...cerco_isectum import DADOS_INIMIGOS
-            info_ini = DADOS_INIMIGOS.get(ultima_carta, {"nome": ultima_carta, "emoji": "\U0001f47e", "antigo": ""})
+            info_ini = DADOS_INIMIGOS.get(ultima_carta, {"nome": ultima_carta, "emoji": "", "antigo": ""})
             nome_lbl1 = self.fMi.render("REVELADO", True, C_DIM)
-            nome_lbl2 = self.fMi.render(f"{info_ini['emoji']} {info_ini['nome']}", True, C_PERIGO)
+            nome_lbl2 = self.fMi.render(info_ini['nome'], True, C_PERIGO)
             if nome_lbl2.get_width() > 90:
-                nome_lbl2 = self.fP.render(f"{info_ini['emoji']} {info_ini['nome']}", True, C_PERIGO)
+                nome_lbl2 = self.fP.render(info_ini['nome'], True, C_PERIGO)
             if nome_lbl2.get_width() > 90:
-                nome_lbl2 = self.fMi.render(f"{info_ini['emoji']} {info_ini['nome'][:8]}...", True, C_PERIGO)
+                nome_lbl2 = self.fMi.render(f"{info_ini['nome'][:8]}...", True, C_PERIGO)
             tela.blit(nome_lbl1, (carta_ini_rect.centerx - nome_lbl1.get_width() // 2, carta_ini_rect.y + 12))
             tela.blit(nome_lbl2, (carta_ini_rect.centerx - nome_lbl2.get_width() // 2, carta_ini_rect.y + 32))
             if info_ini.get("antigo"):
@@ -1632,16 +1633,23 @@ class CercoStateDrawMixin:
                 crect = pygame.Rect(cx, cy + deslocamento_y, cw, ch)
                 self.carta_rects.append(crect)
             # 1. Determina o tipo de gema e a cor do acento/tema
+            eh_upgrade = carta.get("tipo") == "upgrade"
             tipo_gema = "movimento"
             if carta.get("trabalho"):  tipo_gema = "trabalho"
             if carta.get("escavacao"): tipo_gema = "escavacao"
             cor_gema = GEMAS_COR.get(tipo_gema, (200, 200, 200))
+            if eh_upgrade:
+                cor_gema = (255, 200, 50)  # Dourado para upgrades
 
             # 2. Renderiza Fundo (Força a renderização procedural premium)
             sprite = None
 
             # Determina cores do gradiente de acordo com o tipo
-            if tipo_gema == "movimento":
+            if eh_upgrade:
+                # Cartas de upgrade: tema dourado/âmbar rico
+                c_top = (90, 65, 14) if hover else (70, 48, 10)
+                c_bot = (40, 26, 4)
+            elif tipo_gema == "movimento":
                 c_top = (26, 46, 82) if hover else (14, 26, 50)
                 c_bot = (12, 18, 32)
             elif tipo_gema == "trabalho":
@@ -1766,8 +1774,16 @@ class CercoStateDrawMixin:
                     lbl_s = self.fMi.render(f"{letra}{valor}", True, cor_attr)
                     tela.blit(lbl_s, (rect_stat.centerx - lbl_s.get_width() // 2, rect_stat.centery - lbl_s.get_height() // 2))
 
-            # 9. Overlay de Descarte/Queima
-            if sel:
+            # 9. Overlay de Descarte/Queima — ou indicador PERMANENTE para upgrades
+            if eh_upgrade:
+                # Indicador dourado: Upgrade acumula
+                star_lbl = self.fMi.render("⭐ PERMANENTE", True, (255, 220, 60))
+                star_bg = pygame.Rect(crect.centerx - star_lbl.get_width() // 2 - 4,
+                                      crect.y + 42, star_lbl.get_width() + 8, 16)
+                pygame.draw.rect(tela, (50, 36, 4), star_bg, border_radius=3)
+                pygame.draw.rect(tela, (200, 160, 30), star_bg, 1, border_radius=3)
+                tela.blit(star_lbl, (crect.centerx - star_lbl.get_width() // 2, crect.y + 43))
+            elif sel:
                 ql = self.fMi.render("DESCARTE", True, C_PERIGO)
                 ql_bg = pygame.Rect(crect.centerx - ql.get_width() // 2 - 4, crect.y + 42, ql.get_width() + 8, 16)
                 pygame.draw.rect(tela, (40, 10, 10), ql_bg, border_radius=3)
@@ -1799,7 +1815,7 @@ class CercoStateDrawMixin:
         if self.modo_acao == MODO_SUBORNAR:
             dep = e.get("recursos_depositados", {})
             bx = self.btn_subornar.right + 8
-            for res, nome in [("madeira", "\U0001fab5"), ("couro", "\U0001f9f3"), ("metal", "\u2699\ufe0f")]:
+            for res, nome in [("madeira", "Madeira: "), ("couro", "Couro: "), ("metal", "Metal: ")]:
                 br = pygame.Rect(bx, H - 48, 50, 36)
                 ativo = dep.get(res, 0) > 0
                 _btn(br, f"{nome}{dep.get(res,0)}", ativo,
@@ -1810,7 +1826,7 @@ class CercoStateDrawMixin:
                 bx += 56
             br_rocha = pygame.Rect(bx, H - 48, 140, 36)
             ativo_rocha = e.get("pontos_escavacao", 0) >= 4
-            _btn(br_rocha, "\U0001faa8 Limpar Rocha(4PE)", ativo_rocha,
+            _btn(br_rocha, "Limpar Rocha(4PE)", ativo_rocha,
                  (30, 40, 50), (50, 70, 90), (20, 20, 20))
             if br_rocha.collidepoint(mouse) and ativo_rocha:
                 if pygame.mouse.get_pressed()[0]:
@@ -1847,9 +1863,9 @@ class CercoStateDrawMixin:
         tela.blit(sim, (cx + cw // 2 - sim.get_width() // 2, cy + 30))
         tt = self.fG.render(carta.get("titulo", ""), True, C_TEXTO)
         tela.blit(tt, (cx + cw // 2 - tt.get_width() // 2, cy + 90))
-        tipo_lbl = {"invasor": "\U0001f47f INVASOR COMUM", "mover": "\U0001f3c3 AVANÇO",
-                    "torre_assalto": "\U0001f5fc TORRE DE ASSALTO",
-                    "catapulta": "\U0001f4a5 CATAPULTA DE CERCO"
+        tipo_lbl = {"invasor": "INVASOR COMUM", "mover": "AVANÇO",
+                    "torre_assalto": "TORRE DE ASSALTO",
+                    "catapulta": "CATAPULTA DE CERCO"
                     }.get(carta["tipo"], carta["tipo"].upper())
         tp = self.fM.render(tipo_lbl, True, cor_niv)
         tela.blit(tp, (cx + cw // 2 - tp.get_width() // 2, cy + 130))
@@ -1969,14 +1985,14 @@ class CercoStateDrawMixin:
         e = self.estado
         vit = e.get("vitoria")
         cor = C_VERDE if vit else C_PERIGO
-        t1  = self.fT.render("\U0001f3c6 VITÓRIA!" if vit else "\U0001f480 DERROTA!", True, cor)
+        t1  = self.fT.render("VITÓRIA!" if vit else "DERROTA!", True, cor)
         tela.blit(t1, (W // 2 - t1.get_width() // 2, H // 2 - 90))
         msg = (e.get("msg_vitoria") or "Os defensores resistiram!") if vit \
             else (e.get("msg_derrota") or "A fortaleza caiu.")
         t2 = self.fM.render(msg[:64], True, C_TEXTO)
         tela.blit(t2, (W // 2 - t2.get_width() // 2, H // 2 - 20))
         t3 = self.fP.render(
-            f"Rodada {e['rodada']}  |  Tesouro: {e['tesouro']}\U0001fa99  |  "
+            f"Rodada {e['rodada']}  |  Tesouro: {e['tesouro']} Moedas  |  "
             f"Cartas no cerco: {len(self.deck)}", True, C_DIM
         )
         tela.blit(t3, (W // 2 - t3.get_width() // 2, H // 2 + 24))
@@ -2109,7 +2125,7 @@ class CercoStateDrawMixin:
             borda_cor = C_ACENTO if hover else C_BORDA
             pygame.draw.rect(tela, bg_cor, r, border_radius=6)
             pygame.draw.rect(tela, borda_cor, r, 1, border_radius=6)
-            txt = f"{info['emoji']} {info['nome']}"
+            txt = info['nome']
             txt_surf = self.fP.render(txt, True, C_TEXTO)
             if txt_surf.get_width() > cw - 12:
                 txt_surf = self.fMi.render(txt, True, C_TEXTO)
