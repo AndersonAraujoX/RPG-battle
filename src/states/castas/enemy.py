@@ -240,7 +240,7 @@ class CastasEnemyMixin:
             novo_tesouro = max(0, e.get("tesouro", 0) - 3)
             self.estado  = aplicar_delta(e, {"tesouro": novo_tesouro})
             e = self.estado
-            self._push("INSETO", f"{emoji} {nome}: -3 ouro do tesouro!")
+            self._push("INSETO", f"{nome}: -3 cristais do tesouro!")
 
         elif inseto_id == "gafanhoto_praga":
             # Descarta 2 cartas do mercado (envia para descarte base do herói)

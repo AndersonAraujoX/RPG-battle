@@ -380,7 +380,7 @@ class CercoStateHeroMixin:
                     reserva = min(10, reserva + roubado)
                     nome_zona = NOMES_ZONA.get(zona, zona)
                     logs_avanco.append(
-                        ("AMEACA", f"{qtd}x invasor no {nome_zona} rouba {roubado}\U0001fa99 do tesouro!")
+                        ("AMEACA", f"{qtd}x invasor no {nome_zona} rouba {roubado} cristais do tesouro!")
                     )
                 novos[zona] = 0
                 if tesouro <= 0:
@@ -409,7 +409,7 @@ class CercoStateHeroMixin:
         delta = {"invasores": novos, "tesouro": tesouro, "reserva": reserva}
         if derrota:
             delta["derrota"] = True
-            delta["msg_derrota"] = "Tesouro saqueado pelos invasores — DERROTA!"
+            delta["msg_derrota"] = "Cristais saqueados pelos invasores — DERROTA!"
 
         self.estado = aplicar_delta(self.estado, delta)
 

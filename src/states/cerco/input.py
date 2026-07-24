@@ -214,6 +214,37 @@ class CercoStateInputMixin:
                     self._fim_turno_heroi()
                 return
 
+            if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE"):
+                if getattr(self, "btn_merc_melee", None) and self.btn_merc_melee.collidepoint(mouse):
+                    if e.get("tesouro", 0) < 5:
+                        self._feedback("Cristais Roxos insuficientes! Requer 5 Cristais.", C_PERIGO)
+                    else:
+                        self.modo_acao = MODO_CONVOCAR
+                        self.tipo_mercenario_selecionado = "melee"
+                        self.custo_mercenario_selecionado = 5
+                        self._feedback("🛡️ GUARDA (5💎): clique em uma célula no mapa para posicionar!", (180, 120, 255))
+                    return
+
+                if getattr(self, "btn_merc_arqueiro", None) and self.btn_merc_arqueiro.collidepoint(mouse):
+                    if e.get("tesouro", 0) < 7:
+                        self._feedback("Cristais Roxos insuficientes! Requer 7 Cristais.", C_PERIGO)
+                    else:
+                        self.modo_acao = MODO_CONVOCAR
+                        self.tipo_mercenario_selecionado = "arqueiro"
+                        self.custo_mercenario_selecionado = 7
+                        self._feedback("🏹 ARQUEIRO (7💎): clique em uma célula no mapa para posicionar!", (180, 120, 255))
+                    return
+
+                if getattr(self, "btn_merc_minerador", None) and self.btn_merc_minerador.collidepoint(mouse):
+                    if e.get("tesouro", 0) < 4:
+                        self._feedback("Cristais Roxos insuficientes! Requer 4 Cristais.", C_PERIGO)
+                    else:
+                        self.modo_acao = MODO_CONVOCAR
+                        self.tipo_mercenario_selecionado = "minerador"
+                        self.custo_mercenario_selecionado = 4
+                        self._feedback("⛏️ MINERADOR (4💎): clique em uma célula no mapa para posicionar!", (180, 120, 255))
+                    return
+
             for i, rect in enumerate(self.carta_rects):
                 if rect.collidepoint(mouse):
                     if i < len(e["mao"]):
@@ -468,16 +499,31 @@ class CercoStateInputMixin:
                 self._feedback(msg, C_PERIGO)
 
         elif self.modo_acao == MODO_CONVOCAR:
-            from ...personagens.novos_personagens import Elden, Kuro, Darwin
-            from ...personagens import Arqueiro, Clerigo
-            aliado_classe = random.choice([Elden, Kuro, Darwin, Arqueiro, Clerigo])
-            novo_aliado = aliado_classe(f"{aliado_classe.__name__}", "A", nivel=3)
+            tipo_m = getattr(self, 'tipo_mercenario_selecionado', 'melee')
+            custo_m = getattr(self, 'custo_mercenario_selecionado', 5)
+
+            if self.estado.get("tesouro", 0) < custo_m:
+                self._feedback("Cristais Roxos insuficientes!", C_PERIGO)
+                self.modo_acao = MODO_NENHUM
+                return
+
+            from src.personagens.mercenarios import MercenarioMelee, MercenarioArqueiro, MercenarioMinerador
+            mapa_merc = {
+                "melee": MercenarioMelee,
+                "arqueiro": MercenarioArqueiro,
+                "minerador": MercenarioMinerador,
+            }
+            classe_m = mapa_merc.get(tipo_m, MercenarioMelee)
+            novo_aliado = classe_m(nivel=3)
             sucesso = self.motor.tabuleiro.adicionar_personagem(novo_aliado, cx, cy)
             if sucesso:
                 self.motor.time_a.append(novo_aliado)
                 self.motor.combatentes.append(novo_aliado)
-                self._push("HEROI", f"Aliado [{novo_aliado.nome}] convocado na célula ({cx}, {cy})!")
-                self._feedback(f"{novo_aliado.nome} Convocado!", C_VERDE)
+                novos_cristais = max(0, self.estado.get("tesouro", 0) - custo_m)
+                from ...cerco_isectum import aplicar_delta
+                self.estado = aplicar_delta(self.estado, {"tesouro": novos_cristais})
+                self._push("HEROI", f"💎 Contratou [{novo_aliado.nome}] por {custo_m} Cristais Roxos em ({cx}, {cy})!")
+                self._feedback(f"[{novo_aliado.nome}] Contratado!", C_VERDE)
                 self.modo_acao = MODO_NENHUM
             else:
                 self._feedback("Célula ocupada ou inválida (parede). Escolha outra!", C_PERIGO)

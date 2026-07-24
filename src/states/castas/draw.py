@@ -90,8 +90,8 @@ class CastasStateDrawMixin(CercoStateDrawMixin):
         # HUD recursos
         e = self.estado
         stats = [
-            (f"🏆 {e.get('tesouro', 0)}", C_OURO),
-            (f"🛡 {e.get('reserva', 0)}", C_HEROI),
+            (f"Cristais: {e.get('tesouro', 0)}", C_ACENTO),
+            (f"Reserva: {e.get('reserva', 0)}", C_HEROI),
         ]
         if self.fase == "TURNO_DIRETOR":
             acoes = e.get("acoes_diretor", 0)

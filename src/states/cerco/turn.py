@@ -301,6 +301,9 @@ class CercoStateTurnMixin:
         self.carta_cerco = None
         self.estado = aplicar_delta(self.estado, {"rodada": self.estado["rodada"] + 1})
 
+        # Processa turnos automáticos dos Mercenários contratados
+        self._processar_turnos_mercenarios()
+
         if self._verificar_derrota_imediata():
             return
 
@@ -311,3 +314,83 @@ class CercoStateTurnMixin:
         else:
             self.fase = "JOGAR_CARTA"
             self._comprar_mao()
+
+    def _processar_turnos_mercenarios(self):
+        """Processa as ações automáticas de todos os mercenários contratados no time A."""
+        from ...cerco_isectum import aplicar_delta
+        tab = self.motor.tabuleiro
+
+        mercenarios = [
+            p for p in list(self.motor.combatentes)
+            if getattr(p, "time", "A") == "A" and getattr(p, "_is_mercenario", False) and p.hp_atual > 0
+        ]
+
+        if not mercenarios:
+            return
+
+        cristais_minerados = 0
+
+        for m in mercenarios:
+            tipo = getattr(m, "tipo_mercenario", "melee")
+
+            # --- MINERADOR ---
+            if tipo == "minerador":
+                cristais_minerados += 2
+                pedras = self.estado.get("pedregulhos", 0)
+                if pedras > 0:
+                    self.estado = aplicar_delta(self.estado, {"pedregulhos": pedras - 1})
+                self._push("HEROI", f"⛏️ {m.nome} minerou as rochas e extraiu +2 Cristais Roxos!")
+
+            # --- MELEE OU ARQUEIRO ---
+            elif tipo in ("melee", "arqueiro"):
+                inimigos = [
+                    p for p in list(self.motor.combatentes)
+                    if getattr(p, "time", "A") == "B" and p.hp_atual > 0
+                ]
+                if not inimigos:
+                    continue
+
+                inimigos.sort(key=lambda ini: abs(ini.pos_x - m.pos_x) + abs(ini.pos_y - m.pos_y))
+                alvo = inimigos[0]
+                dist = abs(alvo.pos_x - m.pos_x) + abs(alvo.pos_y - m.pos_y)
+
+                alcance_max = m.alcance if hasattr(m, 'alcance') else (5 if tipo == "arqueiro" else 1)
+
+                if dist <= alcance_max:
+                    import random as _rnd
+                    d20 = _rnd.randint(1, 20)
+                    total_ataque = d20 + getattr(m, 'bonus_ataque', 4)
+                    if total_ataque >= alvo.ac:
+                        num_d, faces_d = getattr(m, 'dado_dano', (1, 6))
+                        b_dano = getattr(m, 'bonus_dano', 2)
+                        dano = sum(_rnd.randint(1, faces_d) for _ in range(num_d)) + b_dano
+                        alvo.hp_atual -= dano
+                        icone = "🏹" if tipo == "arqueiro" else "⚔️"
+                        self._push("HEROI", f"{icone} {m.nome} atacou {alvo.nome}! Dano: {dano} (HP: {max(0, alvo.hp_atual)}/{alvo.hp_max})")
+                        if alvo.hp_atual <= 0:
+                            if 0 <= alvo.pos_y < len(tab.grid) and 0 <= alvo.pos_x < len(tab.grid[0]):
+                                if tab.grid[alvo.pos_y][alvo.pos_x] is alvo:
+                                    tab.grid[alvo.pos_y][alvo.pos_x] = None
+                            if alvo in self.motor.combatentes:
+                                self.motor.combatentes.remove(alvo)
+                            if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
+                                self.motor.time_b.remove(alvo)
+                            self._push("HEROI", f"💀 {m.nome} ABATEU {alvo.nome}!")
+                    else:
+                        icone = "🏹" if tipo == "arqueiro" else "⚔️"
+                        self._push("HEROI", f"{icone} {m.nome} atacou {alvo.nome}, mas ERROU! (D20: {d20}+{getattr(m, 'bonus_ataque', 4)} vs AC {alvo.ac})")
+                else:
+                    dx = 1 if alvo.pos_x > m.pos_x else (-1 if alvo.pos_x < m.pos_x else 0)
+                    dy = 1 if alvo.pos_y > m.pos_y else (-1 if alvo.pos_y < m.pos_y else 0)
+                    nx, ny = m.pos_x + dx, m.pos_y + dy
+                    if 0 <= nx < tab.largura and 0 <= ny < tab.altura:
+                        if tab.get_terrain_em(nx, ny) != "parede" and tab.grid[ny][nx] is None:
+                            tab.grid[m.pos_y][m.pos_x] = None
+                            tab.grid[ny][nx] = m
+                            m.pos_x, m.pos_y = nx, ny
+
+        if cristais_minerados > 0:
+            novos_tesouro = self.estado.get("tesouro", 0) + cristais_minerados
+            self.estado = aplicar_delta(self.estado, {"tesouro": novos_tesouro})
+            self._feedback(f"⛏️ +{cristais_minerados} Cristais Roxos (Mineração)!", (180, 80, 255))
+

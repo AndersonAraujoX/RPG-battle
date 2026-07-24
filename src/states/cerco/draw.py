@@ -12,7 +12,7 @@ import pygame
 from ...config import LARGURA_TELA, ALTURA_TELA
 from ...utils import remover_emojis
 from .data import (
-    C_BG, C_PAINEL, C_BORDA, C_ACENTO, C_OURO, C_VERDE, C_PERIGO,
+    C_BG, C_PAINEL, C_BORDA, C_ACENTO, C_OURO, C_CRISTAL, C_VERDE, C_PERIGO,
     C_CERCO, C_TEXTO, C_DIM, C_INVASOR, C_BRUTE, C_HEROI,
     ZONA_TERRENO_MAP, NAR,
     MODO_NENHUM, MODO_MOVER, MODO_TRABALHAR, MODO_ESCAVAR,
@@ -51,6 +51,9 @@ class CercoStateDrawMixin:
         self.btn_atirar     = pygame.Rect(8+bw*6,     by, bw - 4,  bh)
         self.btn_voltar     = pygame.Rect(W - 156, 68,  140,  30)
         self.btn_confirmar  = pygame.Rect(W//2-100, H-48, 200,  bh)
+        self.btn_merc_melee     = pygame.Rect(8,       H - 184, 160, 32)
+        self.btn_merc_arqueiro   = pygame.Rect(174,     H - 184, 160, 32)
+        self.btn_merc_minerador  = pygame.Rect(340,     H - 184, 175, 32)
 
     # ── RENDERING UTILITIES ──────────────────────────────────────────────
     def _draw_alpha_polygon(self, tela, color, points):
@@ -349,7 +352,7 @@ class CercoStateDrawMixin:
         tela.blit(lbl_rod, (W // 2 - lbl_rod.get_width() // 2, by + bh + 4))
         e = self.estado
         info = [
-            (f"Ouro:{e['tesouro']}", C_OURO),
+            (f"Cristal Roxo:{e['tesouro']}", C_CRISTAL),
             (f"Res:{e['reserva']}", C_INVASOR),
             (f"Esc:{e['pedregulhos']}", (120, 160, 255)),
             (f"PM:{e['pontos_movimento']}", C_HEROI),
@@ -927,16 +930,25 @@ class CercoStateDrawMixin:
                             for ox, oy in posicoes:
                                 bx = cx_ + ox
                                 by = cy_ + oy
-                                pygame.draw.ellipse(self.map_backbuffer, (200, 150, 0), (bx - w//2, by - h//2, w, h))
-                                pygame.draw.rect(self.map_backbuffer, (220, 170, 10), (bx - w//2, by - h//2 + 1, w, h//2))
-                                pygame.draw.ellipse(self.map_backbuffer, (255, 220, 50), (bx - w//2, by - h//2, w, h//2))
-                                pygame.draw.ellipse(self.map_backbuffer, (255, 245, 150), (bx - w//4, by - h//2 + 1, w//2, h//4))
-                                pygame.draw.ellipse(self.map_backbuffer, (130, 90, 0), (bx - w//2, by - h//2, w, h), 1)
+                                ch_w = max(5, int(8 * self.zoom))
+                                ch_h = max(7, int(11 * self.zoom))
+                                pts = [
+                                    (bx, by - ch_h // 2),
+                                    (bx + ch_w // 2, by - ch_h // 6),
+                                    (bx + ch_w // 3, by + ch_h // 2),
+                                    (bx - ch_w // 3, by + ch_h // 2),
+                                    (bx - ch_w // 2, by - ch_h // 6),
+                                ]
+                                pygame.draw.polygon(self.map_backbuffer, (110, 20, 160), pts)
+                                top_pts = [(bx, by - ch_h // 2), (bx + ch_w // 2, by - ch_h // 6), (bx, by), (bx - ch_w // 2, by - ch_h // 6)]
+                                pygame.draw.polygon(self.map_backbuffer, (210, 140, 255), top_pts)
+                                pygame.draw.polygon(self.map_backbuffer, (245, 210, 255), top_pts, 1)
+                                pygame.draw.polygon(self.map_backbuffer, (70, 10, 110), pts, 1)
             self.map_backbuffer_sujo = False
         tela.blit(self.map_backbuffer, (r.x, r.y))
         labels_pendentes = {}
         ZONA_LABELS = {
-            "camara_central": ("CAMARA CENTRAL (OURO)", C_OURO),
+            "camara_central": ("CAMARA CENTRAL (CRISTAL ROXO)", C_CRISTAL),
             "curtume":        ("CURTUME (COURO)",   (215, 165, 85)),
             "carpintaria":    ("CARPINTARIA (MADEIRA)", (85, 205, 85)),
             "fundicao":       ("FUNDICAO (METAL)",   (185, 185, 205)),
@@ -1812,6 +1824,15 @@ class CercoStateDrawMixin:
         _btn(self.btn_fim_turno, "Encerrar Turno  [Ent]",
              True, (60, 20, 20), (90, 30, 30), C_PAINEL)
 
+        # Painel de Recrutamento de Mercenários com Cristais Roxos
+        cristais_atuais = e.get("tesouro", 0)
+        _btn(self.btn_merc_melee, "Guarda Melee (5💎)", cristais_atuais >= 5,
+             (50, 20, 70), (90, 40, 130), (25, 12, 35))
+        _btn(self.btn_merc_arqueiro, "Arqueiro (7💎)", cristais_atuais >= 7,
+             (50, 20, 70), (90, 40, 130), (25, 12, 35))
+        _btn(self.btn_merc_minerador, "Minerador (4💎)", cristais_atuais >= 4,
+             (50, 20, 70), (90, 40, 130), (25, 12, 35))
+
         if self.modo_acao == MODO_SUBORNAR:
             dep = e.get("recursos_depositados", {})
             bx = self.btn_subornar.right + 8
@@ -1992,7 +2013,7 @@ class CercoStateDrawMixin:
         t2 = self.fM.render(msg[:64], True, C_TEXTO)
         tela.blit(t2, (W // 2 - t2.get_width() // 2, H // 2 - 20))
         t3 = self.fP.render(
-            f"Rodada {e['rodada']}  |  Tesouro: {e['tesouro']} Moedas  |  "
+            f"Rodada {e['rodada']}  |  Cristais: {e['tesouro']}  |  "
             f"Cartas no cerco: {len(self.deck)}", True, C_DIM
         )
         tela.blit(t3, (W // 2 - t3.get_width() // 2, H // 2 + 24))

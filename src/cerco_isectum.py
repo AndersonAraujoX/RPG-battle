@@ -463,7 +463,7 @@ def processar_carta(estado, carta):
         delta["reserva"]   = min(10, estado["reserva"] + volta_reserva)
         if nt == 0:
             delta["derrota"]     = True
-            delta["msg_derrota"] = "Tesouro saqueado — DERROTA"
+            delta["msg_derrota"] = "Cristais saqueados — DERROTA"
             logs.append(("DERROTA", delta["msg_derrota"]))
 
     elif tipo == "torre_assalto":
@@ -515,7 +515,7 @@ def _ativar_catapulta(estado):
     
     delta = {"tesouro": nt, "catapulta": {"estado": "reserva", "ciclo": 0},
              "slots_upgrade": novos_slots, "deck_catapulta": deck_catapulta}
-    logs.append(("CERCO", f"Catapulta remove 1🪙 (Tesouro: {nt}) [Catapulta Restantes: {len(deck_catapulta)}]"))
+    logs.append(("CERCO", f"Catapulta remove 1 cristal (Tesouro: {nt}) [Catapulta Restantes: {len(deck_catapulta)}]"))
     
     if len(deck_catapulta) <= 0:
         delta["derrota"] = True
@@ -523,7 +523,7 @@ def _ativar_catapulta(estado):
         logs.append(("DERROTA", delta["msg_derrota"]))
     elif nt == 0:
         delta["derrota"]     = True
-        delta["msg_derrota"] = "Tesouro zerado pela Catapulta — DERROTA"
+        delta["msg_derrota"] = "Cristais zerados pela Catapulta — DERROTA"
         logs.append(("DERROTA", delta["msg_derrota"]))
     return {"delta": delta, "logs": logs}
 

@@ -298,7 +298,7 @@ class CercoSetupState(GameState):
 
             dt = self.fM.render(diff["nome"], True, cor if selecionado else C_TEXTO)
             tela.blit(dt, (rect.centerx - dt.get_width() // 2, rect.y + 6))
-            detalhes = f"Minas: {diff['pedregulhos']}  |  Ouro: {diff['tesouro']}  |  Reserva: {diff['reserva']}"
+            detalhes = f"Minas: {diff['pedregulhos']}  |  Cristais: {diff['tesouro']}  |  Reserva: {diff['reserva']}"
             dd = self.fMi.render(detalhes, True, C_DIM)
             tela.blit(dd, (rect.centerx - dd.get_width() // 2, rect.y + 26))
 

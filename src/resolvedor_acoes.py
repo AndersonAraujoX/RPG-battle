@@ -21,7 +21,7 @@ from typing import Optional, Dict, List, Tuple
 # Grade 20x20 (coords 0..19), com zona externa de spawn usando coords virtuais -5..-1 e 20..24
 ZONAS_GRID = {
     # ── Interior ────────────────────────────────────────────────────────────
-    "camara_central": (8,  8,  11, 11),  # OURO   — câmara do tesouro
+    "camara_central": (8,  8,  11, 11),  # CRISTAL ROXO — câmara do tesouro
     "curtume":        (5,  4,  14,  7),  # COURO  — Norte interno
     "carpintaria":    (5, 12,  14, 15),  # MADEIRA — Sul interno
     "fundicao":       (4,  5,   7, 14),  # FERRO  — Oeste interno
