@@ -70,11 +70,16 @@ class Tabuleiro:
         return False
 
     def mover_personagem(self, personagem, novo_x, novo_y):
-        if self.grid[personagem.pos_y][personagem.pos_x] == personagem:
-            self.grid[personagem.pos_y][personagem.pos_x] = None
+        dest = self.grid[novo_y][novo_x]
+        if dest and dest is not personagem and getattr(dest, "_is_mercenario", False):
+            return False
+        if 0 <= personagem.pos_y < self.altura and 0 <= personagem.pos_x < self.largura:
+            if self.grid[personagem.pos_y][personagem.pos_x] == personagem:
+                self.grid[personagem.pos_y][personagem.pos_x] = None
         self.grid[novo_y][novo_x] = personagem
         personagem.pos_x, personagem.pos_y = novo_x, novo_y
         personagem.elevacao = self.get_elevation_em(novo_x, novo_y)
+        return True
 
     def adicionar_personagem_na_borda(self, personagem, borda):
         """Adiciona um personagem em uma borda vazia (norte ou sul), espalhando-os."""

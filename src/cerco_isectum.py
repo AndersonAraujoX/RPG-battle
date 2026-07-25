@@ -91,6 +91,10 @@ CARTAS_BASICAS = [
 ]
 
 CARTAS_UPGRADE_AMARELO = [
+    {"id": "estratagema_mano", "nome": "Plano Tatico", "simbolo": "📜", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 4, "escavacao": 0, "efeito_extra": "aumentar_mao",
+     "descricao": "+4 Trab +1 Carta Mão/Turno",
+     "custo": {"couro": 2, "madeira": 1}},
     {"id": "mestre_1",    "nome": "Mestre Artesao", "simbolo": "X", "tipo": "upgrade",
      "movimento": 0, "trabalho": 5, "escavacao": 0, "efeito_extra": "draw_1",
      "descricao": "+5 Trab, compra 1 carta",
@@ -149,18 +153,18 @@ CARTAS_UPGRADE = CARTAS_UPGRADE_AMARELO + CARTAS_UPGRADE_CINZA + CARTAS_UPGRADE_
 def criar_mercado():
     """Retorna os slots de upgrade do mercado."""
     slots_base = [
-        {"id": 0, "nome": "Mestre Artesao",  "simbolo": "X", "custo": {"madeira": 2},
+        {"id": 0, "nome": "Plano Tatico",    "simbolo": "📜", "custo": {"couro": 2, "madeira": 1},
+         "carta_id": "estratagema_mano", "bloqueado": False, "adquirido": False,
+         "descricao": "+4 Trab +1 Carta Mão/Turno", "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}},
+        {"id": 1, "nome": "Mestre Artesao",  "simbolo": "X", "custo": {"madeira": 2},
          "carta_id": "mestre_1",   "bloqueado": False, "adquirido": False,
          "descricao": "+5 Trab, compra 1 carta", "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}},
-        {"id": 1, "nome": "Corrida Livre",   "simbolo": "R", "custo": {"couro": 2},
+        {"id": 2, "nome": "Corrida Livre",   "simbolo": "R", "custo": {"couro": 2},
          "carta_id": "corrida_1",  "bloqueado": False, "adquirido": False,
          "descricao": "+30 Movimento", "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}},
-        {"id": 2, "nome": "Perfurador",      "simbolo": "P", "custo": {"metal": 2},
+        {"id": 3, "nome": "Perfurador",      "simbolo": "P", "custo": {"metal": 2},
          "carta_id": "perfurador", "bloqueado": False, "adquirido": False,
          "descricao": "+5 Escavacao", "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}},
-        {"id": 3, "nome": "Grande Forjador", "simbolo": "G", "custo": {"madeira": 2, "metal": 1},
-         "carta_id": "forjador",   "bloqueado": False, "adquirido": False,
-         "descricao": "+15 Mov  +6 Trab", "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}},
         {"id": 4, "nome": "Explorador",      "simbolo": "O", "custo": {"couro": 1, "madeira": 1},
          "carta_id": "explorador", "bloqueado": False, "adquirido": False,
          "descricao": "+25 Mov +3 Trab +4 Esc", "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}},
@@ -270,12 +274,15 @@ DADOS_INIMIGOS = {
 # ═══════════════════════════════════════════════════════════════════════════
 # ESTADO INICIAL DO JOGO
 # ═══════════════════════════════════════════════════════════════════════════
-def criar_estado(pedregulhos=8, is_solo=True):
+def criar_estado(pedregulhos=8, is_solo=True, fator_deck=1.0):
     deck_heroi = copy.deepcopy(CARTAS_BASICAS)
     random.shuffle(deck_heroi)
 
     deck_ini = list(DADOS_INIMIGOS.keys()) * 2
     random.shuffle(deck_ini)
+    if fator_deck < 1.0:
+        qtd = max(4, int(round(len(deck_ini) * fator_deck)))
+        deck_ini = deck_ini[:qtd]
 
     return {
         # ── Fortaleza ───────────────────────────────────────────────────
@@ -327,8 +334,9 @@ def criar_estado(pedregulhos=8, is_solo=True):
 # ═══════════════════════════════════════════════════════════════════════════
 # DECK DE CERCO (ameaças — 50 cartas)
 # ═══════════════════════════════════════════════════════════════════════════
-def criar_deck():
+def criar_deck(fator_deck=1.0):
     pool = []
+    # Nível 1 (12 cartas)
     for _ in range(4):
         pool += [
             {"tipo": "invasor", "zona": "muralha_norte", "qtd": 1, "nivel": 1,
@@ -338,6 +346,7 @@ def criar_deck():
             {"tipo": "mover",   "zona": None,            "qtd": 1, "nivel": 1,
              "titulo": "Avanco",           "simbolo": "A"},
         ]
+    # Nível 2 (10 cartas)
     for _ in range(2):
         pool += [
             {"tipo": "invasor",       "zona": "muralha_norte", "qtd": 2, "nivel": 2,
@@ -351,6 +360,7 @@ def criar_deck():
             {"tipo": "invasor",       "zona": "muralha_leste", "qtd": 2, "nivel": 2,
              "titulo": "Horda Leste",      "simbolo": "II"},
         ]
+    # Nível 3 (10 cartas)
     for _ in range(2):
         pool += [
             {"tipo": "invasor",       "zona": "muralha_norte", "qtd": 3, "nivel": 3,
@@ -364,6 +374,7 @@ def criar_deck():
             {"tipo": "torre_assalto", "zona": None,            "qtd": 1, "nivel": 3,
              "titulo": "Nova Torre",       "simbolo": "T"},
         ]
+    # Nível 4 (10 cartas)
     for _ in range(2):
         pool += [
             {"tipo": "invasor",   "zona": "muralha_leste", "qtd": 3, "nivel": 4,
@@ -377,6 +388,7 @@ def criar_deck():
             {"tipo": "invasor",   "zona": "muralha_oeste", "qtd": 3, "nivel": 4,
              "titulo": "Avalanche Oeste",  "simbolo": "III"},
         ]
+    # Nível 5 (6 cartas) -> Total pool: 48 cartas
     for _ in range(2):
         pool += [
             {"tipo": "invasor",   "zona": "muralha_norte", "qtd": 4, "nivel": 5,
@@ -385,10 +397,11 @@ def criar_deck():
              "titulo": "Artilharia Total", "simbolo": "SCC"},
             {"tipo": "mover",     "zona": None,            "qtd": 1, "nivel": 5,
              "titulo": "Corrida Final",    "simbolo": "SA"},
-            {"tipo": "invasor",   "zona": "muralha_leste", "qtd": 4, "nivel": 5,
-             "titulo": "Apocalipse Leste", "simbolo": "SI"},
         ]
     random.shuffle(pool)
+    if fator_deck < 1.0:
+        qtd_cartas = max(4, int(round(len(pool) * fator_deck)))
+        return pool[:qtd_cartas]
     return pool
 
 

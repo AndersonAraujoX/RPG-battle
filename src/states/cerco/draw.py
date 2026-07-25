@@ -35,7 +35,7 @@ class CercoStateDrawMixin:
     # ── LAYOUT ─────────────────────────────────────────────────────
     def _setup_layout(self):
         W, H = LARGURA_TELA, ALTURA_TELA
-        self.mapa_rect   = pygame.Rect(8, 65, W - 330, H - 217)
+        self.mapa_rect   = pygame.Rect(8, 65, W - 330, H - 255)
         self.painel_rect = pygame.Rect(W - 318, 65, 310, H - 75)
         self.mao_rect    = pygame.Rect(8, H - 146, W - 330, 138)
         bw, bh = 110, 36
@@ -1004,6 +1004,20 @@ class CercoStateDrawMixin:
                 pygame.draw.polygon(tela, (255, 255, 255), top_pts, 1)
             if is_move_hl:
                 self._draw_celula_tactica(tela, gx, gy, el, (0, 150, 0, 45), (100, 255, 100), estilo='movimento')
+            if self.modo_acao == MODO_CONVOCAR and GRID_MIN <= gx <= GRID_MAX and GRID_MIN <= gy <= GRID_MAX:
+                if tab.grid[gy][gx] is None and tab.get_terrain_em(gx, gy) != "parede":
+                    tipo_m = getattr(self, 'tipo_mercenario_selecionado', 'melee')
+                    valido = True
+                    if tipo_m == "minerador":
+                        valido = (zona_key == "patio" or tab.get_terrain_em(gx, gy) in ("patio", "rocha", "barril", "fogo"))
+                    elif tipo_m == "arqueiro":
+                        valido = bool(zona_key and zona_key.startswith("torre"))
+
+                    if valido:
+                        if is_hover:
+                            self._draw_celula_tactica(tela, gx, gy, el, (200, 100, 255, 110), (255, 220, 255), estilo='movimento')
+                        else:
+                            self._draw_celula_tactica(tela, gx, gy, el, (160, 80, 240, 45), (200, 140, 255), estilo='movimento')
             if campo_dir and zona_key == "_campo":
                 inv_campo = e.get(campo_dir, 0)
                 if inv_campo > 0:
@@ -1041,7 +1055,8 @@ class CercoStateDrawMixin:
                     cx_draw, cy_draw = self._get_char_screen_pos(char, vgx, vgy, vel, default_cx, default_cy)
                     rect_char = pygame.Rect(cx_draw - sw // 2, cy_draw - sh + 2, sw, sh)
                     eh_atual = char is self.heroi_atual
-                    cor_char = (100, 215, 255) if eh_atual else (200, 180, 255)
+                    eh_mercenario = getattr(char, '_is_mercenario', False)
+                    cor_char = (100, 215, 255) if eh_atual else ((220, 100, 255) if eh_mercenario else (200, 180, 255))
                     desenhar_sprite(tela, char, rect_char, cor_char, self.game.imagens, self.game.sprites_visiveis)
                     if char.nome == "Troll" or getattr(char, "classe_nome", None) == "Troll":
                         trolls_no_tabuleiro = [p for p in self.motor.combatentes if getattr(p, "classe_nome", None) == "Troll" and p.hp_atual > 0]
@@ -1059,13 +1074,31 @@ class CercoStateDrawMixin:
                         pulse = abs(self.timer % 120 - 60) / 60.0
                         pulse_r = max(2, int((4 + 3 * pulse) * self.zoom))
                         pygame.draw.circle(tela, (120, 220, 255), (cx_draw, cy_draw), pulse_r, max(1, int(2 * self.zoom)))
-                    nome_exibido = "?????" if char.nome == "Aquele" else remover_emojis(char.nome)
-                    nome_s = self.fMi.render(nome_exibido, True, C_TEXTO)
+                    elif eh_mercenario:
+                        pulse_m = abs(self.timer % 90 - 45) / 45.0
+                        pr_m = max(2, int((3 + 2 * pulse_m) * self.zoom))
+                        pygame.draw.circle(tela, (210, 120, 255), (cx_draw, cy_draw), pr_m, max(1, int(1.5 * self.zoom)))
+                    nome_raw = getattr(char, 'nome', '')
+                    if getattr(char, '_is_mercenario', False):
+                        tipo_m = getattr(char, 'tipo_mercenario', 'melee')
+                        mapa_nomes = {'melee': 'Guarda', 'arqueiro': 'Arqueiro', 'minerador': 'Minerador'}
+                        nome_exibido = mapa_nomes.get(tipo_m, 'Mercenário')
+                    else:
+                        nome_exibido = "?????" if nome_raw == "Aquele" else remover_emojis(nome_raw)
+
+                    nome_s = self.fP.render(nome_exibido, True, (240, 230, 255))
                     if self.zoom != 1.0:
-                        nome_s = pygame.transform.scale(nome_s,
-                            (max(1, int(nome_s.get_width() * self.zoom)),
-                             max(1, int(nome_s.get_height() * self.zoom))))
-                    tela.blit(nome_s, (cx_draw - nome_s.get_width() // 2, cy_draw - int(32 * self.zoom)))
+                        w_scaled = max(1, int(nome_s.get_width() * self.zoom))
+                        h_scaled = max(1, int(nome_s.get_height() * self.zoom))
+                        nome_s = pygame.transform.smoothscale(nome_s, (w_scaled, h_scaled))
+                    
+                    lbl_r = nome_s.get_rect(center=(cx_draw, cy_draw - int(28 * self.zoom)))
+                    bg_pill = lbl_r.inflate(6, 4)
+                    s_bg = pygame.Surface((bg_pill.width, bg_pill.height), pygame.SRCALPHA)
+                    s_bg.fill((15, 12, 25, 190))
+                    pygame.draw.rect(s_bg, (180, 140, 255) if eh_mercenario else (100, 200, 255), (0, 0, bg_pill.width, bg_pill.height), 1, border_radius=4)
+                    tela.blit(s_bg, bg_pill.topleft)
+                    tela.blit(nome_s, lbl_r.topleft)
 
             # Desenha o Príncipe Lysander fora do tabuleiro como oponente comandante
             if gx == -3 and gy == -3:
@@ -1127,16 +1160,19 @@ class CercoStateDrawMixin:
             y_off = lcy - int(8 * self.zoom)
             inv = e["invasores"].get(zona_key, 0)
             if inv > 0:
-                li = self.fP.render(f"INV: {inv}", True, C_INVASOR)
+                li = self.fP.render(f"INSETOS: {inv}", True, (255, 120, 120))
                 if self.zoom != 1.0:
-                    li = pygame.transform.scale(li,
-                        (max(1, int(li.get_width() * self.zoom)),
-                         max(1, int(li.get_height() * self.zoom))))
+                    w_s = max(1, int(li.get_width() * self.zoom))
+                    h_s = max(1, int(li.get_height() * self.zoom))
+                    li = pygame.transform.smoothscale(li, (w_s, h_s))
                 li_rect = li.get_rect(center=(lcx, y_off))
-                li_rect.inflate_ip(4, 2)
-                pygame.draw.rect(tela, (30, 10, 10, 180), li_rect, border_radius=3)
-                tela.blit(li, li_rect)
-                y_off += int(15 * self.zoom)
+                bg_inv = li_rect.inflate(8, 4)
+                s_inv = pygame.Surface((bg_inv.width, bg_inv.height), pygame.SRCALPHA)
+                s_inv.fill((45, 10, 10, 210))
+                pygame.draw.rect(s_inv, (255, 70, 70), (0, 0, bg_inv.width, bg_inv.height), 1, border_radius=4)
+                tela.blit(s_inv, bg_inv.topleft)
+                tela.blit(li, li_rect.topleft)
+                y_off += int(18 * self.zoom)
             if zona_key == "camara_central":
                 pass
             elif zona_key == "patio":
@@ -1571,7 +1607,7 @@ class CercoStateDrawMixin:
             lbl_deck2 = self.fMi.render(str(deck_cartas_qtd), True, C_TEXTO)
             tela.blit(lbl_deck1, (top_deck_rect.centerx - lbl_deck1.get_width() // 2, top_deck_rect.y + 40))
             tela.blit(lbl_deck2, (top_deck_rect.centerx - lbl_deck2.get_width() // 2, top_deck_rect.y + 64))
-        deck_ini_qtd = len(self.estado.get("deck_inimigos", []))
+        deck_ini_qtd = len(self.deck) if (hasattr(self, 'deck') and self.deck is not None) else len(self.estado.get("deck_inimigos", []))
         deck_ini_rect = pygame.Rect(mr.x + 10, mr.y + 6, 96, mr.height - 12)
         for offset in range(min(4, max(1, deck_ini_qtd // 3))):
             d_rect = deck_ini_rect.move(offset * 2, -offset * 2)
@@ -1884,7 +1920,7 @@ class CercoStateDrawMixin:
         tela.blit(sim, (cx + cw // 2 - sim.get_width() // 2, cy + 30))
         tt = self.fG.render(carta.get("titulo", ""), True, C_TEXTO)
         tela.blit(tt, (cx + cw // 2 - tt.get_width() // 2, cy + 90))
-        tipo_lbl = {"invasor": "INVASOR COMUM", "mover": "AVANÇO",
+        tipo_lbl = {"invasor": "HORDA DE INSETOS", "mover": "AVANÇO DE INSETOS",
                     "torre_assalto": "TORRE DE ASSALTO",
                     "catapulta": "CATAPULTA DE CERCO"
                     }.get(carta["tipo"], carta["tipo"].upper())

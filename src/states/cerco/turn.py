@@ -156,15 +156,15 @@ class CercoStateTurnMixin:
         derrota = False
         msg = ""
 
-        if e.get("tesouro", 10) <= 0:
+        if e.get("invasores", {}).get("camara_central", 0) >= 5:
             derrota = True
-            msg = "Todo o ouro da Câmara foi roubado! DERROTA!"
+            msg = "5 Insetos dominaram a Câmara Central! DERROTA!"
         elif e.get("reserva", 10) <= 0:
             derrota = True
             msg = "Orcs da reserva esgotados! DERROTA!"
         elif e.get("brutamontes", 0) >= 3:
             derrota = True
-            msg = "3 Brutamontes/Trolls invadiram o túnel! DERROTA!"
+            msg = "3 Brutamontes/Trolls invadiram a fortaleza! DERROTA!"
         elif len(e.get("deck_catapulta", [1, 2, 3, 4])) <= 0:
             derrota = True
             msg = "O deck de munição de Catapulta esgotou! DERROTA!"
@@ -329,6 +329,7 @@ class CercoStateTurnMixin:
             return
 
         cristais_minerados = 0
+        teve_movimento = False
 
         for m in mercenarios:
             tipo = getattr(m, "tipo_mercenario", "melee")
@@ -341,56 +342,113 @@ class CercoStateTurnMixin:
                     self.estado = aplicar_delta(self.estado, {"pedregulhos": pedras - 1})
                 self._push("HEROI", f"⛏️ {m.nome} minerou as rochas e extraiu +2 Cristais Roxos!")
 
-            # --- MELEE OU ARQUEIRO ---
-            elif tipo in ("melee", "arqueiro"):
+            # --- ARQUEIRO (Ataque à Distância da Torre / Perímetro) ---
+            elif tipo == "arqueiro":
                 inimigos = [
                     p for p in list(self.motor.combatentes)
                     if getattr(p, "time", "A") == "B" and p.hp_atual > 0
                 ]
-                if not inimigos:
-                    continue
+                if inimigos:
+                    inimigos.sort(key=lambda ini: abs(ini.pos_x - m.pos_x) + abs(ini.pos_y - m.pos_y))
+                    alvo = inimigos[0]
+                    dist = abs(alvo.pos_x - m.pos_x) + abs(alvo.pos_y - m.pos_y)
 
-                inimigos.sort(key=lambda ini: abs(ini.pos_x - m.pos_x) + abs(ini.pos_y - m.pos_y))
-                alvo = inimigos[0]
-                dist = abs(alvo.pos_x - m.pos_x) + abs(alvo.pos_y - m.pos_y)
-
-                alcance_max = m.alcance if hasattr(m, 'alcance') else (5 if tipo == "arqueiro" else 1)
-
-                if dist <= alcance_max:
-                    import random as _rnd
-                    d20 = _rnd.randint(1, 20)
-                    total_ataque = d20 + getattr(m, 'bonus_ataque', 4)
-                    if total_ataque >= alvo.ac:
-                        num_d, faces_d = getattr(m, 'dado_dano', (1, 6))
-                        b_dano = getattr(m, 'bonus_dano', 2)
-                        dano = sum(_rnd.randint(1, faces_d) for _ in range(num_d)) + b_dano
-                        alvo.hp_atual -= dano
-                        icone = "🏹" if tipo == "arqueiro" else "⚔️"
-                        self._push("HEROI", f"{icone} {m.nome} atacou {alvo.nome}! Dano: {dano} (HP: {max(0, alvo.hp_atual)}/{alvo.hp_max})")
-                        if alvo.hp_atual <= 0:
-                            if 0 <= alvo.pos_y < len(tab.grid) and 0 <= alvo.pos_x < len(tab.grid[0]):
-                                if tab.grid[alvo.pos_y][alvo.pos_x] is alvo:
-                                    tab.grid[alvo.pos_y][alvo.pos_x] = None
-                            if alvo in self.motor.combatentes:
-                                self.motor.combatentes.remove(alvo)
-                            if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
-                                self.motor.time_b.remove(alvo)
-                            self._push("HEROI", f"💀 {m.nome} ABATEU {alvo.nome}!")
-                    else:
-                        icone = "🏹" if tipo == "arqueiro" else "⚔️"
-                        self._push("HEROI", f"{icone} {m.nome} atacou {alvo.nome}, mas ERROU! (D20: {d20}+{getattr(m, 'bonus_ataque', 4)} vs AC {alvo.ac})")
+                    # Arqueiros nas torres possuem alcance elevado de 18 células
+                    if dist <= 18:
+                        import random as _rnd
+                        d20 = _rnd.randint(1, 20)
+                        total_ataque = d20 + getattr(m, 'bonus_ataque', 5)
+                        if total_ataque >= alvo.ac:
+                            num_d, faces_d = getattr(m, 'dado_dano', (1, 10))
+                            b_dano = getattr(m, 'bonus_dano', 4)
+                            dano = sum(_rnd.randint(1, faces_d) for _ in range(num_d)) + b_dano
+                            alvo.hp_atual -= dano
+                            self._push("HEROI", f"🏹 Arqueiro Mercenário disparou em {alvo.nome}! Dano: {dano} (HP: {max(0, alvo.hp_atual)}/{alvo.hp_max})")
+                            if alvo.hp_atual <= 0:
+                                if 0 <= alvo.pos_y < len(tab.grid) and 0 <= alvo.pos_x < len(tab.grid[0]):
+                                    if tab.grid[alvo.pos_y][alvo.pos_x] is alvo:
+                                        tab.grid[alvo.pos_y][alvo.pos_x] = None
+                                if alvo in self.motor.combatentes:
+                                    self.motor.combatentes.remove(alvo)
+                                if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
+                                    self.motor.time_b.remove(alvo)
+                                self._push("HEROI", f"💀 Arqueiro ABATEU {alvo.nome}!")
+                        else:
+                            self._push("HEROI", f"🏹 Arqueiro disparou em {alvo.nome}, mas ERROU! (D20: {d20}+5 vs AC {alvo.ac})")
                 else:
-                    dx = 1 if alvo.pos_x > m.pos_x else (-1 if alvo.pos_x < m.pos_x else 0)
-                    dy = 1 if alvo.pos_y > m.pos_y else (-1 if alvo.pos_y < m.pos_y else 0)
-                    nx, ny = m.pos_x + dx, m.pos_y + dy
-                    if 0 <= nx < tab.largura and 0 <= ny < tab.altura:
-                        if tab.get_terrain_em(nx, ny) != "parede" and tab.grid[ny][nx] is None:
-                            tab.grid[m.pos_y][m.pos_x] = None
-                            tab.grid[ny][nx] = m
-                            m.pos_x, m.pos_y = nx, ny
+                    # Sem inimigos físicos, dispara flechas nas zonas com insetos invasores
+                    invasores = dict(self.estado.get("invasores", {}))
+                    zonas_com_invasores = [z for z, count in invasores.items() if count > 0]
+                    if zonas_com_invasores:
+                        zona_alvo = max(zonas_com_invasores, key=lambda z: invasores[z])
+                        invasores[zona_alvo] -= 1
+                        self.estado = aplicar_delta(self.estado, {"invasores": invasores})
+                        from ...cerco_isectum import NOMES_ZONA
+                        nome_z = NOMES_ZONA.get(zona_alvo, zona_alvo)
+                        self._push("HEROI", f"🏹 Arqueiro da Torre disparou flechas em [{nome_z}] e eliminou 1x Inseto!")
+                        teve_movimento = True
+
+            # --- GUARDA MELEE (Combate Defensivo Próximo) ---
+            elif tipo == "melee":
+                inimigos = [
+                    p for p in list(self.motor.combatentes)
+                    if getattr(p, "time", "A") == "B" and p.hp_atual > 0
+                ]
+                if inimigos:
+                    inimigos.sort(key=lambda ini: abs(ini.pos_x - m.pos_x) + abs(ini.pos_y - m.pos_y))
+                    alvo = inimigos[0]
+                    dist = abs(alvo.pos_x - m.pos_x) + abs(alvo.pos_y - m.pos_y)
+
+                    if dist <= 1:
+                        import random as _rnd
+                        d20 = _rnd.randint(1, 20)
+                        total_ataque = d20 + getattr(m, 'bonus_ataque', 4)
+                        if total_ataque >= alvo.ac:
+                            num_d, faces_d = getattr(m, 'dado_dano', (2, 6))
+                            b_dano = getattr(m, 'bonus_dano', 3)
+                            dano = sum(_rnd.randint(1, faces_d) for _ in range(num_d)) + b_dano
+                            alvo.hp_atual -= dano
+                            self._push("HEROI", f"⚔️ Guarda Mercenário atacou {alvo.nome}! Dano: {dano} (HP: {max(0, alvo.hp_atual)}/{alvo.hp_max})")
+                            if alvo.hp_atual <= 0:
+                                if 0 <= alvo.pos_y < len(tab.grid) and 0 <= alvo.pos_x < len(tab.grid[0]):
+                                    if tab.grid[alvo.pos_y][alvo.pos_x] is alvo:
+                                        tab.grid[alvo.pos_y][alvo.pos_x] = None
+                                if alvo in self.motor.combatentes:
+                                    self.motor.combatentes.remove(alvo)
+                                if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
+                                    self.motor.time_b.remove(alvo)
+                                self._push("HEROI", f"💀 Guarda ABATEU {alvo.nome}!")
+                        else:
+                            self._push("HEROI", f"⚔️ Guarda atacou {alvo.nome}, mas ERROU! (D20: {d20}+4 vs AC {alvo.ac})")
+                    elif dist <= 3:
+                        dx = 1 if alvo.pos_x > m.pos_x else (-1 if alvo.pos_x < m.pos_x else 0)
+                        dy = 1 if alvo.pos_y > m.pos_y else (-1 if alvo.pos_y < m.pos_y else 0)
+                        nx, ny = m.pos_x + dx, m.pos_y + dy
+                        if 0 <= nx < tab.largura and 0 <= ny < tab.altura:
+                            if tab.get_terrain_em(nx, ny) != "parede" and tab.grid[ny][nx] is None:
+                                tab.grid[m.pos_y][m.pos_x] = None
+                                tab.grid[ny][nx] = m
+                                m.pos_x, m.pos_y = nx, ny
+                                teve_movimento = True
+                else:
+                    from ...resolvedor_acoes import obter_zona_por_coordenada
+                    zona_m = obter_zona_por_coordenada(m.pos_x, m.pos_y) or "patio"
+                    invasores = dict(self.estado.get("invasores", {}))
+                    zonas_com_invasores = [z for z, count in invasores.items() if count > 0]
+                    if zonas_com_invasores:
+                        zona_alvo = zona_m if invasores.get(zona_m, 0) > 0 else max(zonas_com_invasores, key=lambda z: invasores[z])
+                        invasores[zona_alvo] -= 1
+                        self.estado = aplicar_delta(self.estado, {"invasores": invasores})
+                        from ...cerco_isectum import NOMES_ZONA
+                        nome_z = NOMES_ZONA.get(zona_alvo, zona_alvo)
+                        self._push("HEROI", f"⚔️ Guarda defendeu [{nome_z}] e combateu 1x Inseto!")
+                        teve_movimento = True
 
         if cristais_minerados > 0:
             novos_tesouro = self.estado.get("tesouro", 0) + cristais_minerados
             self.estado = aplicar_delta(self.estado, {"tesouro": novos_tesouro})
             self._feedback(f"⛏️ +{cristais_minerados} Cristais Roxos (Mineração)!", (180, 80, 255))
+
+        if teve_movimento or cristais_minerados > 0:
+            self.map_backbuffer_sujo = True
 

@@ -458,6 +458,8 @@ class Personagem:
 
     @property
     def bonus_dano(self):
+        if hasattr(self, '_bonus_dano_override'):
+            return self._bonus_dano_override
         bonus = 0
         for efeito in self.status_efeitos:
             if efeito.propriedades.get("bonus_dano_ataque"):

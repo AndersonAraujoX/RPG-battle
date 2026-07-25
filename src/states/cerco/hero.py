@@ -84,10 +84,12 @@ class CercoStateHeroMixin:
         discard = list(self.estado["descarte"])
         # Cartas de upgrade acumuladas: sempre re-entram no ciclo
         upgrades_ativas = list(self.estado.get("cartas_upgrade_ativas", []))
+        bonus_mao = self.estado.get("bonus_tamanho_mao", 0) + sum(1 for c in upgrades_ativas if c.get("efeito_extra") == "aumentar_mao" or c.get("id") == "estratagema_mano")
+        tam_mao_alvo = self.TAM_MAO + bonus_mao
         cartas_anteriores = len(mao)
         cartas_adicionadas = []
 
-        while len(mao) < self.TAM_MAO:
+        while len(mao) < tam_mao_alvo:
             if not deck:
                 if not discard and not self.estado.get("excluidas_ciclo", []) and not upgrades_ativas:
                     break
@@ -227,9 +229,18 @@ class CercoStateHeroMixin:
             deck = list(self.estado["deck_heroi"])
             if deck:
                 c = deck.pop(0)
-                delta["mao"] = delta["mao"] + [c]
+                delta["mao"] = delta.get("mao", mao) + [c]
                 delta["deck_heroi"] = deck
                 self._push("SISTEMA", "Efeito extra da carta: Comprou 1 carta adicional.")
+        elif efeito == "aumentar_mao":
+            deck = list(self.estado["deck_heroi"])
+            if deck:
+                c = deck.pop(0)
+                delta["mao"] = delta.get("mao", mao) + [c]
+                delta["deck_heroi"] = deck
+            b_atual = self.estado.get("bonus_tamanho_mao", 0)
+            delta["bonus_tamanho_mao"] = b_atual + 1
+            self._push("HEROI", "📜 Plano Tático: +1 carta sacada e +1 vaga permanente de mão por turno!")
         elif efeito == "invocar_inimigo":
             from src.cerco_isectum import NOMES_ZONA
             zona_spawn = random.choice(["campo_norte", "campo_sul", "campo_leste", "campo_oeste"])
@@ -328,8 +339,8 @@ class CercoStateHeroMixin:
         }
 
         self.estado = aplicar_delta(self.estado, delta)
-        self._push("AMEACA", f"Invasão: Invasor Orc jogado da mão! Spawn em {NOMES_ZONA.get(zona_spawn, zona_spawn)}!")
-        self._feedback("Orc Invocado da Mão!", C_PERIGO)
+        self._push("AMEACA", f"Invasão: Inseto Invasor jogado da mão! Spawn em {NOMES_ZONA.get(zona_spawn, zona_spawn)}!")
+        self._feedback("Inseto Invocado da Mão!", C_PERIGO)
         try:
             self.game.play_sound('invalid_action')
         except:
@@ -359,7 +370,7 @@ class CercoStateHeroMixin:
         tesouro = e["tesouro"]
         reserva = e["reserva"]
         logs_avanco = []
-        derrota = False
+
 
         ordem = [
             "camara_central",
@@ -374,17 +385,14 @@ class CercoStateHeroMixin:
                 continue
 
             if zona == "camara_central":
-                roubado = min(qtd, tesouro)
-                if roubado > 0:
-                    tesouro -= roubado
-                    reserva = min(10, reserva + roubado)
+                # Ao jogar carta, inimigos que chegam à câmara central são expulsos de volta
+                # (o roubo do tesouro só acontece na Fase de Ameaça oficial)
+                if qtd > 0:
                     nome_zona = NOMES_ZONA.get(zona, zona)
                     logs_avanco.append(
-                        ("AMEACA", f"{qtd}x invasor no {nome_zona} rouba {roubado} cristais do tesouro!")
+                        ("AMEACA", f"⚠️ {qtd}x inseto chegou ao {nome_zona}! Resistam na próxima Fase de Ameaça!")
                     )
-                novos[zona] = 0
-                if tesouro <= 0:
-                    derrota = True
+                novos[zona] = qtd  # mantém acumulados para a Fase de Ameaça resolver
             elif zona in FLUXO:
                 proxima = FLUXO[zona]
                 if "campo" in zona:
@@ -395,7 +403,7 @@ class CercoStateHeroMixin:
                     nome_atual = NOMES_ZONA.get(zona, zona)
                     nome_prox = NOMES_ZONA.get(proxima, proxima)
                     logs_avanco.append(
-                        ("AMEACA", f"{subindo}x invasor escala a muralha: {nome_atual} → {nome_prox} ({ficando}x ficaram para trás)")
+                        ("AMEACA", f"{subindo}x inseto escala a muralha: {nome_atual} → {nome_prox} ({ficando}x ficaram para trás)")
                     )
                 else:
                     novos[zona] = 0
@@ -403,28 +411,21 @@ class CercoStateHeroMixin:
                     nome_atual = NOMES_ZONA.get(zona, zona)
                     nome_prox = NOMES_ZONA.get(proxima, proxima)
                     logs_avanco.append(
-                        ("AMEACA", f"{qtd}x invasor avança: {nome_atual} → {nome_prox}")
+                        ("AMEACA", f"{qtd}x inseto avança: {nome_atual} → {nome_prox}")
                     )
 
         delta = {"invasores": novos, "tesouro": tesouro, "reserva": reserva}
-        if derrota:
-            delta["derrota"] = True
-            delta["msg_derrota"] = "Cristais saqueados pelos invasores — DERROTA!"
 
         self.estado = aplicar_delta(self.estado, delta)
 
         if logs_avanco:
-            self._push("AMEACA", "\U0001f3c3 Inimigos avançam ao jogar a carta!")
+            self._push("AMEACA", "🏃 Inimigos avançam ao jogar a carta!")
             for tag, msg in logs_avanco:
                 self._push(tag, msg)
 
-        if derrota:
-            self._push("DERROTA", self.estado.get("msg_derrota", "DERROTA!"))
-            self.fase = "FIM"
-
     # ── UPGRADE ───────────────────────────────────────────────────────
     def _adquirir_upgrade_direto(self, slot_id):
-        """Adquire o upgrade e adiciona a carta direto na mão, resetando o slot do mercado com novo upgrade."""
+        """Adquire o upgrade e adiciona a carta no descarte do herói para ser sacada em turnos futuros."""
         from ...cerco_isectum import CARTAS_UPGRADE, aplicar_delta
         e = self.estado
 
@@ -439,8 +440,8 @@ class CercoStateHeroMixin:
         if not any(c.get("id") == carta_up.get("id") for c in ativas):
             ativas.append(dict(carta_up))
 
-        # 2. Adiciona a carta de upgrade diretamente na mão do jogador
-        nova_mao = list(e["mao"]) + [dict(carta_up)]
+        # 2. Adiciona a carta de upgrade na pilha de DESCARTE do herói (será sacada nos próximos turnos)
+        novo_descarte = list(e.get("descarte", [])) + [dict(carta_up)]
 
         # 3. Reseta e repovoa o slot do mercado com a próxima carta de upgrade não comprada
         cartas_adquiridas_ids = {c.get("id") for c in ativas}
@@ -470,20 +471,20 @@ class CercoStateHeroMixin:
                 "bloqueado": False,
                 "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}
             }
-            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido! Novo upgrade [{proxima_carta['nome']}] no mercado!"
+            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido e enviado ao Baralho! Novo upgrade [{proxima_carta['nome']}] no mercado!"
         else:
             slots[slot_id]["adquirido"] = True
             slots[slot_id]["recursos_alocados"] = {"madeira": 0, "couro": 0, "metal": 0}
-            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido! (Todas as melhorias compradas)"
+            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido e enviado ao Baralho! (Todas as melhorias compradas)"
 
         delta = {
             "slots_upgrade": slots,
-            "mao": nova_mao,
+            "descarte": novo_descarte,
             "cartas_upgrade_ativas": ativas,
         }
         self.estado = aplicar_delta(e, delta)
         self._push("HEROI", log_msg)
-        self._feedback(f"⭐ Upgrade [{slot['nome']}] adquirido!", (255, 210, 50))
+        self._feedback(f"⭐ Upgrade [{slot['nome']}] adicionado ao Baralho!", (255, 210, 50))
         self.idx_slot_upgrade = -1
         self.idx_carta_queimar = -1
         self.modo_acao = MODO_NENHUM

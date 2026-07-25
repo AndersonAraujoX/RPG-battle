@@ -14,9 +14,9 @@ C_VERDE     = (50, 220, 110)
 C_PERIGO    = (255, 55, 55)
 
 DIFICULDADES = [
-    {"id": "facil",   "nome": "Fácil",   "pedregulhos": 5,  "tesouro": 30, "reserva": 8},
-    {"id": "normal",  "nome": "Normal",  "pedregulhos": 8,  "tesouro": 20, "reserva": 10},
-    {"id": "dificil", "nome": "Difícil", "pedregulhos": 12, "tesouro": 15, "reserva": 14},
+    {"id": "facil",   "nome": "Fácil (1/4 Deck)",         "fator_deck": 0.25, "pedregulhos": 5,  "tesouro": 30, "reserva": 8},
+    {"id": "normal",  "nome": "Média (1/2 Deck)",         "fator_deck": 0.50, "pedregulhos": 8,  "tesouro": 20, "reserva": 10},
+    {"id": "dificil", "nome": "Difícil (Deck Completo)", "fator_deck": 1.00, "pedregulhos": 12, "tesouro": 15, "reserva": 14},
 ]
 
 HEROIS_DISPONIVEIS = [

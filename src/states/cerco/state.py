@@ -72,14 +72,24 @@ class CercoState(
         self.config = config
         diff = config.get("dificuldade", {})
         herois = config.get("herois", [])
+        fator = diff.get("fator_deck", 1.0)
+        if diff.get("id") == "facil":
+            fator = 0.25
+        elif diff.get("id") in ("normal", "media"):
+            fator = 0.50
+        elif diff.get("id") == "dificil":
+            fator = 1.00
+
         self.estado = criar_estado(
             pedregulhos=diff.get("pedregulhos", 8),
             is_solo=True,
+            fator_deck=fator,
         )
         self.estado["tesouro"] = diff.get("tesouro", 20)
         self.estado["reserva"] = diff.get("reserva", 10)
 
-        self.deck   = criar_deck()
+        self.deck   = criar_deck(fator_deck=fator)
+        self.estado["deck_inimigos"] = [c.get("tipo", "invasor") for c in self.deck]
         self.log    = []
         self.narrativa   = "Pela barba de Durin! O cerco começa!"
         self.carta_cerco = None
@@ -222,7 +232,7 @@ class CercoState(
             ("?????" if h.nome == "Aquele" else h.nome) for h in self.herois
         )
         self._push("SISTEMA", f"Cerco contra Isectum! Heróis: {nomes_herois}")
-        self._push("SISTEMA", f"Dificuldade: {diff.get('nome', 'Normal')}")
+        self._push("SISTEMA", f"Dificuldade: {diff.get('nome', 'Normal')} (Deck de Ameaça: {len(self.deck)} cartas)")
 
     # ── PROPRIEDADES ──────────────────────────────────────────────────
     @property
@@ -308,18 +318,6 @@ class CercoState(
 
     # ── UPDATE ────────────────────────────────────────────────────────
     def update(self):
-        time_b_debug = [
-            p for p in self.motor.combatentes
-            if getattr(p, "time", "A") == "B"
-        ]
-        if time_b_debug and random.random() < 0.05:
-            print("--- STATUS DOS INIMIGOS ---")
-            for p in time_b_debug:
-                print(
-                    f"  {p.nome}: pos=({p.pos_x}, {p.pos_y}) | "
-                    f"_zona_campo={getattr(p, '_zona_campo', None)}"
-                )
-
         e = self.estado
         c_invasores = dict(e["invasores"])
         c_invasores["_brutamontes"] = e.get("brutamontes", 0)

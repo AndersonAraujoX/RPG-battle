@@ -201,6 +201,11 @@ class CercoStateInputMixin:
             self.game.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
             return
 
+        # Tela de fim de jogo — qualquer clique volta ao menu
+        if self.estado.get("derrota") or self.estado.get("vitoria"):
+            self.game.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
+            return
+
         if self.fase == "FASE_AMEACA":
             if self.carta_cerco and self.btn_confirmar.collidepoint(mouse):
                 self._resolver_carta_cerco()
@@ -222,7 +227,7 @@ class CercoStateInputMixin:
                         self.modo_acao = MODO_CONVOCAR
                         self.tipo_mercenario_selecionado = "melee"
                         self.custo_mercenario_selecionado = 5
-                        self._feedback("🛡️ GUARDA (5💎): clique em uma célula no mapa para posicionar!", (180, 120, 255))
+                        self._feedback("🛡️ GUARDA (5💎): clique em qualquer célula para posicionar!", (180, 120, 255))
                     return
 
                 if getattr(self, "btn_merc_arqueiro", None) and self.btn_merc_arqueiro.collidepoint(mouse):
@@ -232,7 +237,7 @@ class CercoStateInputMixin:
                         self.modo_acao = MODO_CONVOCAR
                         self.tipo_mercenario_selecionado = "arqueiro"
                         self.custo_mercenario_selecionado = 7
-                        self._feedback("🏹 ARQUEIRO (7💎): clique em uma célula no mapa para posicionar!", (180, 120, 255))
+                        self._feedback("🏹 ARQUEIRO (7💎): clique em uma TORRE (NW, NE, SW, SE) para posicionar!", (180, 120, 255))
                     return
 
                 if getattr(self, "btn_merc_minerador", None) and self.btn_merc_minerador.collidepoint(mouse):
@@ -242,7 +247,7 @@ class CercoStateInputMixin:
                         self.modo_acao = MODO_CONVOCAR
                         self.tipo_mercenario_selecionado = "minerador"
                         self.custo_mercenario_selecionado = 4
-                        self._feedback("⛏️ MINERADOR (4💎): clique em uma célula no mapa para posicionar!", (180, 120, 255))
+                        self._feedback("⛏️ MINERADOR (4💎): clique na Região das PEDRAS (Pátio) para posicionar!", (180, 120, 255))
                     return
 
             for i, rect in enumerate(self.carta_rects):
@@ -436,6 +441,11 @@ class CercoStateInputMixin:
             return
 
         if self.modo_acao == MODO_NENHUM:
+            if char:
+                if getattr(char, "_is_mercenario", False) or char in self.herois:
+                    self._feedback(f"Célula já ocupada por [{char.nome}]!", C_ACENTO)
+                    return
+
             from ...resolvedor_acoes import custo_minimo_grade, obter_zona_por_coordenada
             from ...cerco_isectum import aplicar_delta
             from_pos = (e.get("heroi_x", 9), e.get("heroi_y", 9))
@@ -507,6 +517,19 @@ class CercoStateInputMixin:
                 self.modo_acao = MODO_NENHUM
                 return
 
+            from ...resolvedor_acoes import obter_zona_por_coordenada
+            zona_clicada = obter_zona_por_coordenada(cx, cy)
+            terrain_type = self.motor.tabuleiro.get_terrain_em(cx, cy)
+
+            if tipo_m == "minerador":
+                if zona_clicada != "patio" and terrain_type not in ("patio", "rocha", "barril", "fogo"):
+                    self._feedback("⛏️ Mineradores só podem ser posicionados na Região das Pedras (Pátio)!", C_PERIGO)
+                    return
+            elif tipo_m == "arqueiro":
+                if not (zona_clicada and zona_clicada.startswith("torre")):
+                    self._feedback("🏹 Arqueiros só podem ser posicionados nas Torres de Vigilância (NW, NE, SW, SE)!", C_PERIGO)
+                    return
+
             from src.personagens.mercenarios import MercenarioMelee, MercenarioArqueiro, MercenarioMinerador
             mapa_merc = {
                 "melee": MercenarioMelee,
@@ -525,6 +548,7 @@ class CercoStateInputMixin:
                 self._push("HEROI", f"💎 Contratou [{novo_aliado.nome}] por {custo_m} Cristais Roxos em ({cx}, {cy})!")
                 self._feedback(f"[{novo_aliado.nome}] Contratado!", C_VERDE)
                 self.modo_acao = MODO_NENHUM
+                self.map_backbuffer_sujo = True
             else:
                 self._feedback("Célula ocupada ou inválida (parede). Escolha outra!", C_PERIGO)
 

@@ -17,9 +17,9 @@ class MercenarioMelee(Guerreiro):
         self.hp_max = 45
         self.hp_atual = 45
         self.ac_base = 15
-        self.bonus_ataque = 4
+        self._bonus_ataque_override = 4
         self.dado_dano = (2, 6)
-        self.bonus_dano = 3
+        self._bonus_dano_override = 3
         self.alcance = 1
         self.tipo_mercenario = "melee"
         self._is_mercenario = True
@@ -31,9 +31,9 @@ class MercenarioArqueiro(Arqueiro):
         self.hp_max = 30
         self.hp_atual = 30
         self.ac_base = 13
-        self.bonus_ataque = 5
+        self._bonus_ataque_override = 5
         self.dado_dano = (1, 10)
-        self.bonus_dano = 4
+        self._bonus_dano_override = 4
         self.alcance = 5
         self.tipo_mercenario = "arqueiro"
         self._is_mercenario = True
@@ -45,9 +45,9 @@ class MercenarioMinerador(Personagem):
         self.hp_max = 35
         self.hp_atual = 35
         self.ac_base = 12
-        self.bonus_ataque = 2
+        self._bonus_ataque_override = 2
         self.dado_dano = (1, 6)
-        self.bonus_dano = 1
+        self._bonus_dano_override = 1
         self.alcance = 1
         self.tipo_mercenario = "minerador"
         self._is_mercenario = True

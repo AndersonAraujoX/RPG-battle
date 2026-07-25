@@ -292,6 +292,9 @@ ANIMACAO_QUADROS = {
     "Gruu":   {"arquivo": "processed/gruu.png",   "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
     "Kuro":   {"arquivo": "processed/kuro.png",   "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
     "Darwin": {"arquivo": "processed/darwin.png", "largura_quadro": 256, "altura_quadro": 256, "colunas": 4, "linhas": 4},
+    "Guerreiro": {"caminho_direto": "assets/images/characters/silver_roses/sword_isnet_clean.png", "colunas": 3, "linhas": 4},
+    "Arqueiro":  {"caminho_direto": "assets/images/characters/silver_roses/archer_sem_halo.png",   "colunas": 3, "linhas": 4},
+    "Minerador": {"caminho_direto": "assets/images/characters/silver_roses/mine_sem_halo.png",     "colunas": 3, "linhas": 4},
 }
 
 IMAGE_PERSONAGENS = {
@@ -311,10 +314,11 @@ IMAGE_PERSONAGENS = {
     "Darwin": image_path_animation_processed + "darwin.png",
 
     # Generic Classes
-    "Guerreiro": image_path_heroes + "guerreiro.png",
+    "Guerreiro": "assets/images/characters/silver_roses/sword_isnet_clean.png",
     "Mago": image_path_heroes + "mago.png",
     "Ladino": image_path_heroes + "ladino.png",
-    "Arqueiro": image_path_heroes + "arqueiro.png",
+    "Arqueiro": "assets/images/characters/silver_roses/archer_sem_halo.png",
+    "Minerador": "assets/images/characters/silver_roses/mine_sem_halo.png",
     "Barbaro": image_path_heroes + "barbaro.png",
     "Clerigo": image_path_heroes + "clerigo.png",
     "Paladino": image_path_heroes + "paladino.png",

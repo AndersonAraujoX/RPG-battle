@@ -81,7 +81,8 @@ class GameSetup:
         isectum_dir = resource_path("assets/images/characters/monsters/isectum")
         sheet_dest_path = resource_path("assets/images/characters/monsters/isectum_spritesheet.png")
         src_sheet = "/home/anderson/.gemini/antigravity-ide/brain/b2341e26-922c-497c-9fd1-36f1c570cc7f/isectum_spritesheet_1783642920213.png"
-        qual_flag = os.path.join(isectum_dir, ".quality_v2")
+        qual_flag = os.path.join(isectum_dir, ".quality_v3")
+
 
         # Força limpeza para re-geração se a versão de qualidade antiga for detectada
         if os.path.exists(isectum_dir) and not os.path.exists(qual_flag):
@@ -121,30 +122,32 @@ class GameSetup:
                         "libelula_blindada":     (3, 0),
                         "louva_deus":            (4, 0),
                         "viuva_canibal":         (5, 0),
-                        
+
                         "besouro_rinoceronte":   (0, 1),
                         "vagalume_sombras":      (1, 1),
                         "aranha_clepto":         (2, 1),
                         "mariposa_esfinge":      (3, 1),
                         "besouro_unicornio":     (4, 1),
                         "infiltrador":           (5, 1),
-                        
+
                         "centopeia_olhos":       (0, 2),
                         "besouro_gorgulho":      (1, 2),
                         "efemera_mimetica":      (2, 2),
                         "cigarra_ressonante":    (3, 2),
                         "larva_carniceira":      (4, 2),
                         "viuva_negra":           (5, 2),
-                        
+
                         "mosca_tse_tse":         (0, 3),
+                        "tarantula_golias":      (1, 3),
                         "gafanhoto_praga":       (2, 3),
                         "escaravelho_necrofago":  (3, 3),
                         "vespa_joia":            (4, 3),
                         "enxame_rainha":         (5, 3),
-                        
+
                         "brutamonte":            (4, 4),
                         "carrapato_vampiro":      (3, 4),
                     }
+
                     
                     for name, (col, row) in mapping_gerar.items():
                         rect = pygame.Rect(col * cell_w, row * cell_h, cell_w, cell_h)
@@ -152,12 +155,16 @@ class GameSetup:
                         cell_surf = pygame.Surface((cell_w, cell_h), pygame.SRCALPHA)
                         cell_surf.blit(sub, (0, 0))
                         
-                        # Remove fundo branco com maior tolerância para eliminar halos brancos
-                        for y in range(cell_h):
-                            for x in range(cell_w):
-                                color = cell_surf.get_at((x, y))
-                                if color.r > 215 and color.g > 215 and color.b > 215:
-                                    cell_surf.set_at((x, y), (0, 0, 0, 0))
+                        # Remove fundo branco de forma ultra-rápida via surfarray (elimina o travamento no boot)
+                        try:
+                            import pygame.surfarray as surfarray
+                            rgb = surfarray.pixels3d(cell_surf)
+                            alpha = surfarray.pixels_alpha(cell_surf)
+                            mask = (rgb[:, :, 0] > 215) & (rgb[:, :, 1] > 215) & (rgb[:, :, 2] > 215)
+                            alpha[mask] = 0
+                            del rgb, alpha
+                        except Exception:
+                            cell_surf.set_colorkey((255, 255, 255))
                                     
                         # Redimensiona usando smoothscale para bordas suaves e anti-aliasing de alta qualidade
                         scaled = pygame.transform.smoothscale(cell_surf, (32, 32))
@@ -228,7 +235,10 @@ class GameSetup:
     def carregar_animacoes():
         quadros = {}
         for nome, config in ANIMACAO_QUADROS.items():
-            caminho = resource_path(image_path_animation + config["arquivo"])
+            if "caminho_direto" in config:
+                caminho = resource_path(config["caminho_direto"])
+            else:
+                caminho = resource_path(image_path_animation + config["arquivo"])
             try:
                 spritesheet = pygame.image.load(caminho).convert_alpha()
             except (pygame.error, FileNotFoundError) as e:
@@ -252,6 +262,14 @@ class GameSetup:
                 "fw": fw,
                 "fh": fh,
             }
+
+        if "Guerreiro" in quadros:
+            quadros["MercenarioMelee"] = quadros["Guerreiro"]
+        if "Arqueiro" in quadros:
+            quadros["MercenarioArqueiro"] = quadros["Arqueiro"]
+        if "Minerador" in quadros:
+            quadros["MercenarioMinerador"] = quadros["Minerador"]
+
         return quadros
 
     @staticmethod

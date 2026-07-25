@@ -235,8 +235,29 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, anim
             scaled_img = obter_sprite_escalado(game_images[chave_inseto], rect.width, rect.height)
             tela.blit(scaled_img, rect.topleft)
             return
+        elif mostrar:
+            # Fallback: hexágono laranja-avermelhado para inimigos inseto sem sprite específico
+            cx, cy = rect.centerx, rect.centery
+            r = min(rect.width, rect.height) // 2
+            import math as _math
+            pts = [(int(cx + r * _math.cos(_math.radians(60 * i - 30))),
+                    int(cy + r * _math.sin(_math.radians(60 * i - 30)))) for i in range(6)]
+            pygame.draw.polygon(tela, (180, 60, 20), pts)
+            pygame.draw.polygon(tela, (255, 140, 60), pts, 2)
+            return
 
-    personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
+
+    if getattr(personagem, "_is_mercenario", False):
+        tipo_m = getattr(personagem, "tipo_mercenario", "melee")
+        chaves_candidatas = [
+            f"personagem_{tipo_m}",
+            "personagem_minerador" if tipo_m == "minerador" else ("personagem_arqueiro" if tipo_m == "arqueiro" else "personagem_guerreiro"),
+            "personagem_guerreiro",
+            "personagem_stark"
+        ]
+        personagem_img_key = next((k for k in chaves_candidatas if game_images and k in game_images and game_images[k]), "personagem_guerreiro")
+    else:
+        personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
     classe_nome = personagem.__class__.__name__
 
     if animacoes_sprites and classe_nome in animacoes_sprites:
@@ -253,13 +274,18 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, anim
                     tela.blit(scaled, rect.topleft)
                 return
 
-    if mostrar and personagem_img_key in game_images and game_images[personagem_img_key]:
+    if mostrar and game_images and personagem_img_key in game_images and game_images[personagem_img_key]:
         scaled_img = obter_sprite_escalado(game_images[personagem_img_key], rect.width, rect.height)
         tela.blit(scaled_img, rect.topleft)
     else:
         center = rect.center
         radius = rect.width // 2
-        if isinstance(personagem, Chefe):
+        if getattr(personagem, "_is_mercenario", False):
+            # Acentua mercenários com forma púrpura reluzente
+            cor_merc = (180, 80, 255)
+            pygame.draw.rect(tela, cor_merc, rect, border_radius=4)
+            pygame.draw.rect(tela, (255, 230, 255), rect, 2, border_radius=4)
+        elif isinstance(personagem, Chefe):
             cor_chefe = (80, 60, 90)
             points = [
                 (center[0], rect.top - 5), (rect.right + 3, rect.top + 12),
