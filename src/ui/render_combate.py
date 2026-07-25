@@ -227,26 +227,19 @@ def obter_sprite_escalado(img, w, h):
         return img
 
 def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, animacoes_sprites=None, estado_animacao=None):
-    # Se o personagem tem um tipo de inseto específico no modo Cerco, usa o sprite correto
+    if not mostrar:
+        return
+
+    # 1. Tenta desenhar sprite específico de inseto do Cerco
     tipo_inseto = getattr(personagem, "tipo_inseto", None)
-    if tipo_inseto:
+    if tipo_inseto and game_images:
         chave_inseto = f"inseto_{tipo_inseto}"
-        if mostrar and chave_inseto in game_images and game_images[chave_inseto]:
+        if chave_inseto in game_images and game_images[chave_inseto]:
             scaled_img = obter_sprite_escalado(game_images[chave_inseto], rect.width, rect.height)
             tela.blit(scaled_img, rect.topleft)
             return
-        elif mostrar:
-            # Fallback: hexágono laranja-avermelhado para inimigos inseto sem sprite específico
-            cx, cy = rect.centerx, rect.centery
-            r = min(rect.width, rect.height) // 2
-            import math as _math
-            pts = [(int(cx + r * _math.cos(_math.radians(60 * i - 30))),
-                    int(cy + r * _math.sin(_math.radians(60 * i - 30)))) for i in range(6)]
-            pygame.draw.polygon(tela, (180, 60, 20), pts)
-            pygame.draw.polygon(tela, (255, 140, 60), pts, 2)
-            return
 
-
+    # 2. Tenta desenhar o sprite genérico de mercenário ou classe de personagem/monstro
     if getattr(personagem, "_is_mercenario", False):
         tipo_m = getattr(personagem, "tipo_mercenario", "melee")
         chaves_candidatas = [
@@ -258,6 +251,7 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, anim
         personagem_img_key = next((k for k in chaves_candidatas if game_images and k in game_images and game_images[k]), "personagem_guerreiro")
     else:
         personagem_img_key = f"personagem_{personagem.__class__.__name__.lower()}"
+    
     classe_nome = personagem.__class__.__name__
 
     if animacoes_sprites and classe_nome in animacoes_sprites:
@@ -269,14 +263,25 @@ def desenhar_sprite(tela, personagem, rect, cor, game_images, mostrar=True, anim
             frame_idx = estado["direcao"] * cols + estado["quadro"]
             if frame_idx < len(anim_data["frames"]):
                 frame = anim_data["frames"][frame_idx]
-                if mostrar:
-                    scaled = obter_sprite_escalado(frame, rect.width, rect.height)
-                    tela.blit(scaled, rect.topleft)
+                scaled = obter_sprite_escalado(frame, rect.width, rect.height)
+                tela.blit(scaled, rect.topleft)
                 return
 
-    if mostrar and game_images and personagem_img_key in game_images and game_images[personagem_img_key]:
+    if game_images and personagem_img_key in game_images and game_images[personagem_img_key]:
         scaled_img = obter_sprite_escalado(game_images[personagem_img_key], rect.width, rect.height)
         tela.blit(scaled_img, rect.topleft)
+        return
+
+    # 3. Fallback visual para inseto se nenhuma imagem estiver disponível
+    if tipo_inseto:
+        cx, cy = rect.centerx, rect.centery
+        r = min(rect.width, rect.height) // 2
+        import math as _math
+        pts = [(int(cx + r * _math.cos(_math.radians(60 * i - 30))),
+                int(cy + r * _math.sin(_math.radians(60 * i - 30)))) for i in range(6)]
+        pygame.draw.polygon(tela, (180, 60, 20), pts)
+        pygame.draw.polygon(tela, (255, 140, 60), pts, 2)
+        return
     else:
         center = rect.center
         radius = rect.width // 2
