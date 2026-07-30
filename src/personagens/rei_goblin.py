@@ -22,10 +22,10 @@ class ReiGoblin(Personagem):
     @property
     def bonus_dano(self): return self.mod_des
 
-    def atacar(self, alvo, time_inimigo, time_aliado, tabuleiro, logger=print):
+    def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         if 'convocar_goblin' in self.custo_habilidades and self.furia_atual >= self.custo_habilidades['convocar_goblin']:
-            logger(f"O {self.nome} convoca um Goblin para a batalha!")
             self.furia_atual -= self.custo_habilidades['convocar_goblin']
+            logs_turno.append(f"  {self.nome} convoca um Goblin para a batalha!")
             return {'acao': 'usar_habilidade', 'habilidade': 'convocar_goblin'}
 
-        super().atacar(alvo, time_inimigo, time_aliado, tabuleiro, logger)
+        return super().decidir_acao(inimigos, aliados, tabuleiro, logs_turno)

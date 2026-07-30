@@ -6,11 +6,6 @@ class Barbaro(Personagem):
         super().__init__(nome, time, nivel, sound_player)
         self.threat_level = 1.2
         
-    @property
-    def ac(self):
-        if self.armadura_equipada:
-            return self.armadura_equipada.bonus_ac
-        return 10 + self.mod_des + self.mod_con
         self.cooldowns['ataque_descuidado'] = 0
         self.cooldown_max['ataque_descuidado'] = 3
 
@@ -20,6 +15,12 @@ class Barbaro(Personagem):
         self.equipar_acessorio(AmuletoDeVitalidade())
         
         self.inicializar_habilidades()
+
+    @property
+    def ac(self):
+        if self.armadura_equipada:
+            return self.armadura_equipada.bonus_ac
+        return 10 + self.mod_des + self.mod_con
 
     def inicializar_habilidades(self):
         self.habilidades['furia'] = {

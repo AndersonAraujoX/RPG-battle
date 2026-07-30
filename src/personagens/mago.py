@@ -14,31 +14,8 @@ class Mago(Personagem):
         # Mana system
         self.mana_max = 20 + (nivel * 2)
         self.mana_atual = self.mana_max
-        self.habilidades = {
-            'bola_de_fogo': {
-                'nome': "Bola de Fogo",
-                'custo': 8,
-                'alcance': self.velocidade + 5, # Alcance de conjuração
-                'area': 1, # Raio (1 = 3x3)
-                'descricao': "Explosão de fogo em área (3x3).",
-                'tipo': 'area',
-                'dano': "3d6",
-                'tipo_dano': "Fogo"
-            },
-            'raio_de_gelo': {
-                'nome': "Raio de Gelo",
-                'custo': 4,
-                'alcance': self.alcance,
-                'area': 0,
-                'descricao': "Raio congelante em alvo único.",
-                'tipo': 'alvo',
-                'dano': "1d10",
-                'tipo_dano': "Gelo"
-            }
-        }
-        self.habilidades = {} # Initialize empty, will be filled by inicializar_habilidades
-        self.custo_habilidades = {} # Initialize empty
-        self.inicializar_habilidades() # Call during initialization
+        self.custo_habilidades = {}
+        self.inicializar_habilidades()
 
     def inicializar_habilidades(self):
         self.habilidades['bola_de_fogo'] = {

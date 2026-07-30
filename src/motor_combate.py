@@ -1009,18 +1009,6 @@ class MotorCombate:
                 atacante.mana_atual -= atacante.custo_habilidades.get('missil_magico', 5)
                 atacante.acao_realizada = True
 
-            elif habilidade == 'bola_de_fogo':
-                 # Need implementation or use existing one if previously defined?
-                 # Let's adding generic Area Logic or specific here.
-                 pass # Assuming implemented below or elsewhere? 
-                 # Wait, I am REPLACING the block. I must include existing logic if I am overwriting it.
-                 # Previous view showed `elif habilidade == 'surto_de_acao'`.
-                 # I will implement 'bola_de_fogo' here explicitly.
-                 # Target is a position or unit? UI returns 'alvo' usually as unit or handled by target picker.
-                 # For Area skills, `acao` might contain 'pos_x', 'pos_y'?
-                 # Assuming target unit for simplicity or area logic to be implemented.
-                 pass 
-
             elif habilidade == 'curar_ferimentos':
                 alvo = acao['alvo']
                 cura = random.randint(1,8) + 3
@@ -1203,8 +1191,15 @@ class MotorCombate:
                 atacante.acao_realizada = True
 
             elif habilidade == 'chuva_flechas':
-                 # Pending Area Logic
-                 pass
+                alvo = acao['alvo']
+                logs_turno.append((f"  {atacante.nome} dispara uma Chuva de Flechas!", COR_DANO))
+                atacante.cooldowns['chuva_flechas'] = 5
+                afetados = self.tabuleiro.get_personagens_em_area(alvo.pos_x, alvo.pos_y, 1)
+                for vitima in afetados:
+                    if vitima.esta_vivo and vitima.time != atacante.time:
+                        dano = random.randint(1, 6) + atacante.mod_des
+                        vitima.receber_dano(dano, atacante, self.tabuleiro, logs_turno.append, tipo_dano="Perfurante")
+                atacante.acao_realizada = True
              
             elif habilidade == 'rajada_mistica':
                 alvo = acao['alvo']

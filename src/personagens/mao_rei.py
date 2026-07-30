@@ -23,7 +23,7 @@ class MaoRei(Personagem):
         # Atributos de boss: muito mais resistente e forte
         self.hp_max   = max(self.hp_max, 120)
         self.hp_atual = self.hp_max
-        self.ac       = max(self.ac, 18)
+        self.ac_base   = max(self.ac_base, 18)
         self.threat_level = 8.0
         self.alcance  = 3   # alcance médio
 

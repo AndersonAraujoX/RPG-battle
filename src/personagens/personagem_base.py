@@ -37,7 +37,6 @@ class Personagem:
             self.ac_base = data.get("ac", 10)
             self.dado_dano = tuple(data.get("dado_dano", [1, 4]))
             self.dado_vida = tuple(data.get("dado_vida", [1, 6]))
-            self.dado_vida = tuple(data.get("dado_vida", [1, 6]))
             self.alcance = data.get("alcance", 1)
             self.tipo_dano_base = data.get("tipo_dano", DANO_FISICO)
             self._velocidade = data.get("speed", 6)
@@ -64,9 +63,9 @@ class Personagem:
         # Initialize imunity/resistance BEFORE using data
         
         if class_name in DADOS_PERSONAGENS:
-             self.imunidades = DADOS_PERSONAGENS[class_name].get("imunidades", {})
-             self.resistencias = DADOS_PERSONAGENS[class_name].get("resistencias", {})
-             self.vulnerabilidades = DADOS_PERSONAGENS[class_name].get("vulnerabilidades", {})
+             self.imunidades = list(DADOS_PERSONAGENS[class_name].get("imunidades", []))
+             self.resistencias = list(DADOS_PERSONAGENS[class_name].get("resistencias", []))
+             self.vulnerabilidades = list(DADOS_PERSONAGENS[class_name].get("vulnerabilidades", []))
 
         # Override with custom stats if provided
         if stats:

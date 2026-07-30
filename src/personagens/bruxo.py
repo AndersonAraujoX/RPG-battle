@@ -44,9 +44,10 @@ class Bruxo(Personagem):
     def decidir_acao(self, inimigos, aliados, tabuleiro, logs_turno):
         # 1. Tentar amaldiçoar um inimigo sem o debuff
         if 'maldicao_de_agonia' in self.custo_habilidades and self.mana_atual >= self.custo_habilidades['maldicao_de_agonia']:
+            alcance_hab = self.habilidades.get('maldicao_de_agonia', {}).get('alcance', 8)
             alvos_sem_maldicao = [
                 p for p in inimigos 
-                if calcular_distancia(self, p) <= self.alcance and 
+                if calcular_distancia(self, p) <= alcance_hab and 
                 "Amaldiçoado" not in [e.nome for e in p.status_efeitos]
             ]
             if alvos_sem_maldicao:

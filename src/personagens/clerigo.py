@@ -11,7 +11,6 @@ class Clerigo(Personagem):
         # Faith system
         self.fe_max = 10 + nivel
         self.fe_atual = self.fe_max
-        self.fe_atual = self.fe_max
         # self.custo_habilidades handled in init now
         
         self.inicializar_habilidades()

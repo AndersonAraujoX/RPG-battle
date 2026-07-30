@@ -336,11 +336,13 @@ class CercoStateTurnMixin:
 
             # --- MINERADOR ---
             if tipo == "minerador":
-                cristais_minerados += 2
                 pedras = self.estado.get("pedregulhos", 0)
                 if pedras > 0:
+                    cristais_minerados += 2
                     self.estado = aplicar_delta(self.estado, {"pedregulhos": pedras - 1})
-                self._push("HEROI", f"⛏️ {m.nome} minerou as rochas e extraiu +2 Cristais Roxos!")
+                    self._push("HEROI", f"⛏️ {m.nome} minerou as rochas e extraiu +2 Cristais Roxos!")
+                else:
+                    self._push("HEROI", f"⛏️ {m.nome} não encontrou mais pedregulhos para minerar.")
 
             # --- ARQUEIRO (Ataque à Distância da Torre / Perímetro) ---
             elif tipo == "arqueiro":

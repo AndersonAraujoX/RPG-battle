@@ -20,19 +20,8 @@ class DragaoAnciao(Personagem):
             logger(f"O {self.nome} usa SOPRO DE FOGO!")
             self.cooldowns['sopro_de_fogo'] = self.cooldown_max['sopro_de_fogo']
             
-            # Affect all enemies in a cone
-            alvos_afetados = []
-            for p in time_inimigo:
-                if p.esta_vivo:
-                    # Simple cone logic: checks if target is in a certain direction
-                    # and within a certain range
-                    dx = p.pos_x - self.pos_x
-                    dy = p.pos_y - self.pos_y
-                    if abs(dx) + abs(dy) <= 6: # Range of 6
-                        # A simple way to simulate a cone is to check if the target is roughly in front of the dragon
-                        # Assuming dragon faces "down" (positive y)
-                        if dy > 0 and abs(dx) <= dy:
-                            alvos_afetados.append(p)
+            # Affect all enemies within breath range (6)
+            alvos_afetados = [p for p in time_inimigo if p.esta_vivo and calcular_distancia(self, p) <= 6]
 
             dano = sum(random.randint(1, 6) for _ in range(8))
             logger(f"  O fogo consome uma área, causando {dano} de dano!")
