@@ -530,7 +530,7 @@ class CercoStateInputMixin:
                     self._feedback("🏹 Arqueiros só podem ser posicionados nas Torres de Vigilância (NW, NE, SW, SE)!", C_PERIGO)
                     return
 
-            from src.personagens.mercenarios import MercenarioMelee, MercenarioArqueiro, MercenarioMinerador
+            from ...personagens.mercenarios import MercenarioMelee, MercenarioArqueiro, MercenarioMinerador
             mapa_merc = {
                 "melee": MercenarioMelee,
                 "arqueiro": MercenarioArqueiro,

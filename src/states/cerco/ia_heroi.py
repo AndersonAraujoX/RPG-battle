@@ -37,7 +37,7 @@ class IAComandanteImperial:
         self._acoes_restantes = 0
 
         # Deck do Filho do Imperador (cartas de castas/insetos)
-        from src.cerco_isectum import DADOS_INIMIGOS
+        from ...cerco_isectum import DADOS_INIMIGOS
         self._deck = list(DADOS_INIMIGOS.keys()) * 2
         random.shuffle(self._deck)
         self._mao = []
@@ -51,7 +51,7 @@ class IAComandanteImperial:
         """Compra cartas do deck para a mão."""
         for _ in range(qtd):
             if not self._deck:
-                from src.cerco_isectum import DADOS_INIMIGOS
+                from ...cerco_isectum import DADOS_INIMIGOS
                 self._deck = list(DADOS_INIMIGOS.keys()) * 2
                 random.shuffle(self._deck)
             if self._deck:
@@ -189,7 +189,7 @@ class IAComandanteImperial:
 
     def _invadir_zona(self, inseto_id: str, zona: str):
         """Executa a invasão: adiciona o inseto na zona escolhida."""
-        from src.cerco_isectum import DADOS_INIMIGOS, aplicar_delta
+        from ...cerco_isectum import DADOS_INIMIGOS, aplicar_delta
 
         s = self.state
         e = s.estado

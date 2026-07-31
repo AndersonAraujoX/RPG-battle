@@ -110,6 +110,13 @@ class CercoState(
         self.monster_walk_anims = {}
         self.ia_heroi           = None   # Será instanciado após setup dos heróis
         self.ia_banner_timer    = 0      # Timer para o banner central de turno da IA
+        self.dragging_card      = False  # Arrastar carta com o mouse
+        self.drag_card_idx      = None   # Índice da carta sendo arrastada
+        self.bloqueio_clique_tick = 0    # Evita double-clique
+        self.dev_menu_aberto    = False  # Menu de debug (F12)
+        self.tipo_mercenario_selecionado  = "melee"
+        self.custo_mercenario_selecionado = 5
+        self._slot_rects_cache  = {}     # Cache de rects dos slots do mercado
 
         from ...motor_combate import MotorCombate
         self.motor = MotorCombate(args_times=[0]*24, gerar_terreno=False)

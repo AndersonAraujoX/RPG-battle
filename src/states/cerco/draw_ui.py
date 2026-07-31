@@ -42,9 +42,102 @@ class CercoDrawUIMixin:
         self.btn_atirar     = pygame.Rect(8+bw*6,     by, bw - 4,  bh)
         self.btn_voltar     = pygame.Rect(W - 156, 68,  140,  30)
         self.btn_confirmar  = pygame.Rect(W//2-100, H-48, 200,  bh)
-        self.btn_merc_melee     = pygame.Rect(8,       H - 184, 160, 32)
-        self.btn_merc_arqueiro   = pygame.Rect(174,     H - 184, 160, 32)
-        self.btn_merc_minerador  = pygame.Rect(340,     H - 184, 175, 32)
+        self.btn_merc_melee      = pygame.Rect(8,    H - 184, 160, 32)
+        self.btn_merc_arqueiro   = pygame.Rect(174,   H - 184, 160, 32)
+        self.btn_merc_minerador  = pygame.Rect(340,   H - 184, 175, 32)
+
+    def _draw_botoes_acao(self, tela, W, H):
+        """Renderiza os botões de modo de ação na barra inferior."""
+        e = self.estado
+        mouse = pygame.mouse.get_pos()
+
+        def _btn(rect, label, ativo, cor_at, cor_hl, cor_off=None):
+            if cor_off is None:
+                cor_off = C_PAINEL
+            cor = (cor_hl if rect.collidepoint(mouse) else cor_at) if ativo else cor_off
+            pygame.draw.rect(tela, cor, rect, border_radius=7)
+            pygame.draw.rect(tela, C_BORDA, rect, 1, border_radius=7)
+            t = self.fMi.render(label, True, C_TEXTO if ativo else C_DIM)
+            tela.blit(t, (rect.centerx - t.get_width() // 2,
+                          rect.centery - t.get_height() // 2))
+
+        # Fase de ameaça — só mostra botão de resolver
+        if self.fase == "FASE_AMEACA":
+            if self.carta_cerco:
+                _btn(self.btn_confirmar, "▶ Resolver Ameaça  [ESPAÇO]",
+                     True, (40, 20, 80), (70, 40, 130))
+            return
+
+        # Botão de fim de turno
+        _btn(self.btn_fim_turno, "Encerrar Turno  [Ent]",
+             True, (60, 20, 20), (90, 30, 30))
+
+        # Botões de modo de ação na barra inferior (definidos em _setup_layout)
+        tem_mov = e.get("pontos_movimento", 0) > 0
+        tem_trab = e.get("pontos_trabalho", 0) > 0
+        tem_esc = e.get("pontos_escavacao", 0) > 0
+
+        from .data import MODO_MOVER, MODO_TRABALHAR, MODO_ESCAVAR, MODO_SUBORNAR, MODO_CONVOCAR, MODO_ATACAR, MODO_ATIRAR
+
+        modo = self.modo_acao
+
+        _btn(self.btn_mover,     "Mover [M]",     tem_mov,
+             (20, 50, 20) if modo == MODO_MOVER else (14, 28, 14),
+             (30, 80, 30))
+        _btn(self.btn_trabalhar, "Trabalhar [T]", tem_trab,
+             (50, 40, 10) if modo == MODO_TRABALHAR else (28, 22, 8),
+             (80, 65, 20))
+        _btn(self.btn_escavar,   "Escavar [E]",   tem_esc,
+             (40, 25, 10) if modo == MODO_ESCAVAR else (24, 14, 6),
+             (65, 45, 18))
+        _btn(self.btn_subornar,  "Subornar [S]",  True,
+             (35, 15, 55) if modo == MODO_SUBORNAR else (20, 10, 30),
+             (60, 30, 90))
+        _btn(self.btn_atacar,    "Atacar [A]",    True,
+             (55, 12, 12) if modo == MODO_ATACAR else (30, 8, 8),
+             (85, 20, 20))
+        _btn(self.btn_atirar,    "Atirar [F]",    True,
+             (12, 30, 60) if modo == MODO_ATIRAR else (8, 16, 34),
+             (20, 50, 90))
+
+        # Suborno de recurso (mostra mini-botões enquanto no modo SUBORNAR)
+        if modo == MODO_SUBORNAR:
+            dep = e.get("recursos_depositados", {})
+            bx = self.btn_subornar.right + 8
+            for res, nome in [("madeira", "Mad"), ("couro", "Cou"), ("metal", "Met")]:
+                br = pygame.Rect(bx, H - 48, 50, 36)
+                ativo = dep.get(res, 0) > 0
+                _btn(br, f"{nome}:{dep.get(res,0)}", ativo,
+                     (30, 40, 30), (50, 70, 50))
+                if br.collidepoint(mouse) and ativo:
+                    if pygame.mouse.get_pressed()[0]:
+                        self._subornar_recurso(res)
+                bx += 56
+            br_rocha = pygame.Rect(bx, H - 48, 140, 36)
+            ativo_rocha = e.get("pontos_escavacao", 0) >= 4
+            _btn(br_rocha, "Limpar Rocha(4PE)", ativo_rocha,
+                 (30, 40, 50), (50, 70, 90))
+            if br_rocha.collidepoint(mouse) and ativo_rocha:
+                if pygame.mouse.get_pressed()[0]:
+                    self._limpar_rocha_goblin()
+
+        # Botões de recrutamento de mercenários (Cristais Roxos)
+        cristais = e.get("tesouro", 0)
+        _btn(self.btn_merc_melee,      f"Guarda Melee (5💎)",  cristais >= 5,
+             (50, 20, 70), (90, 40, 130), (25, 12, 35))
+        _btn(self.btn_merc_arqueiro,   f"Arqueiro (7💎)",       cristais >= 7,
+             (50, 20, 70), (90, 40, 130), (25, 12, 35))
+        _btn(self.btn_merc_minerador,  f"Minerador (4💎)",      cristais >= 4,
+             (50, 20, 70), (90, 40, 130), (25, 12, 35))
+
+        # Botão de voltar (topo-direito)
+        voltar_hover = self.btn_voltar.collidepoint(mouse)
+        pygame.draw.rect(tela, (30, 15, 15) if voltar_hover else (16, 10, 10),
+                         self.btn_voltar, border_radius=5)
+        pygame.draw.rect(tela, C_BORDA, self.btn_voltar, 1, border_radius=5)
+        lbl_v = self.fMi.render("← Menu  [ESC]", True, C_TEXTO)
+        tela.blit(lbl_v, (self.btn_voltar.centerx - lbl_v.get_width() // 2,
+                          self.btn_voltar.centery - lbl_v.get_height() // 2))
 
     def _draw_header(self, tela, W):
         bar = pygame.Surface((W, 62), pygame.SRCALPHA)

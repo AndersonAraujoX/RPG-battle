@@ -22,9 +22,9 @@ class CercoStateEnemyMixin:
             self._sincronizando = False
 
     def _sincronizar_inimigos_tabuleiro_impl(self):
-        from src.resolvedor_acoes import ZONAS_GRID, obter_zona_por_coordenada
-        from src.personagens.minions import Goblin, Esqueleto, Kobold, Troll
-        from src.personagens import DragaoAnciao, ReiGoblin
+        from ...resolvedor_acoes import ZONAS_GRID, obter_zona_por_coordenada
+        from ...personagens.minions import Goblin, Esqueleto, Kobold, Troll
+        from ...personagens import DragaoAnciao, ReiGoblin
         from ...cerco_isectum import aplicar_delta
 
         e = self.estado
@@ -450,8 +450,8 @@ class CercoStateEnemyMixin:
     # ── DEV SUMMON ────────────────────────────────────────────────────
     def _dev_summon_specific_enemy(self, carta_key: str):
         from ...cerco_isectum import DADOS_INIMIGOS, aplicar_delta
-        from src.personagens.minions import Goblin, Esqueleto, Kobold, Troll
-        from src.personagens import DragaoAnciao, ReiGoblin
+        from ...personagens.minions import Goblin, Esqueleto, Kobold, Troll
+        from ...personagens import DragaoAnciao, ReiGoblin
         from ...resolvedor_acoes import ZONAS_GRID
 
         info = DADOS_INIMIGOS.get(carta_key)

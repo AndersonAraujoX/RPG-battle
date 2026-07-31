@@ -242,7 +242,7 @@ class CercoStateHeroMixin:
             delta["bonus_tamanho_mao"] = b_atual + 1
             self._push("HEROI", "📜 Plano Tático: +1 carta sacada e +1 vaga permanente de mão por turno!")
         elif efeito == "invocar_inimigo":
-            from src.cerco_isectum import NOMES_ZONA
+            from ...cerco_isectum import NOMES_ZONA
             zona_spawn = random.choice(["campo_norte", "campo_sul", "campo_leste", "campo_oeste"])
             novos_invasores = dict(self.estado["invasores"])
             novos_invasores[zona_spawn] = novos_invasores.get(zona_spawn, 0) + 1
@@ -327,7 +327,7 @@ class CercoStateHeroMixin:
         carta = mao.pop(idx)
         discard = list(self.estado["descarte"]) + [carta]
 
-        from src.cerco_isectum import NOMES_ZONA, aplicar_delta
+        from ...cerco_isectum import NOMES_ZONA, aplicar_delta
         zona_spawn = random.choice(["campo_norte", "campo_sul", "campo_leste", "campo_oeste"])
         novos_invasores = dict(self.estado["invasores"])
         novos_invasores[zona_spawn] = novos_invasores.get(zona_spawn, 0) + 1

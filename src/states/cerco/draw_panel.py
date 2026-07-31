@@ -14,8 +14,6 @@ from .data import (
 class CercoDrawPanelMixin:
     """Sub-mixin com a renderização do painel lateral, mercado e logs."""
 
-    _slot_rects_cache: dict = {}
-
     def _slot_rect(self, slot_id):
         return self._slot_rects_cache.get(slot_id)
 
@@ -89,7 +87,7 @@ class CercoDrawPanelMixin:
         COR_REC  = {"madeira": (100, 200, 90), "couro": (210, 150, 60), "metal": (160, 180, 240)}
 
         if self.fase == "REPOVOAR_MERCADO":
-            from src.cerco_isectum import CARTAS_UPGRADE, CARTAS_UPGRADE_AMARELO, CARTAS_UPGRADE_CINZA, CARTAS_UPGRADE_VERMELHO
+            from ...cerco_isectum import CARTAS_UPGRADE, CARTAS_UPGRADE_AMARELO, CARTAS_UPGRADE_CINZA, CARTAS_UPGRADE_VERMELHO
 
             slots_vazios = [s for s in self.estado["slots_upgrade"]
                             if s.get("adquirido") or s.get("carta_id") is None]
@@ -243,7 +241,7 @@ class CercoDrawPanelMixin:
                     nome_s = self.fP.render((prefixo + slot['nome'])[:22], True, nome_cor)
                     tela.blit(nome_s, (sr.x + 6, sr.y + 6))
 
-                    from src.cerco_isectum import CARTAS_UPGRADE
+                    from ...cerco_isectum import CARTAS_UPGRADE
                     carta_data = next((c for c in CARTAS_UPGRADE if c["id"] == carta_id), None)
                     if carta_data:
                         stats = []

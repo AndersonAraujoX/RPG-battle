@@ -10,7 +10,8 @@ import pygame
 from ...config import LARGURA_TELA, ALTURA_TELA
 from ...utils import remover_emojis
 from .data import (
-    C_OURO, C_CRISTAL, C_PERIGO, C_CERCO, C_TEXTO, C_DIM, C_BRUTE,
+    C_OURO, C_CRISTAL, C_BORDA, C_VERDE, C_ACENTO,
+    C_PERIGO, C_CERCO, C_TEXTO, C_DIM, C_BRUTE,
     ZONA_TERRENO_MAP,
     MODO_MOVER, MODO_CONVOCAR,
 )
@@ -209,7 +210,7 @@ class CercoDrawMapMixin:
             "_campo":         ((30, 52, 22),   (20, 34, 14),  (14, 24, 10)),
             "_exterior":      ((18, 28, 12),   (12, 18, 8),   (8,  12, 5)),
         }
-        from src.resolvedor_acoes import obter_zona_por_coordenada as _oz
+        from ...resolvedor_acoes import obter_zona_por_coordenada as _oz
 
         def _classificar(gx, gy):
             if GRID_MIN <= gx <= GRID_MAX and GRID_MIN <= gy <= GRID_MAX:
@@ -786,7 +787,7 @@ class CercoDrawMapMixin:
                     pulso = abs((self.timer % 90) - 45) / 45.0
                     self._draw_celula_tactica(tela, gx, gy, el, (255, 0, 0, int(35 + 25 * pulso)), (255, 50, 50), estilo='ataque')
             if zona_key not in labels_pendentes and zona_key in ZONA_LABELS:
-                from src.resolvedor_acoes import ZONAS_GRID as _ZG
+                from ...resolvedor_acoes import ZONAS_GRID as _ZG
                 if zona_key in _ZG:
                     x1, y1, x2, y2 = _ZG[zona_key]
                     mid_gx = (x1 + x2) // 2
@@ -812,7 +813,7 @@ class CercoDrawMapMixin:
                         default_cx, default_cy = _iso(vgx, vgy, vel)
                     else:
                         default_cx, default_cy = cx_, cy_
-                    from src.ui.render_combate import desenhar_sprite
+                    from ...ui.render_combate import desenhar_sprite
                     sw, sh = max(10, int(24 * self.zoom)), max(10, int(24 * self.zoom))
                     cx_draw, cy_draw = self._get_char_screen_pos(char, vgx, vgy, vel, default_cx, default_cy)
                     rect_char = pygame.Rect(cx_draw - sw // 2, cy_draw - sh + 2, sw, sh)
@@ -885,7 +886,7 @@ class CercoDrawMapMixin:
                                         pygame.Rect(cx_ - radius, cy_ - radius // 2, radius * 2, radius),
                                         2)
 
-                    from src.personagens.novos_personagens import FilhoDoImperador
+                    from ...personagens.novos_personagens import FilhoDoImperador
                     if not hasattr(self, '_mock_principe'):
                         self._mock_principe = FilhoDoImperador("Príncipe Lysander", "B")
 
@@ -893,7 +894,7 @@ class CercoDrawMapMixin:
                     rect_prince = pygame.Rect(cx_ - sw // 2, cy_ - sh + 4, sw, sh)
                     cor_destaque = (255, 100, 100) if self.fase == "TURNO_FILHO_IMPERADOR" else (200, 80, 80)
 
-                    from src.ui.render_combate import desenhar_sprite
+                    from ...ui.render_combate import desenhar_sprite
                     desenhar_sprite(tela, self._mock_principe, rect_prince, cor_destaque, self.game.imagens, self.game.sprites_visiveis)
 
                     px_mastro = cx_ + int(20 * self.zoom)

@@ -189,8 +189,8 @@ class CercoStateTurnMixin:
     def _spawn_mao_rei(self):
         """Spawna o boss final A Mão Rei após o deck de ameaças ser esgotado."""
         from ...cerco_isectum import aplicar_delta
-        from src.personagens.mao_rei import MaoRei
-        from src.resolvedor_acoes import ZONAS_GRID
+        from ...personagens.mao_rei import MaoRei
+        from ...resolvedor_acoes import ZONAS_GRID
 
         self.estado = aplicar_delta(self.estado, {"mao_rei_spawnou": True})
 
