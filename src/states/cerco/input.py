@@ -185,6 +185,8 @@ class CercoStateInputMixin:
                 self.terrain_iso_cache.clear()
         if key == pygame.K_F12:
             self.dev_menu_aberto = not getattr(self, "dev_menu_aberto", False)
+        if key == pygame.K_F5:
+            self._toggle_autoplay()
         if key == pygame.K_MINUS:
             new_z = max(0.35, self.zoom - 0.25)
             if new_z != self.zoom:
@@ -200,6 +202,20 @@ class CercoStateInputMixin:
         if self.btn_voltar.collidepoint(mouse):
             self.game.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
             return
+
+        # ── Botão AutoPlay e velocidades ─────────────────────────────────
+        if getattr(self, 'btn_autoplay', None) and self.btn_autoplay.collidepoint(mouse):
+            self._toggle_autoplay()
+            return
+        if getattr(self, 'autoplay_ativo', False):
+            for btn_r, vid in [
+                (getattr(self, 'btn_vel_lento',  None), 'lento'),
+                (getattr(self, 'btn_vel_normal', None), 'normal'),
+                (getattr(self, 'btn_vel_rapido', None), 'rapido'),
+            ]:
+                if btn_r and btn_r.collidepoint(mouse):
+                    self._set_autoplay_velocidade(vid)
+                    return
 
         # Tela de fim de jogo — qualquer clique volta ao menu
         if self.estado.get("derrota") or self.estado.get("vitoria"):

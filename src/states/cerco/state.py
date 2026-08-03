@@ -50,6 +50,7 @@ from .hero import CercoStateHeroMixin
 from .turn import CercoStateTurnMixin
 from .enemy import CercoStateEnemyMixin
 from .ia_heroi import IAComandanteImperial
+from .bot_heroi import BotHeroi
 
 
 class CercoState(
@@ -118,6 +119,11 @@ class CercoState(
         self.custo_mercenario_selecionado = 5
         self._slot_rects_cache  = {}     # Cache de rects dos slots do mercado
 
+        # ── AutoPlay Bot ─────────────────────────────────────────────────────
+        self.autoplay_ativo       = False      # Toggle: bot controla os heróis
+        self.autoplay_velocidade  = "normal"   # 'lento', 'normal', 'rapido'
+        self.bot_heroi            = None       # Instância de BotHeroi (criada ao ativar)
+
         from ...motor_combate import MotorCombate
         self.motor = MotorCombate(args_times=[0]*24, gerar_terreno=False)
 
@@ -180,6 +186,11 @@ class CercoState(
         self.estado["herois_jogaram"] = []
 
         p_heroi = self.herois[0]
+        self.estado["heroi_x"] = p_heroi.pos_x
+        self.estado["heroi_y"] = p_heroi.pos_y
+        from ...resolvedor_acoes import obter_zona_por_coordenada
+        self.estado["pos_heroi"] = obter_zona_por_coordenada(p_heroi.pos_x, p_heroi.pos_y) or "camara_central"
+
         self.estado["herois_status"][p_heroi.nome] = {
             "mao":              list(self.estado.get("mao", [])),
             "deck_heroi":       list(self.estado.get("deck_heroi", [])),
@@ -268,6 +279,7 @@ class CercoState(
         self.narrativa = random.choice(NAR.get(tipo, NAR["cerco"]))
 
     def _push(self, tipo, msg):
+        print(f"[{tipo}] {msg}", flush=True)
         self.log.append((tipo, msg))
         if len(self.log) > 80:
             self.log.pop(0)
@@ -397,3 +409,27 @@ class CercoState(
         # ── Verificação de vitória pelo boss (Mão Rei) ────────────────────
         if self.estado.get("mao_rei_spawnou") and not self.estado.get("vitoria") and not self.estado.get("derrota"):
             self._verificar_vitoria_boss()
+
+        # ── AutoPlay Bot ─────────────────────────────────────────────────
+        if self.autoplay_ativo and self.bot_heroi is not None:
+            self.bot_heroi.update()
+
+    # ── AUTOPLAY TOGGLE ───────────────────────────────────────────────
+    def _toggle_autoplay(self):
+        """Ativa/desativa o modo AutoPlay. Cria ou destrói o BotHeroi."""
+        self.autoplay_ativo = not self.autoplay_ativo
+        if self.autoplay_ativo:
+            self.bot_heroi = BotHeroi(self, velocidade=self.autoplay_velocidade)
+            self._push("SISTEMA", "🤖 [BOT] AutoPlay ATIVADO! Bot assumiu o controle dos heróis.")
+            self._feedback("🤖 AutoPlay ON — Bot jogando!", (60, 200, 80))
+        else:
+            self.bot_heroi = None
+            self._push("SISTEMA", "🤖 [BOT] AutoPlay DESATIVADO.")
+            self._feedback("AutoPlay OFF", (180, 100, 60))
+
+    def _set_autoplay_velocidade(self, vel: str):
+        """Altera a velocidade do bot (lento/normal/rapido)."""
+        self.autoplay_velocidade = vel
+        if self.bot_heroi is not None:
+            self.bot_heroi.velocidade = vel
+        self._feedback(f"🤖 Bot: velocidade '{vel}'", (80, 200, 120))

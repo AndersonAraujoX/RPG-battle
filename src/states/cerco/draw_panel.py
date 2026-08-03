@@ -54,8 +54,10 @@ class CercoDrawPanelMixin:
 
         # ── Tamanho do deck ──────────────────────────────────────────────
         deck_atual = len(self.estado.get("deck_heroi", [])) + len(self.estado.get("mao", [])) + len(self.estado.get("descarte", []))
-        deck_max = self.estado.get("tamanho_deck_max", 12)
-        deck_cor = C_PERIGO if deck_atual >= deck_max else C_VERDE
+        upgrades_cnt = len(self.estado.get("cartas_upgrade_ativas", []))
+        deck_base_max = self.estado.get("tamanho_deck_max", 12)
+        deck_max = deck_base_max + upgrades_cnt
+        deck_cor = C_PERIGO if deck_atual > deck_max else C_VERDE
         deck_txt = self.fMi.render(f"Deck: {deck_atual}/{deck_max} cartas", True, deck_cor)
         tela.blit(deck_txt, (x + pw // 2 - deck_txt.get_width() // 2, yt))
         

@@ -89,8 +89,43 @@ class CercoStateTurnMixin:
 
     def _concluir_fim_turno_completo(self):
         from ...cerco_isectum import aplicar_delta
-        desc = list(self.estado["descarte"]) + list(self.estado["mao"])
-        self.estado = aplicar_delta(self.estado, {"mao": [], "descarte": desc})
+        import random as _rnd
+
+        upgrades_ativas = list(self.estado.get("cartas_upgrade_ativas", []))
+
+        # Reset e reembaralhamento para todos os heróis salvos em herois_status
+        for nome_h, st in self.estado.get("herois_status", {}).items():
+            todas = list(st.get("descarte", [])) + list(st.get("mao", [])) + list(st.get("deck_heroi", [])) + list(st.get("excluidas_ciclo", []))
+            for up in upgrades_ativas:
+                if not any(c.get("id") == up.get("id") for c in todas):
+                    todas.append(dict(up))
+            _rnd.shuffle(todas)
+            tam_m = 3
+            st["mao"] = todas[:tam_m]
+            st["deck_heroi"] = todas[tam_m:]
+            st["descarte"] = []
+            st["excluidas_ciclo"] = []
+            st["pontos_movimento"] = 0
+            st["pontos_trabalho"] = 0
+            st["pontos_escavacao"] = 0
+
+        # Reset e reembaralhamento para o estado do herói ativo
+        todas_ativo = list(self.estado.get("descarte", [])) + list(self.estado.get("mao", [])) + list(self.estado.get("deck_heroi", [])) + list(self.estado.get("excluidas_ciclo", []))
+        for up in upgrades_ativas:
+            if not any(c.get("id") == up.get("id") for c in todas_ativo):
+                todas_ativo.append(dict(up))
+        _rnd.shuffle(todas_ativo)
+        tam_m_ativo = 3
+
+        self.estado = aplicar_delta(self.estado, {
+            "mao": todas_ativo[:tam_m_ativo],
+            "deck_heroi": todas_ativo[tam_m_ativo:],
+            "descarte": [],
+            "excluidas_ciclo": [],
+            "pontos_movimento": 0,
+            "pontos_trabalho": 0,
+            "pontos_escavacao": 0,
+        })
         self.alcancaveis = {}
         self.modo_acao   = MODO_NENHUM
 
@@ -151,32 +186,13 @@ class CercoStateTurnMixin:
 
     # ── VERIFICAÇÃO DE FIM DE JOGO ────────────────────────────────────
     def _verificar_derrota_imediata(self):
-        from ...cerco_isectum import aplicar_delta
-        e = self.estado
-        derrota = False
-        msg = ""
+        """O sistema de derrota foi desativado a pedido do usuário.
 
-        if e.get("invasores", {}).get("camara_central", 0) >= 5:
-            derrota = True
-            msg = "5 Insetos dominaram a Câmara Central! DERROTA!"
-        elif e.get("reserva", 10) <= 0:
-            derrota = True
-            msg = "Orcs da reserva esgotados! DERROTA!"
-        elif e.get("brutamontes", 0) >= 3:
-            derrota = True
-            msg = "3 Brutamontes/Trolls invadiram a fortaleza! DERROTA!"
-        elif len(e.get("deck_catapulta", [1, 2, 3, 4])) <= 0:
-            derrota = True
-            msg = "O deck de munição de Catapulta esgotou! DERROTA!"
-
-        if derrota:
-            self.estado = aplicar_delta(self.estado, {
-                "derrota": True,
-                "msg_derrota": msg
-            })
-            self._push("DERROTA", msg)
-            self.fase = "FIM"
-            return True
+        Eventos de Cerco (catapulta, perda de cristais, brutamontes) continuam
+        aplicando seus efeitos normalmente, mas NUNCA interrompem o jogo com
+        uma tela de DERROTA. O combate continua até a vitória!
+        """
+        return False
 
         if not self.deck:
             if not self.estado.get("mao_rei_spawnou"):

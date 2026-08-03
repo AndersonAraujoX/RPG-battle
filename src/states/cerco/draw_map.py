@@ -919,21 +919,6 @@ class CercoDrawMapMixin:
         e = self.estado
         for zona_key, (lcx, lcy) in labels_pendentes.items():
             y_off = lcy - int(8 * self.zoom)
-            inv = e["invasores"].get(zona_key, 0)
-            if inv > 0:
-                li = self.fP.render(f"INSETOS: {inv}", True, (255, 120, 120))
-                if self.zoom != 1.0:
-                    w_s = max(1, int(li.get_width() * self.zoom))
-                    h_s = max(1, int(li.get_height() * self.zoom))
-                    li = pygame.transform.smoothscale(li, (w_s, h_s))
-                li_rect = li.get_rect(center=(lcx, y_off))
-                bg_inv = li_rect.inflate(8, 4)
-                s_inv = pygame.Surface((bg_inv.width, bg_inv.height), pygame.SRCALPHA)
-                s_inv.fill((45, 10, 10, 210))
-                pygame.draw.rect(s_inv, (255, 70, 70), (0, 0, bg_inv.width, bg_inv.height), 1, border_radius=4)
-                tela.blit(s_inv, bg_inv.topleft)
-                tela.blit(li, li_rect.topleft)
-                y_off += int(18 * self.zoom)
             if zona_key == "camara_central":
                 pass
             elif zona_key == "patio":

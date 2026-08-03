@@ -430,9 +430,12 @@ def processar_carta(estado, carta):
             qreal = min(qtd, estado["reserva"])
             novos = dict(estado["invasores"])
             novos[zona_spawn] = novos.get(zona_spawn, 0) + qreal
-            delta["invasores"] = novos
-            delta["reserva"]   = estado["reserva"] - qreal
-            logs.append(("AMEACA", f"+{qreal}x Invasor em {NOMES_ZONA.get(zona_spawn, zona_spawn)}"))
+        qreal = min(qtd, estado["reserva"])
+        novos = dict(estado["invasores"])
+        novos[zona_spawn] = novos.get(zona_spawn, 0) + qreal
+        delta["invasores"] = novos
+        delta["reserva"]   = estado["reserva"] - qreal
+        logs.append(("AMEACA", f"+{qreal}x Invasor em {NOMES_ZONA.get(zona_spawn, zona_spawn)}"))
 
     elif tipo == "mover":
         novos         = dict(estado["invasores"])
@@ -475,9 +478,7 @@ def processar_carta(estado, carta):
         delta["tesouro"]   = nt
         delta["reserva"]   = min(10, estado["reserva"] + volta_reserva)
         if nt == 0:
-            delta["derrota"]     = True
-            delta["msg_derrota"] = "Cristais saqueados — DERROTA"
-            logs.append(("DERROTA", delta["msg_derrota"]))
+            logs.append(("CERCO", "⚠️ Cristais zerados no Tesouro, mas a batalha continua!"))
 
     elif tipo == "torre_assalto":
         t = estado["torre_assalto"]
@@ -507,9 +508,7 @@ def _ativar_torre(estado):
              "torre_assalto": {"estado": "reserva", "ciclo": 0}}
     logs  = [("CERCO", f"TORRE ATIVA! +1 Brutamonte no Pátio ({delta['brutamontes']}/3)")]
     if delta["brutamontes"] >= 3:
-        delta["derrota"]     = True
-        delta["msg_derrota"] = "3 Brutamontes — túnel invadido! DERROTA"
-        logs.append(("DERROTA", delta["msg_derrota"]))
+        logs.append(("CERCO", "⚠️ 3 Brutamontes no Pátio! A batalha continua!"))
     return {"delta": delta, "logs": logs}
 
 
@@ -531,13 +530,9 @@ def _ativar_catapulta(estado):
     logs.append(("CERCO", f"Catapulta remove 1 cristal (Tesouro: {nt}) [Catapulta Restantes: {len(deck_catapulta)}]"))
     
     if len(deck_catapulta) <= 0:
-        delta["derrota"] = True
-        delta["msg_derrota"] = "O deck de munição de Catapulta esgotou! DERROTA!"
-        logs.append(("DERROTA", delta["msg_derrota"]))
+        logs.append(("CERCO", "⚠️ Munição da Catapulta esgotou! O combate continua!"))
     elif nt == 0:
-        delta["derrota"]     = True
-        delta["msg_derrota"] = "Cristais zerados pela Catapulta — DERROTA"
-        logs.append(("DERROTA", delta["msg_derrota"]))
+        logs.append(("CERCO", "⚠️ Cristais zerados pela Catapulta! O combate continua!"))
     return {"delta": delta, "logs": logs}
 
 
