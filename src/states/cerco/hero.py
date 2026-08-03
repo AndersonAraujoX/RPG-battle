@@ -457,25 +457,27 @@ class CercoStateHeroMixin:
                 proxima_carta = candidate
                 break
 
+        # Se todas as cartas do catálogo já foram compradas, recicla o mercado com novas cartas do catálogo
+        if not proxima_carta:
+            candidatas_reciclar = [c for c in CARTAS_UPGRADE if c["id"] not in cartas_no_mercado_ids]
+            if candidatas_reciclar:
+                proxima_carta = random.choice(candidatas_reciclar)
+            else:
+                proxima_carta = random.choice(CARTAS_UPGRADE)
+
         slots = [dict(s) for s in e["slots_upgrade"]]
-        if proxima_carta:
-            # Reseta o slot com a nova carta de upgrade
-            slots[slot_id] = {
-                "id": slot_id,
-                "nome": proxima_carta["nome"],
-                "simbolo": proxima_carta["simbolo"],
-                "carta_id": proxima_carta["id"],
-                "custo": dict(proxima_carta["custo"]),
-                "descricao": proxima_carta.get("descricao", ""),
-                "adquirido": False,
-                "bloqueado": False,
-                "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}
-            }
-            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido e enviado ao Baralho! Novo upgrade [{proxima_carta['nome']}] no mercado!"
-        else:
-            slots[slot_id]["adquirido"] = True
-            slots[slot_id]["recursos_alocados"] = {"madeira": 0, "couro": 0, "metal": 0}
-            log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido e enviado ao Baralho! (Todas as melhorias compradas)"
+        slots[slot_id] = {
+            "id": slot_id,
+            "nome": proxima_carta["nome"],
+            "simbolo": proxima_carta.get("simbolo", "⭐"),
+            "carta_id": proxima_carta["id"],
+            "custo": dict(proxima_carta["custo"]),
+            "descricao": proxima_carta.get("descricao", ""),
+            "adquirido": False,
+            "bloqueado": False,
+            "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}
+        }
+        log_msg = f"⭐ Upgrade [{slot['nome']}] adquirido! Novo upgrade [{proxima_carta['nome']}] disponível no mercado!"
 
         delta = {
             "slots_upgrade": slots,

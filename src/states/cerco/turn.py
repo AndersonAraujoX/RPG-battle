@@ -117,7 +117,30 @@ class CercoStateTurnMixin:
         _rnd.shuffle(todas_ativo)
         tam_m_ativo = 3
 
-        self.estado = aplicar_delta(self.estado, {
+        # Recicla / repovoa slots do mercado que estiverem vazios [ VAZIO ]
+        from ...cerco_isectum import CARTAS_UPGRADE
+        slots = [dict(s) for s in self.estado.get("slots_upgrade", [])]
+        mudou_slots = False
+        cartas_no_mercado_ids = {s.get("carta_id") for s in slots if s.get("carta_id") and not s.get("adquirido")}
+        for i, s in enumerate(slots):
+            if s.get("adquirido") or not s.get("carta_id"):
+                candidatas = [c for c in CARTAS_UPGRADE if c["id"] not in cartas_no_mercado_ids]
+                cand = _rnd.choice(candidatas if candidatas else CARTAS_UPGRADE)
+                slots[i] = {
+                    "id": i,
+                    "nome": cand["nome"],
+                    "simbolo": cand.get("simbolo", "⭐"),
+                    "carta_id": cand["id"],
+                    "custo": dict(cand["custo"]),
+                    "descricao": cand.get("descricao", ""),
+                    "adquirido": False,
+                    "bloqueado": False,
+                    "recursos_alocados": {"madeira": 0, "couro": 0, "metal": 0}
+                }
+                cartas_no_mercado_ids.add(cand["id"])
+                mudou_slots = True
+
+        delta_atual = {
             "mao": todas_ativo[:tam_m_ativo],
             "deck_heroi": todas_ativo[tam_m_ativo:],
             "descarte": [],
@@ -125,7 +148,11 @@ class CercoStateTurnMixin:
             "pontos_movimento": 0,
             "pontos_trabalho": 0,
             "pontos_escavacao": 0,
-        })
+        }
+        if mudou_slots:
+            delta_atual["slots_upgrade"] = slots
+
+        self.estado = aplicar_delta(self.estado, delta_atual)
         self.alcancaveis = {}
         self.modo_acao   = MODO_NENHUM
 
