@@ -195,7 +195,7 @@ class BotHeroi:
         s._jogar_carta(0)
 
     def _tentar_atacar(self):
-        """Procura inimigos adjacentes no grid ou invasores na zona e executa ataque."""
+        """Procura inimigos vivos no alcance do herói no grid e executa ataque físico."""
         s = self.state
         e = s.estado
 
@@ -208,22 +208,26 @@ class BotHeroi:
             hx = e.get("heroi_x", 9)
             hy = e.get("heroi_y", 9)
 
-        # 1. Busca inimigos vivos no grid (combate físico)
+        alcance_heroi = getattr(heroi_obj, "alcance", 1) if heroi_obj else 1
+
+        # 1. Busca inimigos vivos no grid 2D (combate físico direto)
         inimigos_vivos = [
             p for p in s.motor.combatentes
             if getattr(p, "time", "A") == "B" and p.hp_atual > 0
         ]
-        for ini in inimigos_vivos:
-            dist = abs(ini.pos_x - hx) + abs(ini.pos_y - hy)
-            if dist <= 1:
-                from ...resolvedor_acoes import obter_zona_por_coordenada
-                zona_ini = obter_zona_por_coordenada(ini.pos_x, ini.pos_y) or "patio"
-                s._push("BOT", f"[BOT] Atacando [{ini.nome}] na zona [{zona_ini}].")
-                s._selecionar_modo("atacar")
-                s._on_cell_click(ini.pos_x, ini.pos_y)
-                return
+        if inimigos_vivos:
+            inimigos_vivos.sort(key=lambda ini: abs(ini.pos_x - hx) + abs(ini.pos_y - hy))
+            for ini in inimigos_vivos:
+                dist = abs(ini.pos_x - hx) + abs(ini.pos_y - hy)
+                if dist <= alcance_heroi:
+                    from ...resolvedor_acoes import obter_zona_por_coordenada
+                    zona_ini = obter_zona_por_coordenada(ini.pos_x, ini.pos_y) or "patio"
+                    s._push("BOT", f"⚔️ [BOT] Atacando [{ini.nome}] (HP: {ini.hp_atual}/{ini.hp_max}) na célula ({ini.pos_x}, {ini.pos_y})!")
+                    s._selecionar_modo("atacar")
+                    s._on_cell_click(ini.pos_x, ini.pos_y)
+                    return True
 
-        # 2. Ataca invasores por zona (se houver invasores na zona atual ou qualquer zona)
+        # 2. Ataca invasores por zona apenas como fallback se não houver unidade 2D no alcance
         invasores = e.get("invasores", {})
         pos_heroi = e.get("pos_heroi", "camara_central")
         zonas_com_invasores = [z for z, n in invasores.items() if n > 0]
@@ -238,6 +242,8 @@ class BotHeroi:
                 s._push("BOT", f"[BOT] Atacando invasores na zona [{zona_alvo}].")
                 s._selecionar_modo("atacar")
                 s._on_cell_click(cx, cy)
+                return True
+        return False
 
     def _tentar_mover(self):
         """Move o herói em direção ao inimigo mais próximo, oficina necessária ou zona ameaçada."""

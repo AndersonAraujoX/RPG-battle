@@ -20,6 +20,10 @@ class CercoStateHeroMixin:
     def _salvar_status_heroi(self, nome_heroi):
         if "herois_status" not in self.estado:
             self.estado["herois_status"] = {}
+        heroi_obj = next((h for h in getattr(self, 'herois', []) if h.nome == nome_heroi), None)
+        hp_a = heroi_obj.hp_atual if heroi_obj else self.estado.get("herois_status", {}).get(nome_heroi, {}).get("hp_atual")
+        hp_m = heroi_obj.hp_max if heroi_obj else self.estado.get("herois_status", {}).get(nome_heroi, {}).get("hp_max")
+
         self.estado["herois_status"][nome_heroi] = {
             "mao":              list(self.estado.get("mao", [])),
             "deck_heroi":       list(self.estado.get("deck_heroi", [])),
@@ -28,18 +32,27 @@ class CercoStateHeroMixin:
             "pontos_movimento": self.estado.get("pontos_movimento", 0),
             "pontos_trabalho":  self.estado.get("pontos_trabalho", 0),
             "pontos_escavacao": self.estado.get("pontos_escavacao", 0),
-            "voo_ativo":        self.estado.get("voo_ativo", False)
+            "voo_ativo":        self.estado.get("voo_ativo", False),
+            "hp_atual":         hp_a,
+            "hp_max":           hp_m
         }
 
     def _carregar_status_heroi(self, nome_heroi):
         if "herois_status" not in self.estado or nome_heroi not in self.estado["herois_status"]:
             return
         status = self.estado["herois_status"][nome_heroi]
+        heroi_obj = next((h for h in getattr(self, 'herois', []) if h.nome == nome_heroi), None)
+        if heroi_obj:
+            if status.get("hp_atual") is not None:
+                heroi_obj.hp_atual = status["hp_atual"]
+            if status.get("hp_max") is not None:
+                heroi_obj.hp_max = status["hp_max"]
+
         from ...cerco_isectum import aplicar_delta
         self.estado = aplicar_delta(self.estado, {
             "mao":              list(status.get("mao", [])),
             "deck_heroi":       list(status.get("deck_heroi", [])),
-            "descarte":         list(status.get("descarte", []),),
+            "descarte":         list(status.get("descarte", [])),
             "excluidas_ciclo":  list(status.get("excluidas_ciclo", [])),
             "pontos_movimento": status.get("pontos_movimento", 0),
             "pontos_trabalho":  status.get("pontos_trabalho", 0),
@@ -116,6 +129,28 @@ class CercoStateHeroMixin:
             mao.append(carta)
             cartas_adicionadas.append(carta)
 
+            # ── MECÂNICA 1: VITALIDADE POR COMPRA DE CARTAS ─────────────────────
+            tot_puxadas = self.estado.get("cartas_puxadas_total", 0) + 1
+            self.estado["cartas_puxadas_total"] = tot_puxadas
+
+            delta_hp = 5  # +5 HP por carta puxada
+            msg_bonus = ""
+
+            if tot_puxadas % 5 == 0:
+                delta_hp += 10  # +10 HP extra a cada 5 cartas puxadas
+                msg_bonus += " | 🌟 Bônus de 5 Cartas (+10 HP extra!)"
+
+            if tot_puxadas % 12 == 0 and hasattr(self, 'heroi_atual') and self.heroi_atual:
+                multiplicador_supremo = int(self.heroi_atual.hp_max * 0.50)  # +50% do HP Máx Atual
+                delta_hp += multiplicador_supremo
+                msg_bonus += f" | 👑 VITALIDADE SUPREMA (12ª carta: +50% HP Máx / +{multiplicador_supremo} HP!)"
+
+            if hasattr(self, 'heroi_atual') and self.heroi_atual:
+                ha = self.heroi_atual
+                ha.hp_max += delta_hp
+                ha.hp_atual += delta_hp
+                self._push("HEROI", f"❤️ Vitalidade! {ha.nome} ganhou +{delta_hp} HP ao puxar carta! (Total sacado: {tot_puxadas} cartas | HP: {ha.hp_atual}/{ha.hp_max}){msg_bonus}")
+
         from ...cerco_isectum import aplicar_delta
         self.estado = aplicar_delta(self.estado, {
             "mao": mao, "deck_heroi": deck, "descarte": discard
@@ -142,6 +177,35 @@ class CercoStateHeroMixin:
                 'delay': idx_adicionado * 8,
                 'finalizada': False
             })
+
+    def _gerar_drop_inimigo(self, inimigo):
+        """MECÂNICA 2: Inimigos derrotados dropam recursos (Madeira, Couro, Metal) para o Mercado de Upgrades."""
+        import random as _rnd
+        from ...cerco_isectum import aplicar_delta
+
+        is_boss = getattr(inimigo, "_is_boss", False) or getattr(inimigo, "classe_nome", "") in ("DragaoAnciao", "ReiGoblin", "MaoRei", "FilhoDoImperador")
+        qtd_drops = _rnd.randint(2, 4) if is_boss else _rnd.randint(1, 3)
+
+        recursos_sorteados = _rnd.choices(["madeira", "couro", "metal"], k=qtd_drops)
+        counts = {
+            "madeira": recursos_sorteados.count("madeira"),
+            "couro": recursos_sorteados.count("couro"),
+            "metal": recursos_sorteados.count("metal")
+        }
+
+        dep = dict(self.estado.get("recursos_depositados", {}))
+        for r, c in counts.items():
+            if c > 0:
+                dep[r] = dep.get(r, 0) + c
+
+        self.estado = aplicar_delta(self.estado, {"recursos_depositados": dep})
+
+        nomes_r = {"madeira": "Madeira 🪵", "couro": "Couro 🧵", "metal": "Metal ⚙️"}
+        drop_str = ", ".join(f"+{c}x {nomes_r[r]}" for r, c in counts.items() if c > 0)
+        nome_ini = getattr(inimigo, "nome", "Inimigo")
+
+        self._push("HEROI", f"💎 Loot! {nome_ini} foi derrotado e dropou {drop_str} para o Mercado de Upgrades!")
+        self._feedback(f"🎒 Loot: {drop_str} depositados!", (240, 200, 80))
 
     def _jogar_carta(self, idx):
         mao = list(self.estado["mao"])

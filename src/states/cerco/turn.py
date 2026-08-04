@@ -318,6 +318,34 @@ class CercoStateTurnMixin:
             return
         self.fase = "FASE_AMEACA"
         self.carta_cerco = self.deck.pop()
+
+        # ── MECÂNICA: VITALIDADE DOS INIMIGOS POR CARTA DE AMEAÇA PUXADA ────────
+        tot_ameaca = self.estado.get("cartas_ameaca_puxadas", 0) + 1
+        self.estado["cartas_ameaca_puxadas"] = tot_ameaca
+
+        delta_hp_ini = 5  # +5 HP por carta de ameaça puxada
+        msg_bonus_ini = ""
+
+        if tot_ameaca % 5 == 0:
+            delta_hp_ini += 10  # +10 HP extra a cada 5 cartas de ameaça
+            msg_bonus_ini += " | 🌟 Bônus de 5 Ameaças (+10 HP extra nos Inimigos!)"
+
+        if tot_ameaca % 12 == 0:
+            msg_bonus_ini += " | 👑 VITALIDADE SUPREMA INIMIGA (12ª ameaça: +50% HP Máx nos Inimigos!)"
+
+        inimigos_vivos = [p for p in list(self.motor.combatentes) if getattr(p, "time", "A") == "B" and p.hp_atual > 0]
+
+        for ini in inimigos_vivos:
+            if tot_ameaca % 12 == 0:
+                mult_ini = int(ini.hp_max * 0.50)
+                ini.hp_max += (delta_hp_ini + mult_ini)
+                ini.hp_atual += (delta_hp_ini + mult_ini)
+            else:
+                ini.hp_max += delta_hp_ini
+                ini.hp_atual += delta_hp_ini
+
+        self._push("INIMIGO", f"👾 Vitalidade Inseto! Inimigos ganharam bônus de HP ao sacar ameaça (Sacadas: {tot_ameaca}){msg_bonus_ini}")
+
         self._push("CARTA", f"[N{self.carta_cerco['nivel']}] {self.carta_cerco['simbolo']} "
                             f"{self.carta_cerco['titulo']}")
         self._narrativa(self.carta_cerco["tipo"])
@@ -341,6 +369,9 @@ class CercoStateTurnMixin:
         # Processa turnos automáticos dos Mercenários contratados
         self._processar_turnos_mercenarios()
 
+        # Processa a movimentação e combate tático dos Inimigos no mapa 2D
+        self._processar_turnos_inimigos()
+
         if self._verificar_derrota_imediata():
             return
 
@@ -351,6 +382,110 @@ class CercoStateTurnMixin:
         else:
             self.fase = "JOGAR_CARTA"
             self._comprar_mao()
+
+    def _processar_turnos_inimigos(self):
+        """Processa a movimentação tática e combate de todas as criaturas inimigas no mapa 2D."""
+        tab = self.motor.tabuleiro
+        inimigos = [
+            p for p in list(self.motor.combatentes)
+            if getattr(p, "time", "A") == "B" and p.hp_atual > 0
+        ]
+
+        if not inimigos:
+            return
+
+        # Alvos potenciais do time dos heróis e aliados (Heróis e Mercenários)
+        alvos_aliados = [
+            p for p in list(self.motor.combatentes)
+            if getattr(p, "time", "A") == "A" and p.hp_atual > 0
+        ]
+
+        # Alvo padrão no centro da fortaleza (Câmara Central)
+        alvo_centro_x, alvo_centro_y = 9, 9
+
+        teve_movimento = False
+
+        for ini in inimigos:
+            hx, hy = ini.pos_x, ini.pos_y
+
+            # 1. Determina o alvo mais prioritário para a criatura
+            alvo_obj = None
+            if alvos_aliados:
+                alvo_obj = min(
+                    alvos_aliados,
+                    key=lambda a: abs(a.pos_x - hx) + abs(a.pos_y - hy)
+                )
+
+            if alvo_obj:
+                dest_x, dest_y = alvo_obj.pos_x, alvo_obj.pos_y
+            else:
+                dest_x, dest_y = alvo_centro_x, alvo_centro_y
+
+            alcance = getattr(ini, "alcance", 1)
+            dist_inicial = abs(dest_x - hx) + abs(dest_y - hy)
+
+            # 2. Se não estiver em alcance, move-se 1 a 2 células em direção ao alvo
+            curr_x, curr_y = hx, hy
+            if dist_inicial > alcance:
+                vel = min(2, getattr(ini, "velocidade", 2))
+
+                for _ in range(vel):
+                    dx = 1 if dest_x > curr_x else (-1 if dest_x < curr_x else 0)
+                    dy = 1 if dest_y > curr_y else (-1 if dest_y < curr_y else 0)
+
+                    candidatas = []
+                    if dx != 0: candidatas.append((curr_x + dx, curr_y))
+                    if dy != 0: candidatas.append((curr_x, curr_y + dy))
+
+                    moved = False
+                    for nx, ny in candidatas:
+                        if 0 <= nx < tab.largura and 0 <= ny < tab.altura:
+                            if tab.get_terrain_em(nx, ny) != "parede" and tab.grid[ny][nx] is None:
+                                tab.grid[curr_y][curr_x] = None
+                                tab.grid[ny][nx] = ini
+                                curr_x, curr_y = nx, ny
+                                moved = True
+                                teve_movimento = True
+                                break
+                    if not moved:
+                        break
+
+                if (curr_x, curr_y) != (hx, hy):
+                    old_vx, old_vy = self._obter_posicao_virtual(ini, hx, hy)
+                    ini.pos_x, ini.pos_y = curr_x, curr_y
+                    new_vx, new_vy = self._obter_posicao_virtual(ini, curr_x, curr_y)
+                    self._start_monster_walk(ini, (old_vx, old_vy), (new_vx, new_vy))
+
+            # 3. Recalcula a distância após a movimentação e executa o ATAQUE!
+            dist_final = abs(dest_x - curr_x) + abs(dest_y - curr_y)
+            if dist_final <= alcance and alvo_obj is not None and alvo_obj.hp_atual > 0:
+                import random as _rnd
+                d20 = _rnd.randint(1, 20)
+                bonus_atk = getattr(ini, "bonus_ataque", getattr(ini, "_bonus_ataque_override", 4))
+                tot_atk = d20 + bonus_atk
+                ac_alvo = getattr(alvo_obj, "ac", getattr(alvo_obj, "ac_base", 14))
+
+                if tot_atk >= ac_alvo:
+                    dado_d = getattr(ini, "dado_dano", (1, 6))
+                    b_dano = getattr(ini, "bonus_dano", getattr(ini, "_bonus_dano_override", 2))
+                    dano = sum(_rnd.randint(1, dado_d[1]) for _ in range(dado_d[0])) + b_dano
+                    alvo_obj.hp_atual -= dano
+                    nome_ini = getattr(ini, "nome", "Invasor")
+                    nome_alvo = getattr(alvo_obj, "nome", "Aliado")
+                    self._push("INIMIGO", f"⚔️ {nome_ini} ATACOU {nome_alvo}! Dano: {dano} (HP: {max(0, alvo_obj.hp_atual)}/{alvo_obj.hp_max})")
+
+                    if hasattr(self, "_salvar_status_heroi") and hasattr(alvo_obj, "nome"):
+                        self._salvar_status_heroi(alvo_obj.nome)
+
+                    if alvo_obj.hp_atual <= 0:
+                        self._push("INIMIGO", f"⚠️ {nome_alvo} foi abatido no combate!")
+                else:
+                    nome_ini = getattr(ini, "nome", "Invasor")
+                    nome_alvo = getattr(alvo_obj, "nome", "Aliado")
+                    self._push("INIMIGO", f"⚔️ {nome_ini} atacou {nome_alvo}, mas errou! (D20: {d20}+{bonus_atk} vs AC {ac_alvo})")
+
+        if teve_movimento:
+            self.map_backbuffer_sujo = True
 
     def _processar_turnos_mercenarios(self):
         """Processa as ações automáticas de todos os mercenários contratados no time A."""
@@ -377,9 +512,41 @@ class CercoStateTurnMixin:
                 if pedras > 0:
                     cristais_minerados += 2
                     self.estado = aplicar_delta(self.estado, {"pedregulhos": pedras - 1})
-                    self._push("HEROI", f"⛏️ {m.nome} minerou as rochas e extraiu +2 Cristais Roxos!")
+                    self._push("HEROI", f"⛏️ {m.nome} minerou as rochas e extraiu +2 Cristais Roxos! (Restam: {pedras-1} pedregulhos)")
                 else:
-                    self._push("HEROI", f"⛏️ {m.nome} não encontrou mais pedregulhos para minerar.")
+                    # Se não há mais pedregulhos, o minerador usa sua picareta para defender o Pátio!
+                    inimigos = [
+                        p for p in list(self.motor.combatentes)
+                        if getattr(p, "time", "A") == "B" and p.hp_atual > 0
+                    ]
+                    if inimigos:
+                        inimigos.sort(key=lambda ini: abs(ini.pos_x - m.pos_x) + abs(ini.pos_y - m.pos_y))
+                        alvo = inimigos[0]
+                        dist = abs(alvo.pos_x - m.pos_x) + abs(alvo.pos_y - m.pos_y)
+                        if dist <= 1:
+                            import random as _rnd
+                            d20 = _rnd.randint(1, 20)
+                            total_ataque = d20 + getattr(m, 'bonus_ataque', 2)
+                            if total_ataque >= alvo.ac:
+                                dano = _rnd.randint(1, 6) + 1
+                                alvo.hp_atual -= dano
+                                self._push("HEROI", f"⛏️ {m.nome} atacou {alvo.nome} com a picareta! Dano: {dano}")
+                                if alvo.hp_atual <= 0:
+                                    if 0 <= alvo.pos_y < len(tab.grid) and 0 <= alvo.pos_x < len(tab.grid[0]):
+                                        if tab.grid[alvo.pos_y][alvo.pos_x] is alvo:
+                                            tab.grid[alvo.pos_y][alvo.pos_x] = None
+                                    if alvo in self.motor.combatentes:
+                                        self.motor.combatentes.remove(alvo)
+                                    if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
+                                        self.motor.time_b.remove(alvo)
+                                    self._push("HEROI", f"💀 Minerador ABATEU {alvo.nome}!")
+                                    self._gerar_drop_inimigo(alvo)
+                            else:
+                                self._push("HEROI", f"⛏️ {m.nome} atacou com a picareta, mas errou! (D20: {d20}+2 vs AC {alvo.ac})")
+                        else:
+                            self._push("HEROI", f"⛏️ {m.nome} está de guarda no Pátio (todas as rochas foram mineradas).")
+                    else:
+                        self._push("HEROI", f"⛏️ {m.nome} está de guarda no Pátio (todas as rochas foram mineradas).")
 
             # --- ARQUEIRO (Ataque à Distância da Torre / Perímetro) ---
             elif tipo == "arqueiro":
@@ -412,6 +579,7 @@ class CercoStateTurnMixin:
                                 if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
                                     self.motor.time_b.remove(alvo)
                                 self._push("HEROI", f"💀 Arqueiro ABATEU {alvo.nome}!")
+                                self._gerar_drop_inimigo(alvo)
                         else:
                             self._push("HEROI", f"🏹 Arqueiro disparou em {alvo.nome}, mas ERROU! (D20: {d20}+5 vs AC {alvo.ac})")
                 else:
@@ -457,6 +625,7 @@ class CercoStateTurnMixin:
                                 if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
                                     self.motor.time_b.remove(alvo)
                                 self._push("HEROI", f"💀 Guarda ABATEU {alvo.nome}!")
+                                self._gerar_drop_inimigo(alvo)
                         else:
                             self._push("HEROI", f"⚔️ Guarda atacou {alvo.nome}, mas ERROU! (D20: {d20}+4 vs AC {alvo.ac})")
                     elif dist <= 3:

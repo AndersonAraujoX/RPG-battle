@@ -841,7 +841,24 @@ class CercoDrawMapMixin:
                         pulse_m = abs(self.timer % 90 - 45) / 45.0
                         pr_m = max(2, int((3 + 2 * pulse_m) * self.zoom))
                         pygame.draw.circle(tela, (210, 120, 255), (cx_draw, cy_draw), pr_m, max(1, int(1.5 * self.zoom)))
-                    # Exibe o rótulo de nome apenas para o herói atual ou ao passar o mouse sobre o personagem
+                    # ── BARRA DE VIDA (HP) ACIMA DO PERSONAGEM ────────
+                    hp_cur = getattr(char, "hp_atual", 10)
+                    hp_max = max(1, getattr(char, "hp_max", 10))
+                    pct_hp = max(0.0, min(1.0, hp_cur / hp_max))
+
+                    bar_w = max(18, int(24 * self.zoom))
+                    bar_h = max(3, int(4 * self.zoom))
+                    bar_x = cx_draw - bar_w // 2
+                    bar_y = cy_draw - sh - max(2, int(4 * self.zoom))
+
+                    pygame.draw.rect(tela, (12, 12, 18), (bar_x - 1, bar_y - 1, bar_w + 2, bar_h + 2), border_radius=2)
+                    cor_hp = (60, 220, 90) if pct_hp > 0.5 else ((240, 200, 40) if pct_hp >= 0.25 else (240, 50, 50))
+                    fill_w = int(bar_w * pct_hp)
+                    if fill_w > 0:
+                        pygame.draw.rect(tela, cor_hp, (bar_x, bar_y, fill_w, bar_h), border_radius=2)
+                    pygame.draw.rect(tela, (40, 40, 60), (bar_x - 1, bar_y - 1, bar_w + 2, bar_h + 2), 1, border_radius=2)
+
+                    # ── CARD COMPLETO DE STATS (VIDA, ATAQUE, DEFESA) AO PASSAR O MOUSE / SELECIONAR ──
                     mouse_pos = pygame.mouse.get_pos()
                     is_hover = rect_char.inflate(20, 20).collidepoint(mouse_pos)
                     if eh_atual or is_hover:
@@ -853,19 +870,38 @@ class CercoDrawMapMixin:
                         else:
                             nome_exibido = "?????" if nome_raw == "Aquele" else remover_emojis(nome_raw)
 
+                        atk_val = getattr(char, 'bonus_ataque', getattr(char, '_bonus_ataque_override', 3))
+                        dado_d = getattr(char, 'dado_dano', (1, 6))
+                        d_str = f"{dado_d[0]}d{dado_d[1]}" if isinstance(dado_d, (tuple, list)) else str(dado_d)
+                        def_val = getattr(char, 'ac', getattr(char, 'ac_base', 10))
+
+                        stats_str = f"❤️{hp_cur}/{hp_max} ⚔️+{atk_val}({d_str}) 🛡️{def_val}"
+
                         nome_s = self.fMi.render(nome_exibido, True, (240, 230, 255))
+                        stats_s = self.fMi.render(stats_str, True, (210, 230, 255))
+
                         if self.zoom != 1.0:
-                            w_scaled = max(1, int(nome_s.get_width() * self.zoom))
-                            h_scaled = max(1, int(nome_s.get_height() * self.zoom))
-                            nome_s = pygame.transform.smoothscale(nome_s, (w_scaled, h_scaled))
-                        
-                        lbl_r = nome_s.get_rect(center=(cx_draw, cy_draw - int(24 * self.zoom)))
-                        bg_pill = lbl_r.inflate(8, 4)
-                        s_bg = pygame.Surface((bg_pill.width, bg_pill.height), pygame.SRCALPHA)
-                        s_bg.fill((15, 12, 25, 200))
-                        pygame.draw.rect(s_bg, (180, 140, 255) if eh_mercenario else (100, 200, 255), (0, 0, bg_pill.width, bg_pill.height), 1, border_radius=4)
-                        tela.blit(s_bg, bg_pill.topleft)
-                        tela.blit(nome_s, lbl_r.topleft)
+                            w_s1 = max(1, int(nome_s.get_width() * self.zoom))
+                            h_s1 = max(1, int(nome_s.get_height() * self.zoom))
+                            nome_s = pygame.transform.smoothscale(nome_s, (w_s1, h_s1))
+
+                            w_s2 = max(1, int(stats_s.get_width() * self.zoom))
+                            h_s2 = max(1, int(stats_s.get_height() * self.zoom))
+                            stats_s = pygame.transform.smoothscale(stats_s, (w_s2, h_s2))
+
+                        card_w = max(nome_s.get_width(), stats_s.get_width()) + 12
+                        card_h = nome_s.get_height() + stats_s.get_height() + 6
+
+                        card_x = cx_draw - card_w // 2
+                        card_y = bar_y - card_h - 4
+
+                        s_bg = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
+                        s_bg.fill((12, 10, 22, 220))
+                        pygame.draw.rect(s_bg, (180, 140, 255) if eh_mercenario else (100, 200, 255), (0, 0, card_w, card_h), 1, border_radius=5)
+                        tela.blit(s_bg, (card_x, card_y))
+
+                        tela.blit(nome_s, (card_x + (card_w - nome_s.get_width()) // 2, card_y + 2))
+                        tela.blit(stats_s, (card_x + (card_w - stats_s.get_width()) // 2, card_y + 3 + nome_s.get_height()))
 
             # Desenha o Príncipe Lysander fora do tabuleiro como oponente comandante
             if gx == -3 and gy == -3:

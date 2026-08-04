@@ -183,6 +183,20 @@ class CercoStateEnemyMixin:
                         is_infiltrador = True
 
                 inimigo = classe_inimigo(nome_inimigo, "B", nivel=3)
+
+                # Aplica o bônus acumulado de Vitalidade Inimiga ao spawnar
+                tot_ameaca = self.estado.get("cartas_ameaca_puxadas", 0)
+                if tot_ameaca > 0:
+                    bonus_hp_spawn = 0
+                    for c in range(1, tot_ameaca + 1):
+                        bonus_hp_spawn += 5
+                        if c % 5 == 0:
+                            bonus_hp_spawn += 10
+                        if c % 12 == 0:
+                            bonus_hp_spawn += int((inimigo.hp_max + bonus_hp_spawn) * 0.50)
+                    inimigo.hp_max += bonus_hp_spawn
+                    inimigo.hp_atual = inimigo.hp_max
+
                 if is_infiltrador:
                     inimigo._is_infiltrador = True
                     inimigo.tipo_inseto = "infiltrador"

@@ -239,6 +239,23 @@ class CercoDrawUIMixin:
                     tela.blit(fallback, (h_rect.centerx - fallback.get_width() // 2, h_rect.centery - fallback.get_height() // 2))
             pygame.draw.rect(tela, cor_b, h_rect, 2 if destaque else 1, border_radius=3)
 
+        # Exibe os atributos de Vida (HP), Ataque (ATK) e Defesa (DEF) do herói ativo
+        if hasattr(self, 'heroi_atual') and self.heroi_atual:
+            ha = self.heroi_atual
+            hp_cur = getattr(ha, 'hp_atual', 50)
+            hp_max = max(1, getattr(ha, 'hp_max', 50))
+            atk = getattr(ha, 'bonus_ataque', 5)
+            dado_d = getattr(ha, 'dado_dano', (1, 8))
+            d_str = f"{dado_d[0]}d{dado_d[1]}" if isinstance(dado_d, (tuple, list)) else str(dado_d)
+            ac_val = getattr(ha, 'ac', getattr(ha, 'ac_base', 14))
+
+            h_stats_txt = f"❤️ {hp_cur}/{hp_max}  ⚔️ +{atk}({d_str})  🛡️ DEF {ac_val}"
+            lbl_stats = self.fMi.render(h_stats_txt, True, (240, 230, 160))
+
+            px_st = bx + bw + 14
+            py_st = by + 6
+            tela.blit(lbl_stats, (px_st, py_st))
+
     def _draw_feedback(self, tela, W, H):
         alpha = min(255, self.feedback_timer * 4)
         surf  = pygame.Surface((W, 32), pygame.SRCALPHA)
