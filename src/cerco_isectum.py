@@ -92,7 +92,7 @@ CARTAS_BASICAS = [
 
 CARTAS_UPGRADE_AMARELO = [
     {"id": "estratagema_mano", "nome": "Plano Tatico", "simbolo": "📜", "tipo": "upgrade",
-     "movimento": 0, "trabalho": 4, "escavacao": 0, "efeito_extra": "aumentar_mao",
+     "movimento": 0, "trabalho": 4, "escavacao": 0, "efeito_extra": "aumentar_mao", "bonus_mao": 1,
      "descricao": "+4 Trab +1 Carta Mão/Turno",
      "custo": {"couro": 2, "madeira": 1}},
     {"id": "mestre_1",    "nome": "Mestre Artesao", "simbolo": "X", "tipo": "upgrade",
@@ -111,12 +111,40 @@ CARTAS_UPGRADE_AMARELO = [
      "movimento": 15, "trabalho": 4, "escavacao": 0, "efeito_extra": None,
      "descricao": "+4 Trab +15 Mov",
      "custo": {"madeira": 1, "couro": 1}},
+    {"id": "picareta_reco", "nome": "Picareta Leve", "simbolo": "⛏️", "tipo": "upgrade",
+     "movimento": 10, "trabalho": 0, "escavacao": 4, "efeito_extra": None,
+     "descricao": "+4 Esc +10 Mov",
+     "custo": {"metal": 1, "madeira": 1}},
+    {"id": "sapador_iniciante", "nome": "Sapador Fértil", "simbolo": "🪓", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 3, "escavacao": 3, "efeito_extra": None,
+     "descricao": "+3 Trab +3 Esc",
+     "custo": {"couro": 1, "madeira": 1}},
+    {"id": "marcha_acelerada", "nome": "Marcha Rapida", "simbolo": "🏃", "tipo": "upgrade",
+     "movimento": 25, "trabalho": 2, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+25 Mov +2 Trab",
+     "custo": {"couro": 1, "madeira": 1}},
+    {"id": "martelo_carpintaria", "nome": "Martelo Cedro", "simbolo": "🔨", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 5, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+5 Trab",
+     "custo": {"madeira": 2}},
+    {"id": "curtidor_agil", "nome": "Tira de Couro", "simbolo": "🧵", "tipo": "upgrade",
+     "movimento": 10, "trabalho": 4, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+4 Trab +10 Mov",
+     "custo": {"couro": 2}},
+    {"id": "pa_ferro", "nome": "Pá de Ferro", "simbolo": "🪜", "tipo": "upgrade",
+     "movimento": 15, "trabalho": 0, "escavacao": 4, "efeito_extra": None,
+     "descricao": "+4 Esc +15 Mov",
+     "custo": {"metal": 1, "couro": 1}},
+    {"id": "estrategia_campo", "nome": "Guia Tatico", "simbolo": "🗺️", "tipo": "upgrade",
+     "movimento": 10, "trabalho": 3, "escavacao": 3, "efeito_extra": "aumentar_mao", "bonus_mao": 1,
+     "descricao": "+3 Trab +3 Esc +1 Carta Mão",
+     "custo": {"madeira": 1, "couro": 1}},
 ]
 
 CARTAS_UPGRADE_CINZA = [
     {"id": "forjador",    "nome": "Grande Forjador", "simbolo": "G", "tipo": "upgrade",
      "movimento": 15, "trabalho": 6, "escavacao": 0, "efeito_extra": None,
-     "descricao": "+15 Mov  +6 Trab",
+     "descricao": "+15 Mov +6 Trab",
      "custo": {"madeira": 2, "metal": 1}},
     {"id": "explorador",  "nome": "Explorador",      "simbolo": "O", "tipo": "upgrade",
      "movimento": 25, "trabalho": 3, "escavacao": 4, "efeito_extra": None,
@@ -130,6 +158,38 @@ CARTAS_UPGRADE_CINZA = [
      "movimento": 0, "trabalho": 5, "escavacao": 3, "efeito_extra": None,
      "descricao": "+5 Trab +3 Esc",
      "custo": {"madeira": 2, "couro": 1}},
+    {"id": "escavador_mestre", "nome": "Broca de Aço", "simbolo": "⚙️", "tipo": "upgrade",
+     "movimento": 15, "trabalho": 0, "escavacao": 6, "efeito_extra": None,
+     "descricao": "+6 Esc +15 Mov",
+     "custo": {"metal": 2, "madeira": 1}},
+    {"id": "arquiteto_orc", "nome": "Planta Fortaleza", "simbolo": "📐", "tipo": "upgrade",
+     "movimento": 15, "trabalho": 6, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+6 Trab +15 Mov",
+     "custo": {"madeira": 2, "couro": 1}},
+    {"id": "estratagema_avancado", "nome": "Comando Tatico", "simbolo": "🎖️", "tipo": "upgrade",
+     "movimento": 20, "trabalho": 5, "escavacao": 0, "efeito_extra": "aumentar_mao", "bonus_mao": 1,
+     "descricao": "+5 Trab +20 Mov +1 Carta Mão",
+     "custo": {"couro": 2, "metal": 1}},
+    {"id": "minerador_veterano", "nome": "Marreta Titânio", "simbolo": "🔨", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 2, "escavacao": 6, "efeito_extra": None,
+     "descricao": "+6 Esc +2 Trab",
+     "custo": {"metal": 2, "couro": 1}},
+    {"id": "engate_rapido", "nome": "Passada Vento", "simbolo": "🌪️", "tipo": "upgrade",
+     "movimento": 35, "trabalho": 2, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+35 Mov +2 Trab",
+     "custo": {"couro": 2, "madeira": 1}},
+    {"id": "trabalho_pesado", "nome": "Trabalho Pesado", "simbolo": "🧱", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 7, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+7 Trab",
+     "custo": {"madeira": 3}},
+    {"id": "escavacao_profunda", "nome": "Escavação Profunda", "simbolo": "⛏️", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 0, "escavacao": 7, "efeito_extra": None,
+     "descricao": "+7 Esc",
+     "custo": {"metal": 2, "madeira": 1}},
+    {"id": "logistica_guerra", "nome": "Logística Guerra", "simbolo": "📦", "tipo": "upgrade",
+     "movimento": 15, "trabalho": 4, "escavacao": 4, "efeito_extra": "aumentar_mao", "bonus_mao": 1,
+     "descricao": "+4 Trab +4 Esc +1 Carta Mão",
+     "custo": {"madeira": 1, "couro": 1, "metal": 1}},
 ]
 
 CARTAS_UPGRADE_VERMELHO = [
@@ -145,9 +205,47 @@ CARTAS_UPGRADE_VERMELHO = [
      "movimento": 25, "trabalho": 8, "escavacao": 0, "efeito_extra": None,
      "descricao": "+8 Trab +25 Mov",
      "custo": {"madeira": 3, "couro": 2}},
+    {"id": "catapulta_heroi", "nome": "Engenho Guerra", "simbolo": "🏹", "tipo": "upgrade",
+     "movimento": 20, "trabalho": 10, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+10 Trab +20 Mov",
+     "custo": {"madeira": 3, "metal": 2}},
+    {"id": "broca_diamante", "nome": "Perfuratriz Real", "simbolo": "💎", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 0, "escavacao": 10, "efeito_extra": None,
+     "descricao": "+10 Escavacao",
+     "custo": {"metal": 3, "couro": 1}},
+    {"id": "maratonista", "nome": "Impulso Lendario", "simbolo": "⚡", "tipo": "upgrade",
+     "movimento": 45, "trabalho": 4, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+45 Mov +4 Trab",
+     "custo": {"couro": 3, "metal": 1}},
+    {"id": "grao_mestre", "nome": "Grão Mestre", "simbolo": "👑", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 8, "escavacao": 5, "efeito_extra": "aumentar_mao", "bonus_mao": 2,
+     "descricao": "+8 Trab +5 Esc +2 Cartas Mão",
+     "custo": {"madeira": 3, "metal": 1, "couro": 1}},
+    {"id": "fortificacao_mestre", "nome": "Muralha Inquebravel", "simbolo": "🏰", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 9, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+9 Trab",
+     "custo": {"madeira": 3, "metal": 2}},
+    {"id": "abalo_sismico", "nome": "Escavacao Sismica", "simbolo": "🌋", "tipo": "upgrade",
+     "movimento": 20, "trabalho": 0, "escavacao": 9, "efeito_extra": None,
+     "descricao": "+9 Esc +20 Mov",
+     "custo": {"metal": 3, "couro": 2}},
+    {"id": "general_supremo", "nome": "Ordem Suprema", "simbolo": "🛡️", "tipo": "upgrade",
+     "movimento": 25, "trabalho": 6, "escavacao": 6, "efeito_extra": "aumentar_mao", "bonus_mao": 2,
+     "descricao": "+6 Trab +6 Esc +2 Cartas Mão",
+     "custo": {"madeira": 2, "couro": 2, "metal": 2}},
+    {"id": "furacao_ana", "nome": "Tempestade Forja", "simbolo": "💥", "tipo": "upgrade",
+     "movimento": 30, "trabalho": 10, "escavacao": 0, "efeito_extra": None,
+     "descricao": "+10 Trab +30 Mov",
+     "custo": {"madeira": 3, "metal": 2}},
+    {"id": "escavacao_titanica", "nome": "Escavacao Titanica", "simbolo": "🔱", "tipo": "upgrade",
+     "movimento": 0, "trabalho": 0, "escavacao": 12, "efeito_extra": None,
+     "descricao": "+12 Escavacao",
+     "custo": {"metal": 4}},
 ]
 
+
 CARTAS_UPGRADE = CARTAS_UPGRADE_AMARELO + CARTAS_UPGRADE_CINZA + CARTAS_UPGRADE_VERMELHO
+
 
 
 def criar_mercado():
@@ -422,19 +520,11 @@ def processar_carta(estado, carta):
             "muralha_leste": "campo_leste",
         }
         zona_spawn = mapa_spawn.get(zona, zona)
-        if estado["reserva"] <= 0:
-            delta["derrota"]     = True
-            delta["msg_derrota"] = "Reserva esgotada — DERROTA"
-            logs.append(("DERROTA", delta["msg_derrota"]))
-        else:
-            qreal = min(qtd, estado["reserva"])
-            novos = dict(estado["invasores"])
-            novos[zona_spawn] = novos.get(zona_spawn, 0) + qreal
         qreal = min(qtd, estado["reserva"])
         novos = dict(estado["invasores"])
         novos[zona_spawn] = novos.get(zona_spawn, 0) + qreal
         delta["invasores"] = novos
-        delta["reserva"]   = estado["reserva"] - qreal
+        delta["reserva"]   = max(0, estado["reserva"] - qreal)
         logs.append(("AMEACA", f"+{qreal}x Invasor em {NOMES_ZONA.get(zona_spawn, zona_spawn)}"))
 
     elif tipo == "mover":
@@ -463,16 +553,14 @@ def processar_carta(estado, carta):
                 novos[of] = novos.get(of, 0) + n
                 logs.append(("AMEACA", f"{n}x {NOMES_ZONA[mur]} → {NOMES_ZONA[of]}"))
                 novos[mur] = 0
-        # novos movimentos: campos externos → muralhas (Escalada: apenas metade sobe)
+        # campos externos → muralhas (Escalada Total: todos os invasores sobem a muralha)
         for campo, mur in (("campo_norte", "muralha_norte"), ("campo_sul", "muralha_sul"),
                            ("campo_oeste", "muralha_oeste"), ("campo_leste", "muralha_leste")):
             n = novos.get(campo, 0)
             if n > 0:
-                subindo = (n + 1) // 2
-                ficando = n - subindo
-                novos[mur] = novos.get(mur, 0) + subindo
-                novos[campo] = ficando
-                logs.append(("AMEACA", f"{subindo}x invasor escala: {NOMES_ZONA.get(campo, campo)} → {NOMES_ZONA[mur]} ({ficando}x ficaram para trás)"))
+                novos[mur] = novos.get(mur, 0) + n
+                novos[campo] = 0
+                logs.append(("AMEACA", f"{n}x invasor escala: {NOMES_ZONA.get(campo, campo)} → {NOMES_ZONA[mur]}!"))
         nt = max(0, estado["tesouro"] + teso_delta)
         delta["invasores"] = novos
         delta["tesouro"]   = nt

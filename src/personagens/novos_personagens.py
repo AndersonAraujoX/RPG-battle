@@ -223,6 +223,7 @@ class FilhoDoImperador(Personagem):
         self._carisma += 6
         self.alcance = 2      # Lâmina imperial de longo alcance
         self._velocidade = 5
+        self.tipo_inseto = "enxame_rainha"
 
         # Atributos especiais
         self.is_ia_controlado = True      # Sinaliza que é controlado por IA

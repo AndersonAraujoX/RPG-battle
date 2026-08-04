@@ -90,7 +90,12 @@ class CercoState(
         self.estado["reserva"] = diff.get("reserva", 10)
 
         self.deck   = criar_deck(fator_deck=fator)
-        self.estado["deck_inimigos"] = [c.get("tipo", "invasor") for c in self.deck]
+        if not self.estado.get("deck_inimigos"):
+            from ...cerco_isectum import DADOS_INIMIGOS
+            deck_ini = list(DADOS_INIMIGOS.keys()) * 2
+            import random as _rnd
+            _rnd.shuffle(deck_ini)
+            self.estado["deck_inimigos"] = deck_ini
         self.log    = []
         self.narrativa   = "Pela barba de Durin! O cerco começa!"
         self.carta_cerco = None

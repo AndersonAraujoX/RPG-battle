@@ -221,13 +221,6 @@ class CercoStateTurnMixin:
         """
         return False
 
-        if not self.deck:
-            if not self.estado.get("mao_rei_spawnou"):
-                self._spawn_mao_rei()
-            return False
-
-        return False
-
     # ── SPAWN DO MÃO REI ─────────────────────────────────────────────
     def _spawn_mao_rei(self):
         """Spawna o boss final A Mão Rei após o deck de ameaças ser esgotado."""
@@ -316,11 +309,12 @@ class CercoStateTurnMixin:
         if self.estado.get("vitoria"):
             self.fase = "FIM"
             return
-        # Se o deck acabou e o boss já foi spawnar, aguarda a batalha do boss
+        # Se o deck de ameaças acabou, invoca o Boss Final: A Mão Rei!
         if not self.deck:
-            if self.estado.get("mao_rei_spawnou"):
-                self.fase = "JOGAR_CARTA"
-                self._comprar_mao()
+            if not self.estado.get("mao_rei_spawnou"):
+                self._spawn_mao_rei()
+            self.fase = "JOGAR_CARTA"
+            self._comprar_mao()
             return
         self.fase = "FASE_AMEACA"
         self.carta_cerco = self.deck.pop()

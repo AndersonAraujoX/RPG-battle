@@ -494,22 +494,37 @@ class BotHeroi:
 
     # ── RECRUTAMENTO DE MERCENÁRIOS ───────────────────────────────────────
     def _tentar_recrutar_mercenarios(self):
-        """Recruta mercenários automaticamente com base nos Cristais Roxos disponíveis.
+        """Recruta e posiciona mercenários taticamente com base nos Cristais Roxos.
 
-        Prioridades:
-          1. Arqueiro (7💎) → colocado em torre livre
-          2. Minerador (4💎) → colocado no pátio se há pedregulhos
-          3. Guarda Melee (5💎) → colocado em muralha livre
+        Estratégia Tática por Classe:
+          1. EMERGÊNCIA (Salas Internas Invadidas):
+             - Se a Câmara Central ou Oficinas forem invadidas, recruta Guerreiro Melee (5💎)
+               diretamente na sala invadida para barrar o avanço inimigo!
+          2. MINERADORES (4💎):
+             - Recrutado no Pátio/Escavação apenas se pedregulhos > 0 e se houver menos de 2
+               mineradores ativos, focando na desobstrução das rotas de fuga.
+          3. ARQUEIROS (7💎):
+             - Posicionados prioritariamente nas Torres dos Cantos (NW, NE, SW, SE) para
+               alcance panorâmico elevado. Se ocupadas, em muralhas voltadas aos inimigos.
+          4. GUERREIROS MELEE / GUARDAS (5💎):
+             - Posicionados nas muralhas mais ameaçadas ou em pontos de estrangulamento.
         """
         import random as _rnd
         s = self.state
         e = s.estado
 
-        # Reserva de segurança: NUNCA gasta cristais se o saldo restante for < 3
-        RESERVA_SEGURANCA = 3
+        invasores = e.get("invasores", {})
+
+        # Detecta invasão interna de emergência (câmara central ou oficinas)
+        zonas_internas_brecha = [z for z in ("camara_central", "carpintaria", "curtume", "fundicao", "patio") if invasores.get(z, 0) > 0]
+        is_emergencia = len(zonas_internas_brecha) > 0
+
+        # Reserva de segurança dinâmica: 1 se em emergência, 3 em situação normal
+        RESERVA_SEGURANCA = 1 if is_emergencia else 3
         cristais = e.get("tesouro", 0)
+
         if cristais < (4 + RESERVA_SEGURANCA):
-            return  # Preserva margem de segurança contra ataques de catapulta
+            return
 
         from ...resolvedor_acoes import ZONAS_GRID
         from ...personagens.mercenarios import MercenarioMelee, MercenarioArqueiro, MercenarioMinerador
@@ -517,7 +532,6 @@ class BotHeroi:
 
         tab = s.motor.tabuleiro
 
-        # Funções auxiliares
         def _celulas_livres_zona(zona_id):
             """Retorna lista de células livres em uma zona."""
             if zona_id not in ZONAS_GRID:
@@ -548,35 +562,62 @@ class BotHeroi:
                 return True
             return False
 
-        # 1. Arqueiro (7💎 + 3 reserva = 10💎) → torres livres (NW, NE, SW, SE)
-        if cristais >= (7 + RESERVA_SEGURANCA):
-            torres = ["torre_nw", "torre_ne", "torre_sw", "torre_se"]
-            _rnd.shuffle(torres)
-            for torre in torres:
-                livres = _celulas_livres_zona(torre)
+        # ── 1. EMERGÊNCIA: Defesa Corpo a Corpo em Brechas Internas (Guerreiro Melee - 5💎)
+        if is_emergencia and cristais >= (5 + RESERVA_SEGURANCA):
+            for zona in zonas_internas_brecha:
+                livres = _celulas_livres_zona(zona)
                 if livres:
                     cx, cy = livres[0]
-                    if _recrutar(MercenarioArqueiro, 7, cx, cy, "Arqueiro 🏹"):
+                    if _recrutar(MercenarioMelee, 5, cx, cy, "Guarda de Emergência 🛡️"):
                         return
 
-        # 2. Minerador (4💎 + 3 reserva = 7💎) → pátio, se há pedregulhos
+        # ── 2. MINERADORES (4💎) → Pátio/Escavação
         pedregulhos = e.get("pedregulhos", 0)
-        if cristais >= (4 + RESERVA_SEGURANCA) and pedregulhos > 0:
+        mineradores_ativos = sum(1 for p in s.motor.combatentes if getattr(p, "classe_nome", None) == "Minerador" and p.hp_atual > 0)
+
+        if cristais >= (4 + RESERVA_SEGURANCA) and pedregulhos > 0 and mineradores_ativos < 2:
             livres_patio = _celulas_livres_zona("patio")
             if livres_patio:
                 cx, cy = livres_patio[0]
                 if _recrutar(MercenarioMinerador, 4, cx, cy, "Minerador ⛏️"):
                     return
 
-        # 3. Guarda Melee (5💎 + 3 reserva = 8💎) → muralhas com invasores
+        # ── 3. ARQUEIROS (7💎) → Torres dos Cantos Elevadas ou Muralhas Voltadas aos Inimigos
+        if cristais >= (7 + RESERVA_SEGURANCA):
+            # Prioridade 3A: Torres dos Cantos
+            torres = ["torre_nw", "torre_ne", "torre_sw", "torre_se"]
+            mapa_torre_campo = {
+                "torre_nw": ["campo_norte", "campo_oeste"],
+                "torre_ne": ["campo_norte", "campo_leste"],
+                "torre_sw": ["campo_sul", "campo_oeste"],
+                "torre_se": ["campo_sul", "campo_leste"],
+            }
+            torres.sort(key=lambda t: sum(invasores.get(c, 0) for c in mapa_torre_campo.get(t, [])), reverse=True)
+
+            for torre in torres:
+                livres = _celulas_livres_zona(torre)
+                if livres:
+                    cx, cy = livres[0]
+                    if _recrutar(MercenarioArqueiro, 7, cx, cy, "Arqueiro de Torre 🏹"):
+                        return
+
+            # Prioridade 3B: Passadiço das Muralhas (se todas as torres estiverem ocupadas)
+            muralhas = ["muralha_norte", "muralha_sul", "muralha_leste", "muralha_oeste"]
+            muralhas.sort(key=lambda m: invasores.get(m, 0), reverse=True)
+            for mur in muralhas:
+                livres = _celulas_livres_zona(mur)
+                if livres:
+                    cx, cy = livres[0]
+                    if _recrutar(MercenarioArqueiro, 7, cx, cy, "Arqueiro Muralha 🏹"):
+                        return
+
+        # ── 4. GUERREIROS MELEE / GUARDAS (5💎) → Muralhas Ameaçadas ou Pontos de Bloqueio
         if cristais >= (5 + RESERVA_SEGURANCA):
             muralhas = ["muralha_norte", "muralha_sul", "muralha_leste", "muralha_oeste"]
-            invasores = e.get("invasores", {})
-            # Prioriza a muralha com mais invasores
             muralhas.sort(key=lambda m: invasores.get(m, 0), reverse=True)
             for muralha in muralhas:
                 livres = _celulas_livres_zona(muralha)
                 if livres:
                     cx, cy = livres[0]
-                    if _recrutar(MercenarioMelee, 5, cx, cy, "Guarda 🛡️"):
+                    if _recrutar(MercenarioMelee, 5, cx, cy, "Guarda Muralha 🛡️"):
                         return

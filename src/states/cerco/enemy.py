@@ -232,12 +232,8 @@ class CercoStateEnemyMixin:
                         self._start_monster_walk(inimigo, (origem_x, origem_y), (new_vx, new_vy))
 
         for zona_origem, monstro in excessos:
-            if 0 <= monstro.pos_y < len(tab.grid) and 0 <= monstro.pos_x < len(tab.grid[0]):
-                tab.grid[monstro.pos_y][monstro.pos_x] = None
-            if monstro in self.motor.combatentes:
-                self.motor.combatentes.remove(monstro)
-            if hasattr(self.motor, 'time_b') and monstro in self.motor.time_b:
-                self.motor.time_b.remove(monstro)
+            # Monstros que avançaram ou migraram continuam vivos no combate 2D ativo
+            monstro._zona_campo = None
 
     # ── EFEITO ESPECIAL ───────────────────────────────────────────────
     def _aplicar_efeito_inimigo(self, carta_key: str, _visitados=None):

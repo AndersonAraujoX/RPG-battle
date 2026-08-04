@@ -84,7 +84,7 @@ class CercoStateHeroMixin:
         discard = list(self.estado["descarte"])
         # Cartas de upgrade acumuladas: sempre re-entram no ciclo
         upgrades_ativas = list(self.estado.get("cartas_upgrade_ativas", []))
-        bonus_mao = self.estado.get("bonus_tamanho_mao", 0) + sum(1 for c in upgrades_ativas if c.get("efeito_extra") == "aumentar_mao" or c.get("id") == "estratagema_mano")
+        bonus_mao = self.estado.get("bonus_tamanho_mao", 0) + sum(c.get("bonus_mao", 1) for c in upgrades_ativas if c.get("efeito_extra") == "aumentar_mao" or c.get("id") == "estratagema_mano")
         tam_mao_alvo = self.TAM_MAO + bonus_mao
         cartas_anteriores = len(mao)
         cartas_adicionadas = []

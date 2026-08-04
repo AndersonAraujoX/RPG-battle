@@ -34,7 +34,7 @@ class MaoRei(Personagem):
         self.cooldown_max['olhar_paralisante'] = 3
 
         self.imunidades = ["Atordoado", "Envenenado", "Amaldiçoado"]
-        self.tipo_inseto = "mao_rei"
+        self.tipo_inseto = "enxame_rainha"
         self._is_boss = True
 
     @property
