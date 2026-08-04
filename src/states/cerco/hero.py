@@ -129,28 +129,6 @@ class CercoStateHeroMixin:
             mao.append(carta)
             cartas_adicionadas.append(carta)
 
-            # ── MECÂNICA 1: VITALIDADE POR COMPRA DE CARTAS ─────────────────────
-            tot_puxadas = self.estado.get("cartas_puxadas_total", 0) + 1
-            self.estado["cartas_puxadas_total"] = tot_puxadas
-
-            delta_hp = 5  # +5 HP por carta puxada
-            msg_bonus = ""
-
-            if tot_puxadas % 5 == 0:
-                delta_hp += 10  # +10 HP extra a cada 5 cartas puxadas
-                msg_bonus += " | 🌟 Bônus de 5 Cartas (+10 HP extra!)"
-
-            if tot_puxadas % 12 == 0 and hasattr(self, 'heroi_atual') and self.heroi_atual:
-                multiplicador_supremo = int(self.heroi_atual.hp_max * 0.50)  # +50% do HP Máx Atual
-                delta_hp += multiplicador_supremo
-                msg_bonus += f" | 👑 VITALIDADE SUPREMA (12ª carta: +50% HP Máx / +{multiplicador_supremo} HP!)"
-
-            if hasattr(self, 'heroi_atual') and self.heroi_atual:
-                ha = self.heroi_atual
-                ha.hp_max += delta_hp
-                ha.hp_atual += delta_hp
-                self._push("HEROI", f"❤️ Vitalidade! {ha.nome} ganhou +{delta_hp} HP ao puxar carta! (Total sacado: {tot_puxadas} cartas | HP: {ha.hp_atual}/{ha.hp_max}){msg_bonus}")
-
         from ...cerco_isectum import aplicar_delta
         self.estado = aplicar_delta(self.estado, {
             "mao": mao, "deck_heroi": deck, "descarte": discard

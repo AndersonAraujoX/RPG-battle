@@ -89,8 +89,15 @@ class CercoStateEnemyMixin:
                     break
 
                 if excessos:
-                    zona_origem, monstro = excessos.pop(0)
-                    cx, cy = celulas_candidatas.pop()
+                    living_coords = [(p.pos_x, p.pos_y) for p in self.motor.combatentes if p.hp_atual > 0 and p is not monstro]
+                    if living_coords and len(celulas_candidatas) > 1:
+                        cx, cy = max(
+                            celulas_candidatas,
+                            key=lambda c: min(abs(c[0] - u[0]) + abs(c[1] - u[1]) for u in living_coords)
+                        )
+                        celulas_candidatas.remove((cx, cy))
+                    else:
+                        cx, cy = celulas_candidatas.pop()
 
                     old_vx, old_vy = self._obter_posicao_virtual(monstro, monstro.pos_x, monstro.pos_y)
                     monstro._zona_campo = zona_dest if "campo" in zona_dest else None
@@ -135,7 +142,17 @@ class CercoStateEnemyMixin:
             for _ in range(qtd):
                 if not celulas_candidatas:
                     break
-                cx, cy = celulas_candidatas.pop()
+
+                # Escolhe a célula mais distante das unidades já posicionadas para espalhar os inimigos!
+                living_coords = [(p.pos_x, p.pos_y) for p in self.motor.combatentes if p.hp_atual > 0]
+                if living_coords and len(celulas_candidatas) > 1:
+                    cx, cy = max(
+                        celulas_candidatas,
+                        key=lambda c: min(abs(c[0] - u[0]) + abs(c[1] - u[1]) for u in living_coords)
+                    )
+                    celulas_candidatas.remove((cx, cy))
+                else:
+                    cx, cy = celulas_candidatas.pop()
 
                 from ...cerco_isectum import DADOS_INIMIGOS
                 deck_ini = list(self.estado.get("deck_inimigos", []))

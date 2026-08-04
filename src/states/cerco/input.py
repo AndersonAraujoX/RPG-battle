@@ -458,6 +458,59 @@ class CercoStateInputMixin:
 
         if self.modo_acao == MODO_NENHUM:
             if char:
+                if getattr(char, "time", "A") == "B" and char.hp_atual > 0:
+                    # Clique em Inimigo no grid 2D: Ataca diretamente!
+                    heroi_obj = getattr(self, "heroi_atual", None)
+                    hx = self.estado.get("heroi_x", 9)
+                    hy = self.estado.get("heroi_y", 9)
+                    dist = abs(cx - hx) + abs(cy - hy)
+                    alcance = getattr(heroi_obj, "alcance", 1) if heroi_obj else 1
+
+                    if dist <= alcance:
+                        import random as _rnd
+                        d20 = _rnd.randint(1, 20)
+                        bonus_atk = getattr(heroi_obj, 'bonus_ataque', 5) if heroi_obj else 5
+                        tot_atk = d20 + bonus_atk
+                        ac_alvo = getattr(char, 'ac', getattr(char, 'ac_base', 12))
+
+                        nome_h = heroi_obj.nome if heroi_obj else "Herói"
+                        nome_ini = getattr(char, "nome", "Invasor")
+
+                        if tot_atk >= ac_alvo:
+                            dado_d = getattr(heroi_obj, 'dado_dano', (1, 8)) if heroi_obj else (1, 8)
+                            b_dano = getattr(heroi_obj, 'bonus_dano', 3) if heroi_obj else 3
+                            dano = sum(_rnd.randint(1, dado_d[1]) for _ in range(dado_d[0])) + b_dano
+                            char.hp_atual -= dano
+
+                            self._push("HEROI", f"⚔️ {nome_h} ATACOU {nome_ini}! Dano: {dano} (HP: {max(0, char.hp_atual)}/{char.hp_max})")
+                            self._feedback(f"⚔️ {nome_h} causou {dano} de dano em {nome_ini}!", C_VERDE)
+
+                            if hasattr(self, "_push_popup_combate"):
+                                self._push_popup_combate(cx, cy, f"💥 -{dano} HP", (255, 220, 40))
+
+                            if char.hp_atual <= 0:
+                                tab = self.motor.tabuleiro
+                                if 0 <= cy < len(tab.grid) and 0 <= cx < len(tab.grid[0]):
+                                    if tab.grid[cy][cx] is char:
+                                        tab.grid[cy][cx] = None
+                                if char in self.motor.combatentes:
+                                    self.motor.combatentes.remove(char)
+                                if hasattr(self.motor, 'time_b') and char in self.motor.time_b:
+                                    self.motor.time_b.remove(char)
+
+                                self._push("HEROI", f"💀 {nome_h} DESTRUIU {nome_ini}!")
+                                if hasattr(self, "_gerar_drop_inimigo"):
+                                    self._gerar_drop_inimigo(char)
+                        else:
+                            self._push("HEROI", f"⚔️ {nome_h} atacou {nome_ini}, mas ERROU! (D20: {d20}+{bonus_atk} vs AC {ac_alvo})")
+                            self._feedback(f"Errou ataque em {nome_ini}!", C_PERIGO)
+                            if hasattr(self, "_push_popup_combate"):
+                                self._push_popup_combate(cx, cy, "🛡️ MISS!", (180, 200, 220))
+                        return
+                    else:
+                        self._feedback(f"Inimigo fora de alcance (Dist: {dist} > Alcance: {alcance})! Mova-se para mais perto.", C_PERIGO)
+                        return
+
                 if getattr(char, "_is_mercenario", False) or char in self.herois:
                     self._feedback(f"Célula já ocupada por [{char.nome}]!", C_ACENTO)
                     return

@@ -983,9 +983,76 @@ class CercoDrawMapMixin:
                             (max(1, int(lif.get_width() * self.zoom)),
                              max(1, int(lif.get_height() * self.zoom))))
                     tela.blit(lif, (lcx - lif.get_width() // 2, y_off)); y_off += gap
+        self._draw_popups_combate(tela)
         self._draw_armas_cerco(tela)
         nr = self.fMi.render(self.narrativa[:88], True, C_DIM)
         tela.blit(nr, (r.x + 8, r.bottom - 18))
+
+    def _push_popup_combate(self, gx, gy, texto, cor=(255, 60, 60)):
+        """Adiciona um texto flutuante de dano/combate no grid 2D."""
+        if not hasattr(self, "popups_combate"):
+            self.popups_combate = []
+        self.popups_combate.append({
+            'gx': gx,
+            'gy': gy,
+            'texto': texto,
+            'cor': cor,
+            'timer': 60,
+            'max_timer': 60,
+            'y_offset': 0
+        })
+
+    def _draw_popups_combate(self, tela):
+        """Renderiza textos flutuantes de dano e combate subindo no grid isométrico."""
+        if not hasattr(self, "popups_combate") or not self.popups_combate:
+            return
+
+        import math
+        theta = math.radians(45)
+        theta_cos = math.cos(theta)
+        theta_sin = math.sin(theta)
+
+        r = self.mapa_rect
+        CX = r.centerx + int(self.camera_offset_x * self.zoom)
+        CY = r.centery - int(20 * self.zoom) + int(self.camera_offset_y * self.zoom)
+        TW = int(64 * self.zoom)
+        TH = int(32 * self.zoom)
+
+        atrasados = []
+        for pop in list(self.popups_combate):
+            pop['timer'] -= 1
+            pop['y_offset'] += 0.8 * self.zoom
+            if pop['timer'] <= 0:
+                continue
+            atrasados.append(pop)
+
+            gx, gy = pop['gx'], pop['gy']
+            dx = gx - 9.5
+            dy = gy - 9.5
+            rx = dx * theta_cos - dy * theta_sin
+            ry = dx * theta_sin + dy * theta_cos
+            cx = int((rx - ry) * (TW // 2) + CX)
+            cy = int((rx + ry) * (TH // 2) + CY)
+
+            y_draw = cy - int(32 * self.zoom) - int(pop['y_offset'])
+
+            txt_surf = self.fMa.render(pop['texto'], True, pop['cor'])
+            if self.zoom != 1.0:
+                w_s = max(1, int(txt_surf.get_width() * self.zoom))
+                h_s = max(1, int(txt_surf.get_height() * self.zoom))
+                txt_surf = pygame.transform.smoothscale(txt_surf, (w_s, h_s))
+            else:
+                w_s, h_s = txt_surf.get_width(), txt_surf.get_height()
+
+            txt_sombra = self.fMa.render(pop['texto'], True, (10, 10, 15))
+            if self.zoom != 1.0:
+                txt_sombra = pygame.transform.smoothscale(txt_sombra, (w_s, h_s))
+
+            x_draw = cx - txt_surf.get_width() // 2
+            tela.blit(txt_sombra, (x_draw + 1, y_draw + 1))
+            tela.blit(txt_surf, (x_draw, y_draw))
+
+        self.popups_combate = atrasados
 
     def _draw_armas_cerco(self, tela):
         x, y = self.mapa_rect.x + 8, self.mapa_rect.bottom - 50

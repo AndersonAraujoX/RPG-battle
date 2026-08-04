@@ -459,30 +459,71 @@ class CercoStateTurnMixin:
             # 3. Recalcula a distância após a movimentação e executa o ATAQUE!
             dist_final = abs(dest_x - curr_x) + abs(dest_y - curr_y)
             if dist_final <= alcance and alvo_obj is not None and alvo_obj.hp_atual > 0:
-                import random as _rnd
-                d20 = _rnd.randint(1, 20)
-                bonus_atk = getattr(ini, "bonus_ataque", getattr(ini, "_bonus_ataque_override", 4))
-                tot_atk = d20 + bonus_atk
-                ac_alvo = getattr(alvo_obj, "ac", getattr(alvo_obj, "ac_base", 14))
+                is_boss = getattr(ini, "_is_boss", False) or getattr(ini, "NOME_EXIBIDO", "") == "A Mão Rei"
 
-                if tot_atk >= ac_alvo:
-                    dado_d = getattr(ini, "dado_dano", (1, 6))
-                    b_dano = getattr(ini, "bonus_dano", getattr(ini, "_bonus_dano_override", 2))
-                    dano = sum(_rnd.randint(1, dado_d[1]) for _ in range(dado_d[0])) + b_dano
-                    alvo_obj.hp_atual -= dano
-                    nome_ini = getattr(ini, "nome", "Invasor")
-                    nome_alvo = getattr(alvo_obj, "nome", "Aliado")
-                    self._push("INIMIGO", f"⚔️ {nome_ini} ATACOU {nome_alvo}! Dano: {dano} (HP: {max(0, alvo_obj.hp_atual)}/{alvo_obj.hp_max})")
+                if is_boss:
+                    # O Mão Rei executa suas habilidades especiais de Boss (Mandíbula Real & Olhar Paralisante)
+                    def boss_log(msg):
+                        self._push("BOSS", msg)
+                    hp_antes = alvo_obj.hp_atual
+                    ini.atacar(alvo_obj, alvos_aliados, inimigos, tab, logger=boss_log)
+                    hp_depois = alvo_obj.hp_atual
+                    dano_causado = max(0, hp_antes - hp_depois)
+
+                    if dano_causado > 0 and hasattr(self, "_push_popup_combate"):
+                        self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, f"👁️ -{dano_causado} HP", (255, 40, 200))
+                    elif hasattr(self, "_push_popup_combate"):
+                        self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, "🛡️ PARALISADO!", (160, 160, 255))
 
                     if hasattr(self, "_salvar_status_heroi") and hasattr(alvo_obj, "nome"):
                         self._salvar_status_heroi(alvo_obj.nome)
 
                     if alvo_obj.hp_atual <= 0:
-                        self._push("INIMIGO", f"⚠️ {nome_alvo} foi abatido no combate!")
+                        self._push("BOSS", f"💀 {alvo_obj.nome} foi exterminado pela Mão Rei!")
                 else:
-                    nome_ini = getattr(ini, "nome", "Invasor")
-                    nome_alvo = getattr(alvo_obj, "nome", "Aliado")
-                    self._push("INIMIGO", f"⚔️ {nome_ini} atacou {nome_alvo}, mas errou! (D20: {d20}+{bonus_atk} vs AC {ac_alvo})")
+                    import random as _rnd
+                    d20 = _rnd.randint(1, 20)
+                    bonus_atk = getattr(ini, "bonus_ataque", getattr(ini, "_bonus_ataque_override", 7))
+                    tot_atk = d20 + bonus_atk
+                    ac_alvo = getattr(alvo_obj, "ac", getattr(alvo_obj, "ac_base", 14))
+
+                    if tot_atk >= ac_alvo:
+                        dado_d = getattr(ini, "dado_dano", (1, 6))
+                        b_dano = getattr(ini, "bonus_dano", getattr(ini, "_bonus_dano_override", 3))
+                        dano = sum(_rnd.randint(1, dado_d[1]) for _ in range(dado_d[0])) + b_dano
+                        alvo_obj.hp_atual -= dano
+                        nome_ini = getattr(ini, "nome", "Invasor")
+                        nome_alvo = getattr(alvo_obj, "nome", "Aliado")
+                        self._push("INIMIGO", f"⚔️ {nome_ini} ATACOU {nome_alvo}! Dano: {dano} (HP: {max(0, alvo_obj.hp_atual)}/{alvo_obj.hp_max})")
+
+                        if hasattr(self, "_push_popup_combate"):
+                            self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, f"💥 -{dano} HP", (255, 60, 60))
+
+                        if hasattr(self, "_salvar_status_heroi") and hasattr(alvo_obj, "nome"):
+                            self._salvar_status_heroi(alvo_obj.nome)
+
+                        if alvo_obj.hp_atual <= 0:
+                            self._push("INIMIGO", f"⚠️ {nome_alvo} foi abatido no combate!")
+                    else:
+                        nome_ini = getattr(ini, "nome", "Invasor")
+                        nome_alvo = getattr(alvo_obj, "nome", "Aliado")
+                        self._push("INIMIGO", f"⚔️ {nome_ini} atacou {nome_alvo}, mas errou! (D20: {d20}+{bonus_atk} vs AC {ac_alvo})")
+
+                        if hasattr(self, "_push_popup_combate"):
+                            self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, "🛡️ MISS!", (180, 200, 220))
+
+                # Verificação de Derrota se todos os heróis caírem em combate
+                if hasattr(self, "herois") and self.herois:
+                    herois_vivos = [h for h in self.herois if h.hp_atual > 0]
+                    if not herois_vivos:
+                        from ...cerco_isectum import aplicar_delta
+                        self.estado = aplicar_delta(self.estado, {
+                            "derrota": True,
+                            "msg_derrota": "A Mão Rei e as castas do Imperador exterminaram todos os heróis! DERROTA TOTAL!"
+                        })
+                        self._push("DERROTA", "💀 Todos os heróis foram mortos! A fortaleza caiu diante da Mão Rei!")
+                        self.fase = "FIM"
+                        return
 
         if teve_movimento:
             self.map_backbuffer_sujo = True
