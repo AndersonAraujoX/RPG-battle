@@ -483,13 +483,14 @@ class CercoStateTurnMixin:
                 else:
                     import random as _rnd
                     d20 = _rnd.randint(1, 20)
-                    bonus_atk = getattr(ini, "bonus_ataque", getattr(ini, "_bonus_ataque_override", 7))
+                    bonus_base = getattr(ini, "bonus_ataque", 7)
+                    bonus_atk = max(7, bonus_base)
                     tot_atk = d20 + bonus_atk
                     ac_alvo = getattr(alvo_obj, "ac", getattr(alvo_obj, "ac_base", 14))
 
                     if tot_atk >= ac_alvo:
-                        dado_d = getattr(ini, "dado_dano", (1, 6))
-                        b_dano = getattr(ini, "bonus_dano", getattr(ini, "_bonus_dano_override", 3))
+                        dado_d = (2, 6) if getattr(ini, "dado_dano", (1, 6))[1] <= 6 else getattr(ini, "dado_dano", (2, 6))
+                        b_dano = max(4, getattr(ini, "bonus_dano", 4))
                         dano = sum(_rnd.randint(1, dado_d[1]) for _ in range(dado_d[0])) + b_dano
                         alvo_obj.hp_atual -= dano
                         nome_ini = getattr(ini, "nome", "Invasor")

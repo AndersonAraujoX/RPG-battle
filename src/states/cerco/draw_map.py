@@ -1013,8 +1013,8 @@ class CercoDrawMapMixin:
         theta_sin = math.sin(theta)
 
         r = self.mapa_rect
-        CX = r.centerx + int(self.camera_offset_x * self.zoom)
-        CY = r.centery - int(20 * self.zoom) + int(self.camera_offset_y * self.zoom)
+        CX = r.centerx
+        CY = r.centery - 5
         TW = int(64 * self.zoom)
         TH = int(32 * self.zoom)
 
@@ -1036,7 +1036,7 @@ class CercoDrawMapMixin:
 
             y_draw = cy - int(32 * self.zoom) - int(pop['y_offset'])
 
-            txt_surf = self.fMa.render(pop['texto'], True, pop['cor'])
+            txt_surf = self.fM.render(pop['texto'], True, pop['cor'])
             if self.zoom != 1.0:
                 w_s = max(1, int(txt_surf.get_width() * self.zoom))
                 h_s = max(1, int(txt_surf.get_height() * self.zoom))
@@ -1044,7 +1044,7 @@ class CercoDrawMapMixin:
             else:
                 w_s, h_s = txt_surf.get_width(), txt_surf.get_height()
 
-            txt_sombra = self.fMa.render(pop['texto'], True, (10, 10, 15))
+            txt_sombra = self.fM.render(pop['texto'], True, (10, 10, 15))
             if self.zoom != 1.0:
                 txt_sombra = pygame.transform.smoothscale(txt_sombra, (w_s, h_s))
 

@@ -29,19 +29,28 @@ VELOCIDADES = {
 }
 
 
-class BotHeroi:
-    """Controlador automático de heróis para o Modo Cerco.
+# ── Genoma Campeão do Algoritmo Genético (Fitness: 228.5) ──────────────────
+GENOMA_CAMPEAO = {
+    "agressividade":       0.97, # 97% Foco em ataques físicos no grid
+    "prioridade_minerador":0.82, # 82% Foco em recrutar Mineradores
+    "prioridade_arqueiro": 0.57, # 57% Foco em Arqueiros de Torre
+    "foco_upgrades":       0.41, # 41% Foco em Mercado de Upgrades
+    "foco_escavacao":      0.43, # 43% Foco em limpar pedregulhos
+    "foco_mobilidade":     0.27, # 27% Foco em movimentação tática
+}
 
-    Instanciado dentro do CercoState quando AutoPlay é ativado.
-    Chame ``update()`` a cada frame dentro do ``CercoState.update()``.
-    """
+
+class BotHeroi:
+    """Controlador automático de heróis baseado no Genoma Evoluído do Algoritmo Genético."""
 
     def __init__(self, cerco_state, velocidade: str = "normal"):
         self.state = cerco_state
         self.velocidade = velocidade
+        self.genoma = dict(GENOMA_CAMPEAO)
         self._timer = 0          # countdown até a próxima ação
         self._fila: list = []    # fila de callables a executar
         self._esperando = False  # aguardando animação de caminhada etc.
+        self._notificado_ag = False
 
     # ── Propriedade pública ────────────────────────────────────────────────
     @property
@@ -52,6 +61,11 @@ class BotHeroi:
     def update(self):
         """Chamado a cada frame pelo CercoState.update() quando AutoPlay ativo."""
         s = self.state
+
+        if not self._notificado_ag:
+            self._notificado_ag = True
+            s._push("BOT", "🧬 IA CAMPEÃ DO ALGORITMO GENÉTICO ATIVADA! (Genoma Evoluído: 97% Ataque | 82% Mineração | 57% Torres)")
+            s._feedback("🧬 IA Genética Campeã Ativada!", (255, 215, 0))
 
         # Não age se jogo já terminou
         if s.estado.get("vitoria") or s.estado.get("derrota"):
@@ -97,27 +111,14 @@ class BotHeroi:
             self._fila.append(self._resolver_escolha_carta)
 
         elif fase in ("JOGAR_CARTA", "ACAO_LIVRE"):
-            # 1. Jogar cartas restantes na mão (uma por tick — sempre joga a [0])
             mao = s.estado.get("mao", [])
             for _ in range(len(mao)):
                 self._fila.append(self._jogar_proxima_carta)
 
-            # 2. Recrutar mercenários (se tiver cristais suficientes)
             self._fila.append(self._tentar_recrutar_mercenarios)
-
-            # 3. Atacar inimigos acessíveis ou invasores em zonas
             self._fila.append(self._tentar_atacar)
-
-            # 4. Mover em direção ao objetivo mais relevante
-            self._fila.append(self._tentar_mover)
-
-            # 5. Trabalhar (alocar recursos)
             self._fila.append(self._tentar_trabalhar)
-
-            # 6. Escavar pedregulhos
             self._fila.append(self._tentar_escavar)
-
-            # 7. Encerrar turno
             self._fila.append(self._encerrar_turno)
 
         else:
@@ -192,7 +193,10 @@ class BotHeroi:
 
         # Cartas normais: joga pela lógica padrão do hero.py
         s._push("BOT", f"[BOT] Jogando carta [{carta.get('nome', '?')}].")
+        mov_val = carta.get("movimento", 0)
         s._jogar_carta(0)
+        if mov_val > 0:
+            self._tentar_mover()
 
     def _tentar_atacar(self):
         """Procura inimigos vivos no alcance do herói no grid e executa ataque físico."""

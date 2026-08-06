@@ -54,9 +54,9 @@ class CercoStateHeroMixin:
             "deck_heroi":       list(status.get("deck_heroi", [])),
             "descarte":         list(status.get("descarte", [])),
             "excluidas_ciclo":  list(status.get("excluidas_ciclo", [])),
-            "pontos_movimento": status.get("pontos_movimento", 0),
-            "pontos_trabalho":  status.get("pontos_trabalho", 0),
-            "pontos_escavacao": status.get("pontos_escavacao", 0),
+            "pontos_movimento": 0,
+            "pontos_trabalho":  0,
+            "pontos_escavacao": 0,
             "voo_ativo":        status.get("voo_ativo", False)
         })
 
@@ -92,6 +92,14 @@ class CercoStateHeroMixin:
 
     # ── DECK DO HERÓI ─────────────────────────────────────────────────
     def _comprar_mao(self):
+        # Reseta os pontos do turno anterior para que cada turno use apenas as cartas sacadas no turno
+        from ...cerco_isectum import aplicar_delta
+        self.estado = aplicar_delta(self.estado, {
+            "pontos_movimento": 0,
+            "pontos_trabalho":  0,
+            "pontos_escavacao": 0
+        })
+
         mao = list(self.estado["mao"])
         deck = list(self.estado["deck_heroi"])
         discard = list(self.estado["descarte"])
@@ -195,8 +203,16 @@ class CercoStateHeroMixin:
         is_upgrade = carta.get("tipo") == "upgrade"
         discard = list(self.estado["descarte"]) + [carta]
 
+        mov_pts = carta.get("movimento", 0)
+        trab_pts = carta.get("trabalho", 0)
+        esc_pts = carta.get("escavacao", 0)
+
+        # Cartas de movimento não acumulam: definem os PMs diretamente para a movimentação imediata
+        novo_pm = mov_pts if mov_pts > 0 else self.estado.get("pontos_movimento", 0)
+        novo_pt = self.estado.get("pontos_trabalho", 0) + trab_pts
+        novo_pe = self.estado.get("pontos_escavacao", 0) + esc_pts
+
         if is_upgrade:
-            # Cartas de upgrade acumulam em cartas_upgrade_ativas e vão para o descarte p/ ciclo
             ativas = [dict(c) for c in self.estado.get("cartas_upgrade_ativas", [])]
             if not any(c.get("id") == carta.get("id") for c in ativas):
                 ativas.append(dict(carta))
@@ -204,25 +220,22 @@ class CercoStateHeroMixin:
                 "mao":                  mao,
                 "descarte":             discard,
                 "cartas_upgrade_ativas": ativas,
-                "pontos_movimento": self.estado["pontos_movimento"] + carta.get("movimento", 0),
-                "pontos_trabalho":  self.estado["pontos_trabalho"]  + carta.get("trabalho",  0),
-                "pontos_escavacao": self.estado["pontos_escavacao"] + carta.get("escavacao", 0),
+                "pontos_movimento":     novo_pm,
+                "pontos_trabalho":      novo_pt,
+                "pontos_escavacao":     novo_pe,
             }
-            self._push("HEROI", f"⭐ Upgrade ativado [{carta['nome']}]: acumulado! "
-                                f"+{carta.get('movimento',0)}PM "
-                                f"+{carta.get('trabalho',0)}PT +{carta.get('escavacao',0)}PE")
-            self._feedback(f"⭐ Upgrade: {carta['nome']} (acumulado!)", (255, 200, 50))
+            self._push("HEROI", f"⭐ Upgrade ativado [{carta['nome']}]: Efeito imediato (+{mov_pts} PM, +{trab_pts} PT, +{esc_pts} PE)")
+            self._feedback(f"⭐ Upgrade: {carta['nome']} (Efeito Ativado!)", (255, 200, 50))
         else:
             delta = {
                 "mao":              mao,
                 "descarte":         discard,
-                "pontos_movimento": self.estado["pontos_movimento"] + carta.get("movimento", 0),
-                "pontos_trabalho":  self.estado["pontos_trabalho"]  + carta.get("trabalho",  0),
-                "pontos_escavacao": self.estado["pontos_escavacao"] + carta.get("escavacao", 0),
+                "pontos_movimento": novo_pm,
+                "pontos_trabalho":  novo_pt,
+                "pontos_escavacao": novo_pe,
             }
-            self._push("HEROI", f"Jogou [{carta['nome']}]: +{carta.get('movimento',0)}PM "
-                                f"+{carta.get('trabalho',0)}PT +{carta.get('escavacao',0)}PE")
-            self._feedback(f"Carta: {carta['nome']}", C_VERDE)
+            self._push("HEROI", f"Jogou [{carta['nome']}]: Efeito imediato (+{mov_pts} PM, +{trab_pts} PT, +{esc_pts} PE)")
+            self._feedback(f"Carta: {carta['nome']} (Ativada na hora!)", C_VERDE)
 
         self.estado = aplicar_delta(self.estado, delta)
         from ...resolvedor_acoes import obter_celulas_alcancaveis
@@ -230,11 +243,11 @@ class CercoStateHeroMixin:
             self.motor, (self.estado.get("heroi_x", 9), self.estado.get("heroi_y", 9)),
             self.estado["pontos_movimento"]
         )
-        if carta.get("trabalho", 0) > 0:
-            self._selecionar_modo(MODO_TRABALHAR)
-        elif carta.get("movimento", 0) > 0:
+        if mov_pts > 0:
             self._selecionar_modo(MODO_MOVER)
-        elif carta.get("escavacao", 0) > 0:
+        elif trab_pts > 0:
+            self._selecionar_modo(MODO_TRABALHAR)
+        elif esc_pts > 0:
             self._selecionar_modo(MODO_ESCAVAR)
 
     # ── AÇÕES DE CARTA ────────────────────────────────────────────────
