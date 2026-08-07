@@ -89,8 +89,9 @@ class GenomaIAReal:
             "foco_mobilidade":     random.uniform(0.1, 0.8),
         }
         self.fitness: float = 0.0
-        self.vitorias: int = 0
-        self.derrotas: int = 0
+        self.vitorias: int = 0        # boss morto pelos heróis
+        self.derrotas: int = 0        # todos os heróis mortos pela Mão Rei
+        self.empates: int = 0         # tick limit atingido sem conclusão
         self.total_rodadas: int = 0
         self.dano_causado: int = 0
         self.dano_sofrido: int = 0
@@ -105,6 +106,7 @@ class GenomaIAReal:
         g.fitness = self.fitness
         g.vitorias = self.vitorias
         g.derrotas = self.derrotas
+        g.empates = self.empates
         g.total_rodadas = self.total_rodadas
         g.dano_causado = self.dano_causado
         g.dano_sofrido = self.dano_sofrido
@@ -199,24 +201,23 @@ def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks
             break
 
     # Coleta de métricas reais da partida
-    vit = cerco.estado.get("vitoria", False)
-    if not vit:
-        # Se as cartas de ameaça acabaram e os heróis mantiveram a fortaleza viva, considera vitória de resistência
-        if not cerco.deck or len(cerco.deck) == 0:
-            vit = any(h.hp_atual > 0 for h in cerco.herois)
-
+    vit = cerco.estado.get("vitoria", False)      # 🏆 A Mão Rei foi morta
+    der = cerco.estado.get("derrota", False)       # 💀 Todos os heróis morreram
     boss_spawn = cerco.estado.get("mao_rei_spawnou", False)
     boss_morto = vit and boss_spawn
+    tick_limit = ticks >= max_ticks and not vit and not der  # ⏳ Empate por tempo
 
     # Mercenários e Upgrades
     merc_recrutados = len([c for c in cerco.motor.time_a if getattr(c, "is_mercenario", False)])
     upgrades = len(cerco.estado.get("cartas_upgrade_ativas", []))
 
-    # Sobrevivência por herói
+    # Sobrevivência por herói (1 = vivo no fim da partida, independente do resultado)
     sobreviventes = {h.nome: 1 if h.hp_atual > 0 else 0 for h in cerco.herois}
 
     return {
         "vitoria": vit,
+        "derrota": der,
+        "empate": tick_limit,
         "rodadas": max(1, ticks // 20),
         "boss_spawnou": boss_spawn,
         "boss_morto": boss_morto,
@@ -242,6 +243,8 @@ class AlgoritmoGeneticoReal:
     def avaliar_populacao(self):
         for ind in self.populacao:
             vitorias = 0
+            derrotas = 0
+            empates = 0
             total_rodadas = 0
             boss_kills = 0
             boss_spawns = 0
@@ -252,9 +255,13 @@ class AlgoritmoGeneticoReal:
             tot_sob = {"Stark": 0, "Elden": 0, "Kuro": 0, "Darwin": 0}
 
             for _ in range(self.simulacoes_por_ind):
-                res = rodar_partida_real(ind, diff_preset=self.diff_preset, max_ticks=1500)
+                res = rodar_partida_real(ind, diff_preset=self.diff_preset, max_ticks=3000)
                 if res["vitoria"]:
                     vitorias += 1
+                elif res["derrota"]:
+                    derrotas += 1
+                else:
+                    empates += 1
                 if res["boss_morto"]:
                     boss_kills += 1
                 if res["boss_spawnou"]:
@@ -270,7 +277,8 @@ class AlgoritmoGeneticoReal:
                     tot_sob[h_nome] += sob
 
             ind.vitorias = vitorias
-            ind.derrotas = self.simulacoes_por_ind - vitorias
+            ind.derrotas = derrotas
+            ind.empates = empates
             ind.total_rodadas = total_rodadas // self.simulacoes_por_ind
             ind.boss_derrotados = boss_kills
             ind.boss_spawnou = boss_spawns
@@ -368,8 +376,15 @@ def executar_simulador_ag_real(geracoes: int = 10):
         bar = "▓" * int(valor * 15)
         print(f"  • {gene.replace('_', ' ').title():<22}: {valor:.2f} [{bar:<15}]")
 
+    N = melhor_absoluto.vitorias + melhor_absoluto.derrotas + melhor_absoluto.empates
+    N = max(N, 1)
+
+    print("\n🏁 CONDIÇÕES DE FIM DE JOGO (Melhor Genoma — 5 Partidas):")
+    print(f"  • 🏆 Vitórias Totais   (Boss Abatido)         : {melhor_absoluto.vitorias}/5 partidas ({melhor_absoluto.vitorias/5*100:.0f}%)")
+    print(f"  • 💀 Derrotas Totais   (Todos os Heróis Mortos): {melhor_absoluto.derrotas}/5 partidas ({melhor_absoluto.derrotas/5*100:.0f}%)")
+    print(f"  • ⏳ Empates / Timeout (Tempo Esgotado)       : {melhor_absoluto.empates}/5 partidas ({melhor_absoluto.empates/5*100:.0f}%)")
+
     print("\n⚔️ ESTATÍSTICAS DETALHADAS DE COMBATE E RECURSOS:")
-    print(f"  • Taxa de Vitória das IAs no Jogo Real : {melhor_absoluto.vitorias/5*100:.1f}%")
     print(f"  • Duração Média da Partida Real        : {melhor_absoluto.total_rodadas} rodadas")
     print(f"  • Média Dano Físico Causado / Jogo     : {melhor_absoluto.dano_causado} HP")
     print(f"  • Média Dano Sofrido pelos Heróis      : {melhor_absoluto.dano_sofrido} HP")
@@ -379,19 +394,23 @@ def executar_simulador_ag_real(geracoes: int = 10):
     print(f"  • Upgrades Comprados no Mercado        : {melhor_absoluto.upgrades_comprados} cartas")
     print(f"  • Abates do Boss A Mão Rei             : {melhor_absoluto.boss_derrotados} de {melhor_absoluto.boss_spawnou} aparições")
 
-    print("\n🛡️ TAXA DE SOBREVOVÊNCIA POR HERÓI:")
+    print("\n🛡️ SOBREVIVÊNCIA POR HERÓI (vivo no fim da partida, independente do resultado):")
     for h_nome, sob in melhor_absoluto.sobreviventes_herois.items():
         pct = (sob / 5) * 100
         bar_h = "█" * int(pct / 10)
-        print(f"  • {h_nome:<10}: {pct:5.1f}% [{bar_h:<10}]")
+        print(f"  • {h_nome:<10}: vivo em {sob}/5 partidas  {pct:5.1f}% [{bar_h:<10}]")
 
     print("\n⚖️ DIAGNÓSTICO DE BALANCEAMENTO:")
     if melhor_absoluto.vitorias / 5 >= 0.6:
-        print(f"  🟢 JOGO BALANCEADO / VANTAGEM DOS HERÓIS: A IA tática conseguiu alta taxa de vitória no nível {diff_preset['nome']}.")
+        print(f"  🟢 JOGO BALANCEADO / VANTAGEM DOS HERÓIS: Boss abatido em {melhor_absoluto.vitorias/5*100:.0f}% das partidas no nível {diff_preset['nome']}.")
     elif melhor_absoluto.vitorias / 5 >= 0.3:
-        print(f"  🟡 JOGO DESAFIADOR: Combate equilibrado no nível {diff_preset['nome']}.")
+        print(f"  🟡 JOGO DESAFIADOR: Combate equilibrado no nível {diff_preset['nome']} ({melhor_absoluto.vitorias}/5 vitórias).")
+    elif melhor_absoluto.derrotas / 5 >= 0.6:
+        print(f"  🔴 JOGO MUITO DIFÍCIL: Heróis exterminados em {melhor_absoluto.derrotas/5*100:.0f}% das partidas — boss domina no nível {diff_preset['nome']}.")
+    elif melhor_absoluto.empates / 5 >= 0.5:
+        print(f"  ⚠️  JOGO INDEFINIDO: Muitas partidas terminaram por timeout sem conclusão ({melhor_absoluto.empates}/5) — heróis e boss ficam distantes.")
     else:
-        print(f"  🔴 JOGO DIFICIL: A horda de insetos superou os heróis na dificuldade {diff_preset['nome']}.")
+        print(f"  🔴 JOGO DIFÍCIL: A Mão Rei domina na dificuldade {diff_preset['nome']} ({melhor_absoluto.derrotas}/5 derrotas totais).")
     print("=" * 80 + "\n")
 
 

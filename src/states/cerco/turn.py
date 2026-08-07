@@ -424,10 +424,13 @@ class CercoStateTurnMixin:
             alcance = getattr(ini, "alcance", 1)
             dist_inicial = abs(dest_x - hx) + abs(dest_y - hy)
 
-            # 2. Se não estiver em alcance, move-se 1 a 2 células em direção ao alvo
+            # 2. Se não estiver em alcance, move-se em direção ao alvo
+            # A Mão Rei tem velocidade de avanço máxima (4 células/turno) para garantir sempre o confronto
             curr_x, curr_y = hx, hy
             if dist_inicial > alcance:
-                vel = min(2, getattr(ini, "velocidade", 2))
+                is_boss_mov = getattr(ini, "_is_boss", False)
+                # Boss avança 5 células/turno → cobre 14 células (campo norte → câmara central) em 3 turnos
+                vel = min(5, getattr(ini, "velocidade", 5)) if is_boss_mov else min(2, getattr(ini, "velocidade", 2))
 
                 for _ in range(vel):
                     dx = 1 if dest_x > curr_x else (-1 if dest_x < curr_x else 0)
@@ -436,6 +439,12 @@ class CercoStateTurnMixin:
                     candidatas = []
                     if dx != 0: candidatas.append((curr_x + dx, curr_y))
                     if dy != 0: candidatas.append((curr_x, curr_y + dy))
+                    # Boss tenta direções alternativas se bloqueado
+                    if is_boss_mov:
+                        if dx != 0: candidatas.append((curr_x + dx, curr_y + 1))
+                        if dx != 0: candidatas.append((curr_x + dx, curr_y - 1))
+                        if dy != 0: candidatas.append((curr_x + 1, curr_y + dy))
+                        if dy != 0: candidatas.append((curr_x - 1, curr_y + dy))
 
                     moved = False
                     for nx, ny in candidatas:

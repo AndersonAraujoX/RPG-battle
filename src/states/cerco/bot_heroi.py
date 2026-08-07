@@ -316,7 +316,16 @@ class BotHeroi:
         pedregulhos = e.get("pedregulhos", 0)
         patio_alvo = "patio" if (pe > 0 and pedregulhos > 0) else None
 
-        if inimigos_vivos:
+        # Alvo A: Se o Boss A Mão Rei estiver vivo no tabuleiro, prioridade máxima absoluta de perseguição!
+        bosses_vivos = [
+            p for p in s.motor.combatentes
+            if getattr(p, "time", "A") == "B" and getattr(p, "_is_boss", False) and p.hp_atual > 0
+        ]
+
+        if bosses_vivos:
+            boss_proximo = min(bosses_vivos, key=lambda b: abs(b.pos_x - hx) + abs(b.pos_y - hy))
+            alvo_x, alvo_y = boss_proximo.pos_x, boss_proximo.pos_y
+        elif inimigos_vivos:
             mais_proximo = min(
                 inimigos_vivos,
                 key=lambda ini: abs(ini.pos_x - hx) + abs(ini.pos_y - hy)
