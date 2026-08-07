@@ -165,6 +165,13 @@ def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks
     cerco.autoplay_ativo = True
     cerco._push = lambda canal, msg: None
 
+    # Bypassa a animação visual de caminhada dos heróis e monstros no modo headless
+    def _instant_walk(char, from_pos, to_pos, on_done=None):
+        if on_done:
+            on_done()
+    cerco._start_walk = _instant_walk
+    cerco._start_monster_walk = lambda char, from_pos, to_pos: None
+
     # Garante a mão inicial do primeiro herói ao iniciar o estado
     if not cerco.estado.get("mao"):
         cerco._comprar_mao()
@@ -190,6 +197,12 @@ def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks
     ticks = 0
     while ticks < max_ticks:
         ticks += 1
+
+        # Zera animações de caminhada e timers para simulação instantânea
+        cerco.walk_anim = None
+        if hasattr(cerco, "monster_walk_anims"):
+            cerco.monster_walk_anims.clear()
+
         cerco.update()
 
         # Zera timers de delay para rotação instantânea em simulação
@@ -209,6 +222,22 @@ def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks
                     acao = ia_cmd._fila.pop(0)
                     acao()
                 ia_cmd._ativo = False
+
+        # Resolve a fase de ameaça instantaneamente se houver carta sacada
+        if cerco.fase == "FASE_AMEACA" and getattr(cerco, "carta_cerco", None):
+            cerco._resolver_carta_cerco()
+
+        # Resolve a escolha de ação de carta instantaneamente no simulador
+        if cerco.fase == "ESCOLHER_ACAO_CARTA" and cerco.bot_heroi is not None:
+            cerco.bot_heroi._resolver_escolha_carta()
+
+        # Resolve a escolha de Draft de Recompensa instantaneamente no simulador
+        if cerco.fase == "ESCOLHER_DRAFT_RECOMPENSA" and cerco.bot_heroi is not None:
+            cerco.bot_heroi._escolher_draft_recompensa()
+
+        # Resolve a reposição do mercado instantaneamente no simulador
+        if cerco.fase == "REPOVOAR_MERCADO" and cerco.bot_heroi is not None:
+            cerco.bot_heroi._repovoar_mercado()
 
         # Rastreia dano sofrido pelos heróis no frame
         for h in cerco.herois:
@@ -299,8 +328,9 @@ class AlgoritmoGeneticoReal:
                 try:
                     res = futuro.result(timeout=120)
                     resultados_por_ind[idx].append(res)
-                except Exception:
-                    pass  # partida falhou — ignora
+                except Exception as ex:
+                    import traceback
+                    print(f"[ERRO WORKER]: {ex}\n{traceback.format_exc()}")
 
         # Agrega os resultados por indivíduo
         for i, ind in enumerate(self.populacao):

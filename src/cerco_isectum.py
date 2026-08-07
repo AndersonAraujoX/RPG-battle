@@ -241,6 +241,19 @@ CARTAS_UPGRADE_VERMELHO = [
      "movimento": 0, "trabalho": 0, "escavacao": 12, "efeito_extra": None,
      "descricao": "+12 Escavacao",
      "custo": {"metal": 4}},
+    # ── CARTAS DE DANO EM ÁREA (AOE) ──
+    {"id": "bola_de_fogo_card", "nome": "Bola de Fogo", "simbolo": "🔥", "tipo": "upgrade",
+     "movimento": 10, "trabalho": 0, "escavacao": 0, "efeito_extra": "dano_area", "dano_area_val": 25, "raio_area": 3,
+     "descricao": "Dano de Fogo em Área (25 HP, Raio 3)",
+     "custo": {"metal": 2, "madeira": 1}},
+    {"id": "onda_choque_card", "nome": "Onda de Choque", "simbolo": "🌊", "tipo": "upgrade",
+     "movimento": 15, "trabalho": 0, "escavacao": 0, "efeito_extra": "dano_area", "dano_area_val": 20, "raio_area": 4,
+     "descricao": "Dano de Impacto em Área (20 HP, Raio 4)",
+     "custo": {"couro": 2, "metal": 1}},
+    {"id": "chuva_flechas_card", "nome": "Chuva de Flechas", "simbolo": "🏹", "tipo": "upgrade",
+     "movimento": 10, "trabalho": 0, "escavacao": 0, "efeito_extra": "dano_area", "dano_area_val": 18, "raio_area": 5,
+     "descricao": "Chuva de Flechas em Área (18 HP, Raio 5)",
+     "custo": {"madeira": 2, "couro": 1}},
 ]
 
 

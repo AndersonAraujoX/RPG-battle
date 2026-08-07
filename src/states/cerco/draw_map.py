@@ -841,6 +841,10 @@ class CercoDrawMapMixin:
                         pulse_m = abs(self.timer % 90 - 45) / 45.0
                         pr_m = max(2, int((3 + 2 * pulse_m) * self.zoom))
                         pygame.draw.circle(tela, (210, 120, 255), (cx_draw, cy_draw), pr_m, max(1, int(1.5 * self.zoom)))
+                        simb_rec = getattr(char, "simbolo_recurso", None)
+                        if simb_rec:
+                            txt_rec = self.fMi.render(simb_rec, True, (255, 255, 255))
+                            tela.blit(txt_rec, (cx_draw - int(6 * self.zoom), cy_draw - sh - int(18 * self.zoom)))
                     # ── BARRA DE VIDA (HP) ACIMA DO PERSONAGEM ────────
                     hp_cur = getattr(char, "hp_atual", 10)
                     hp_max = max(1, getattr(char, "hp_max", 10))

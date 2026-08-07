@@ -52,6 +52,9 @@ class CercoStateDrawMixin(
             self._draw_carta_overlay_drag(tela)
 
         # 7. Modais, overlays de ameaça, banners e dev menu
+        if self.fase == "ESCOLHER_DRAFT_RECOMPENSA" and getattr(self, "draft_opcoes", None):
+            self._draw_modal_draft_recompensa(tela, W, H)
+
         if self.fase == "FASE_AMEACA" and self.carta_cerco:
             self._draw_carta_overlay(tela, W, H)
 

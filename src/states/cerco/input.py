@@ -55,6 +55,33 @@ class CercoStateInputMixin:
             return
 
         for event in events:
+            if self.fase == "ESCOLHER_DRAFT_RECOMPENSA" and getattr(self, "draft_opcoes", None):
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    opcoes = self.draft_opcoes
+                    W, H = LARGURA_TELA, ALTURA_TELA
+                    mw, mh = 620, 240
+                    mx, my = (W - mw) // 2, (H - mh) // 2
+                    cw, ch = 175, 140
+                    gap = 20
+                    total_w = len(opcoes) * cw + (len(opcoes) - 1) * gap
+                    start_x = (W // 2) - total_w // 2
+                    cy = my + 75
+
+                    for idx, carta in enumerate(opcoes):
+                        cx = start_x + idx * (cw + gap)
+                        crect = pygame.Rect(cx, cy, cw, ch)
+                        if crect.collidepoint(mouse):
+                            upgrades_ativas = list(self.estado.get("cartas_upgrade_ativas", []))
+                            upgrades_ativas.append(dict(carta))
+                            from ...cerco_isectum import aplicar_delta
+                            self.estado = aplicar_delta(self.estado, {"cartas_upgrade_ativas": upgrades_ativas})
+                            self._push("SISTEMA", f"🎁 Escolheu a carta [{carta.get('nome')}] no Draft!")
+                            self.draft_opcoes = None
+                            self.fase = "JOGAR_CARTA"
+                            self._comprar_mao()
+                            return
+                continue
+
             if self.fase == "ESCOLHER_ACAO_CARTA":
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.fase = "ACAO_LIVRE"
@@ -456,10 +483,11 @@ class CercoStateInputMixin:
             self._feedback("Negociar: escolha Recurso no rodapé ou use Escavação para limpar rochas!", C_OURO)
             return
 
-        if self.modo_acao == MODO_NENHUM:
+        if self.modo_acao in (MODO_NENHUM, MODO_ATACAR):
             if char:
                 if getattr(char, "time", "A") == "B" and char.hp_atual > 0:
                     # Clique em Inimigo no grid 2D: Ataca diretamente!
+                    self.modo_acao = MODO_NENHUM
                     heroi_obj = getattr(self, "heroi_atual", None)
                     hx = self.estado.get("heroi_x", 9)
                     hy = self.estado.get("heroi_y", 9)
@@ -591,8 +619,9 @@ class CercoStateInputMixin:
             terrain_type = self.motor.tabuleiro.get_terrain_em(cx, cy)
 
             if tipo_m == "minerador":
-                if zona_clicada != "patio" and terrain_type not in ("patio", "rocha", "barril", "fogo"):
-                    self._feedback("⛏️ Mineradores só podem ser posicionados na Região das Pedras (Pátio)!", C_PERIGO)
+                zonas_validas = ("carpintaria", "curtume", "fundicao", "patio")
+                if zona_clicada not in zonas_validas and terrain_type not in ("floresta", "dificil", "rocha", "patio", "fogo"):
+                    self._feedback("⛏️ Mineradores devem ser posicionados nas Oficinas (Carpintaria, Curtume, Fundição) ou Pátio!", C_PERIGO)
                     return
             elif tipo_m == "arqueiro":
                 if not (zona_clicada and zona_clicada.startswith("torre")):
@@ -607,6 +636,26 @@ class CercoStateInputMixin:
             }
             classe_m = mapa_merc.get(tipo_m, MercenarioMelee)
             novo_aliado = classe_m(nivel=3)
+
+            if tipo_m == "minerador":
+                if zona_clicada == "carpintaria" or terrain_type == "floresta":
+                    novo_aliado.recurso_extraido = "madeira"
+                    novo_aliado.simbolo_recurso = "🪵"
+                    novo_aliado.nome = "Minerador (Madeira)"
+                elif zona_clicada == "curtume" or terrain_type == "dificil":
+                    novo_aliado.recurso_extraido = "couro"
+                    novo_aliado.simbolo_recurso = "📜"
+                    novo_aliado.nome = "Minerador (Couro)"
+                elif zona_clicada == "fundicao" or terrain_type == "rocha":
+                    novo_aliado.recurso_extraido = "metal"
+                    novo_aliado.simbolo_recurso = "⚙️"
+                    novo_aliado.nome = "Minerador (Metal)"
+                else:
+                    novo_aliado.recurso_extraido = "cristais"
+                    novo_aliado.simbolo_recurso = "💎"
+                    novo_aliado.nome = "Minerador (Cristais)"
+                novo_aliado.zona_alocada = zona_clicada or "patio"
+
             sucesso = self.motor.tabuleiro.adicionar_personagem(novo_aliado, cx, cy)
             if sucesso:
                 self.motor.time_a.append(novo_aliado)
@@ -614,7 +663,8 @@ class CercoStateInputMixin:
                 novos_cristais = max(0, self.estado.get("tesouro", 0) - custo_m)
                 from ...cerco_isectum import aplicar_delta
                 self.estado = aplicar_delta(self.estado, {"tesouro": novos_cristais})
-                self._push("HEROI", f"💎 Contratou [{novo_aliado.nome}] por {custo_m} Cristais Roxos em ({cx}, {cy})!")
+                simb = getattr(novo_aliado, "simbolo_recurso", "⛏️")
+                self._push("HEROI", f"💎 Contratou [{novo_aliado.nome}] {simb} por {custo_m} Cristais Roxos em ({cx}, {cy})!")
                 self._feedback(f"[{novo_aliado.nome}] Contratado!", C_VERDE)
                 self.modo_acao = MODO_NENHUM
                 self.map_backbuffer_sujo = True

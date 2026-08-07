@@ -38,6 +38,11 @@ class CercoStateTurnMixin:
 
         self._salvar_status_heroi(self.heroi_atual.nome)
 
+        # ⚔️ AVANÇO CONSTANTE DOS INIMIGOS: A cada fim de turno de um herói, a horda de inimigos avança e ataca no mapa 2D!
+        self._processar_turnos_inimigos()
+        if self._verificar_derrota_imediata():
+            return
+
         jogaram = list(self.estado.get("herois_jogaram", []))
         if self.heroi_atual.nome not in jogaram:
             jogaram.append(self.heroi_atual.nome)
@@ -213,12 +218,16 @@ class CercoStateTurnMixin:
 
     # ── VERIFICAÇÃO DE FIM DE JOGO ────────────────────────────────────
     def _verificar_derrota_imediata(self):
-        """O sistema de derrota foi desativado a pedido do usuário.
-
-        Eventos de Cerco (catapulta, perda de cristais, brutamontes) continuam
-        aplicando seus efeitos normalmente, mas NUNCA interrompem o jogo com
-        uma tela de DERROTA. O combate continua até a vitória!
-        """
+        """Verifica se todos os heróis morreram em combate — declara derrota se não houver heróis vivos."""
+        from ...cerco_isectum import aplicar_delta
+        herois_vivos = [h for h in getattr(self, "herois", []) if getattr(h, "hp_atual", 0) > 0]
+        if not herois_vivos:
+            self.estado = aplicar_delta(self.estado, {
+                "derrota": True,
+                "msg_derrota": "Todos os heróis caíram em batalha diante das forças de Isectum!"
+            })
+            self.fase = "FIM"
+            return True
         return False
 
     # ── SPAWN DO MÃO REI ─────────────────────────────────────────────
@@ -380,8 +389,14 @@ class CercoStateTurnMixin:
         if self.estado.get("derrota") or self.estado.get("vitoria"):
             self.fase = "FIM"
         else:
-            self.fase = "JOGAR_CARTA"
-            self._comprar_mao()
+            # 🎁 DRAFT DE CARTA: Escolha de 1 entre 3 cartas aleatórias após cada ameaça puxada
+            import random
+            from ...cerco_isectum import CARTAS_UPGRADE
+            opcoes_draft = random.sample(CARTAS_UPGRADE, min(3, len(CARTAS_UPGRADE)))
+            self.draft_opcoes = opcoes_draft
+            self.fase = "ESCOLHER_DRAFT_RECOMPENSA"
+            self._push("SISTEMA", "🎁 Escolha 1 de 3 cartas bônus para adicionar ao seu deck!")
+            self._feedback("🎁 Escolha uma carta de recompensa!", (255, 215, 0))
 
     def _processar_turnos_inimigos(self):
         """Processa a movimentação tática e combate de todas as criaturas inimigas no mapa 2D."""
@@ -425,12 +440,11 @@ class CercoStateTurnMixin:
             dist_inicial = abs(dest_x - hx) + abs(dest_y - hy)
 
             # 2. Se não estiver em alcance, move-se em direção ao alvo
-            # A Mão Rei tem velocidade de avanço máxima (4 células/turno) para garantir sempre o confronto
+            # Inimigos e Bosses avançam de 3 a 5 células/turno para garantir invasões dinâmicas
             curr_x, curr_y = hx, hy
             if dist_inicial > alcance:
                 is_boss_mov = getattr(ini, "_is_boss", False)
-                # Boss avança 5 células/turno → cobre 14 células (campo norte → câmara central) em 3 turnos
-                vel = min(5, getattr(ini, "velocidade", 5)) if is_boss_mov else min(2, getattr(ini, "velocidade", 2))
+                vel = min(5, getattr(ini, "velocidade", 5)) if is_boss_mov else max(3, min(4, getattr(ini, "velocidade", 3)))
 
                 for _ in range(vel):
                     dx = 1 if dest_x > curr_x else (-1 if dest_x < curr_x else 0)
@@ -439,12 +453,11 @@ class CercoStateTurnMixin:
                     candidatas = []
                     if dx != 0: candidatas.append((curr_x + dx, curr_y))
                     if dy != 0: candidatas.append((curr_x, curr_y + dy))
-                    # Boss tenta direções alternativas se bloqueado
-                    if is_boss_mov:
-                        if dx != 0: candidatas.append((curr_x + dx, curr_y + 1))
-                        if dx != 0: candidatas.append((curr_x + dx, curr_y - 1))
-                        if dy != 0: candidatas.append((curr_x + 1, curr_y + dy))
-                        if dy != 0: candidatas.append((curr_x - 1, curr_y + dy))
+                    # Invasores tentam desvios diagonais e laterais se o caminho direto estiver ocupado
+                    if dx != 0: candidatas.append((curr_x + dx, curr_y + 1))
+                    if dx != 0: candidatas.append((curr_x + dx, curr_y - 1))
+                    if dy != 0: candidatas.append((curr_x + 1, curr_y + dy))
+                    if dy != 0: candidatas.append((curr_x - 1, curr_y + dy))
 
                     moved = False
                     for nx, ny in candidatas:
@@ -557,47 +570,43 @@ class CercoStateTurnMixin:
         for m in mercenarios:
             tipo = getattr(m, "tipo_mercenario", "melee")
 
-            # --- MINERADOR ---
+            # --- MINERADOR (Nós de Recursos Estratégicos) ---
             if tipo == "minerador":
-                pedras = self.estado.get("pedregulhos", 0)
-                if pedras > 0:
-                    cristais_minerados += 2
-                    self.estado = aplicar_delta(self.estado, {"pedregulhos": pedras - 1})
-                    self._push("HEROI", f"⛏️ {m.nome} minerou as rochas e extraiu +2 Cristais Roxos! (Restam: {pedras-1} pedregulhos)")
-                else:
-                    # Se não há mais pedregulhos, o minerador usa sua picareta para defender o Pátio!
-                    inimigos = [
-                        p for p in list(self.motor.combatentes)
-                        if getattr(p, "time", "A") == "B" and p.hp_atual > 0
-                    ]
-                    if inimigos:
-                        inimigos.sort(key=lambda ini: abs(ini.pos_x - m.pos_x) + abs(ini.pos_y - m.pos_y))
-                        alvo = inimigos[0]
-                        dist = abs(alvo.pos_x - m.pos_x) + abs(alvo.pos_y - m.pos_y)
-                        if dist <= 1:
-                            import random as _rnd
-                            d20 = _rnd.randint(1, 20)
-                            total_ataque = d20 + getattr(m, 'bonus_ataque', 2)
-                            if total_ataque >= alvo.ac:
-                                dano = _rnd.randint(1, 6) + 1
-                                alvo.hp_atual -= dano
-                                self._push("HEROI", f"⛏️ {m.nome} atacou {alvo.nome} com a picareta! Dano: {dano}")
-                                if alvo.hp_atual <= 0:
-                                    if 0 <= alvo.pos_y < len(tab.grid) and 0 <= alvo.pos_x < len(tab.grid[0]):
-                                        if tab.grid[alvo.pos_y][alvo.pos_x] is alvo:
-                                            tab.grid[alvo.pos_y][alvo.pos_x] = None
-                                    if alvo in self.motor.combatentes:
-                                        self.motor.combatentes.remove(alvo)
-                                    if hasattr(self.motor, 'time_b') and alvo in self.motor.time_b:
-                                        self.motor.time_b.remove(alvo)
-                                    self._push("HEROI", f"💀 Minerador ABATEU {alvo.nome}!")
-                                    self._gerar_drop_inimigo(alvo)
-                            else:
-                                self._push("HEROI", f"⛏️ {m.nome} atacou com a picareta, mas errou! (D20: {d20}+2 vs AC {alvo.ac})")
-                        else:
-                            self._push("HEROI", f"⛏️ {m.nome} está de guarda no Pátio (todas as rochas foram mineradas).")
+                rec = getattr(m, "recurso_extraido", "cristais")
+                simb = getattr(m, "simbolo_recurso", "⛏️")
+
+                if rec in ("madeira", "couro", "metal"):
+                    # Aloca +3 unidades diretamente nos slots de upgrade do mercado que necessitam deste recurso
+                    slots = [dict(s) for s in self.estado.get("slots_upgrade", [])]
+                    alocou = False
+                    for slot in slots:
+                        if not slot.get("adquirido") and not slot.get("bloqueado"):
+                            custo_base = slot.get("custo", {})
+                            alocados = slot.get("recursos_alocados", {})
+                            necessario = custo_base.get(rec, 0)
+                            atual = alocados.get(rec, 0)
+                            if atual < necessario:
+                                ganho = min(3, necessario - atual)
+                                alocados[rec] = atual + ganho
+                                slot["recursos_alocados"] = alocados
+                                alocou = True
+                                self._push("HEROI", f"⛏️ {m.nome} {simb} extraiu +{ganho} {rec.capitalize()} para o upgrade [{slot.get('nome')}]!")
+                                break
+
+                    if alocou:
+                        self.estado = aplicar_delta(self.estado, {"slots_upgrade": slots})
                     else:
-                        self._push("HEROI", f"⛏️ {m.nome} está de guarda no Pátio (todas as rochas foram mineradas).")
+                        self._push("HEROI", f"⛏️ {m.nome} {simb} trabalhou na oficina ({rec.capitalize()}), estoque repleto!")
+                else:
+                    # Extração de Cristais Roxos no Pátio/Minas
+                    pedras = self.estado.get("pedregulhos", 0)
+                    gain_c = 3 if pedras > 0 else 2
+                    novo_tes = self.estado.get("tesouro", 0) + gain_c
+                    d_dict = {"tesouro": novo_tes}
+                    if pedras > 0:
+                        d_dict["pedregulhos"] = pedras - 1
+                    self.estado = aplicar_delta(self.estado, d_dict)
+                    self._push("HEROI", f"⛏️ {m.nome} 💎 extraiu +{gain_c} Cristais Roxos! (Total: {novo_tes}💎)")
 
             # --- ARQUEIRO (Ataque à Distância da Torre / Perímetro) ---
             elif tipo == "arqueiro":

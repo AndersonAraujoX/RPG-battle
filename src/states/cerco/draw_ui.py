@@ -618,3 +618,60 @@ class CercoDrawUIMixin:
             if txt_surf.get_width() > cw - 12:
                 txt_surf = self.fMi.render(txt, True, C_TEXTO)
             tela.blit(txt_surf, (r.x + 8, r.centery - txt_surf.get_height() // 2))
+
+    def _draw_modal_draft_recompensa(self, tela, W, H):
+        """Renderiza o modal de escolha de 1 entre 3 cartas bônus (Draft) após cada ameaça."""
+        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+        overlay.fill((5, 8, 16, 210))
+        tela.blit(overlay, (0, 0))
+
+        mw, mh = 620, 240
+        mx, my = (W - mw) // 2, (H - mh) // 2
+        modal_rect = pygame.Rect(mx, my, mw, mh)
+
+        pygame.draw.rect(tela, (20, 24, 40), modal_rect, border_radius=12)
+        pygame.draw.rect(tela, C_OURO, modal_rect, 2, border_radius=12)
+
+        tit = self.fG.render("🎁 ESCOLHA 1 CARTA BÔNUS PARA SEU DECK!", True, C_OURO)
+        tela.blit(tit, (modal_rect.centerx - tit.get_width() // 2, modal_rect.y + 16))
+
+        sub = self.fMi.render("Inimigos puxaram uma ameaça — fortaleça seu baralho com uma recompensa!", True, C_TEXTO)
+        tela.blit(sub, (modal_rect.centerx - sub.get_width() // 2, modal_rect.y + 45))
+
+        opcoes = getattr(self, "draft_opcoes", [])
+        if not opcoes:
+            return
+
+        cw, ch = 175, 140
+        gap = 20
+        total_w = len(opcoes) * cw + (len(opcoes) - 1) * gap
+        start_x = modal_rect.centerx - total_w // 2
+        cy = modal_rect.y + 75
+
+        mouse = pygame.mouse.get_pos()
+
+        for idx, carta in enumerate(opcoes):
+            cx = start_x + idx * (cw + gap)
+            crect = pygame.Rect(cx, cy, cw, ch)
+            hover = crect.collidepoint(mouse)
+
+            bg_col = (45, 50, 80) if hover else (28, 32, 52)
+            borda_col = (255, 215, 0) if hover else C_BORDA
+
+            pygame.draw.rect(tela, bg_col, crect, border_radius=8)
+            pygame.draw.rect(tela, borda_col, crect, 2 if hover else 1, border_radius=8)
+
+            sym = carta.get("simbolo", "🃏")
+            lbl_sym = self.fG.render(sym, True, C_OURO)
+            tela.blit(lbl_sym, (crect.x + 10, crect.y + 10))
+
+            nome = self.fMi.render(carta["nome"][:16], True, C_TEXTO)
+            tela.blit(nome, (crect.x + 40, crect.y + 12))
+
+            desc = carta.get("descricao", "")
+            if desc:
+                lbl_desc = self.fMi.render(desc[:24], True, C_DIM)
+                tela.blit(lbl_desc, (crect.x + 10, crect.y + 48))
+
+            click_lbl = self.fMi.render("Clique para escolher", True, C_VERDE if hover else C_BORDA)
+            tela.blit(click_lbl, (crect.centerx - click_lbl.get_width() // 2, crect.bottom - 24))

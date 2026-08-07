@@ -38,13 +38,50 @@ class CercoStateHeroMixin:
         }
 
     def _carregar_status_heroi(self, nome_heroi):
-        if "herois_status" not in self.estado or nome_heroi not in self.estado["herois_status"]:
-            return
+        if "herois_status" not in self.estado:
+            self.estado["herois_status"] = {}
+
+        if nome_heroi not in self.estado["herois_status"]:
+            from ...cerco_isectum import CARTAS_BASICAS
+            import random as _rnd
+            deck_base = [dict(c) for c in CARTAS_BASICAS]
+            _rnd.shuffle(deck_base)
+            heroi_obj = next((h for h in getattr(self, 'herois', []) if h.nome == nome_heroi), None)
+            hp_a = heroi_obj.hp_atual if heroi_obj else 50
+            hp_m = heroi_obj.hp_max if heroi_obj else 50
+            self.estado["herois_status"][nome_heroi] = {
+                "mao":              deck_base[:3],
+                "deck_heroi":       deck_base[3:],
+                "descarte":         [],
+                "excluidas_ciclo":  [],
+                "pontos_movimento": 0,
+                "pontos_trabalho":  0,
+                "pontos_escavacao": 0,
+                "voo_ativo":        False,
+                "hp_atual":         hp_a,
+                "hp_max":           hp_m,
+            }
+
         status = self.estado["herois_status"][nome_heroi]
+
+        # Se a mão salva do herói estiver vazia, compra 3 cartas do deck do herói!
+        if not status.get("mao"):
+            todas = list(status.get("descarte", [])) + list(status.get("deck_heroi", []))
+            if todas:
+                import random as _rnd
+                _rnd.shuffle(todas)
+                status["mao"] = todas[:3]
+                status["deck_heroi"] = todas[3:]
+                status["descarte"] = []
+
         heroi_obj = next((h for h in getattr(self, 'herois', []) if h.nome == nome_heroi), None)
         if heroi_obj:
-            if status.get("hp_atual") is not None:
-                heroi_obj.hp_atual = status["hp_atual"]
+            hp_salvo = status.get("hp_atual")
+            if hp_salvo is not None and hp_salvo > 0:
+                heroi_obj.hp_atual = hp_salvo
+            elif getattr(heroi_obj, "hp_atual", 0) <= 0 and not status.get("foi_derrotado"):
+                heroi_obj.hp_atual = heroi_obj.hp_max
+                status["hp_atual"] = heroi_obj.hp_max
             if status.get("hp_max") is not None:
                 heroi_obj.hp_max = status["hp_max"]
 
@@ -243,6 +280,22 @@ class CercoStateHeroMixin:
             self.motor, (self.estado.get("heroi_x", 9), self.estado.get("heroi_y", 9)),
             self.estado["pontos_movimento"]
         )
+        # Efeito extra: Dano em Área (AOE)
+        if carta.get("efeito_extra") == "dano_area":
+            dano_val = carta.get("dano_area_val", 20)
+            raio_val = carta.get("raio_area", 3)
+            hx = self.estado.get("heroi_x", 9)
+            hy = self.estado.get("heroi_y", 9)
+            inimigos = [p for p in self.motor.combatentes if getattr(p, "time", "A") == "B" and p.hp_atual > 0]
+            atingidos = 0
+            for ini in inimigos:
+                dist = abs(ini.pos_x - hx) + abs(ini.pos_y - hy)
+                if dist <= raio_val:
+                    ini.receber_dano(dano_val)
+                    atingidos += 1
+            self._push("HEROI", f"💥 AOE! [{carta['nome']}] causou {dano_val} de dano a {atingidos} inimigo(s) no raio {raio_val}!")
+            self._feedback(f"💥 AOE: {atingidos} inimigo(s) atingidos (-{dano_val} HP)!", (255, 100, 50))
+
         if mov_pts > 0:
             self._selecionar_modo(MODO_MOVER)
         elif trab_pts > 0:

@@ -107,6 +107,9 @@ class BotHeroi:
         elif fase == "REPOVOAR_MERCADO":
             self._fila.append(self._repovoar_mercado)
 
+        elif fase == "ESCOLHER_DRAFT_RECOMPENSA":
+            self._fila.append(self._escolher_draft_recompensa)
+
         elif fase == "ESCOLHER_ACAO_CARTA":
             self._fila.append(self._resolver_escolha_carta)
 
@@ -126,6 +129,29 @@ class BotHeroi:
             self._timer = self.delay * 2
 
     # ── Ações individuais ─────────────────────────────────────────────────
+
+    def _escolher_draft_recompensa(self):
+        """Escolhe 1 entre as 3 cartas do draft e adiciona ao deck/lista de upgrades do herói."""
+        s = self.state
+        if s.fase == "ESCOLHER_DRAFT_RECOMPENSA" and getattr(s, "draft_opcoes", None):
+            opcoes = s.draft_opcoes
+            # Prioridade da IA: Cartas com Dano em Área (AOE) > Maior Movimento/Trabalho > Outras
+            escolhida = None
+            for c in opcoes:
+                if c.get("efeito_extra") == "dano_area":
+                    escolhida = c
+                    break
+            if not escolhida:
+                escolhida = random.choice(opcoes)
+
+            upgrades_ativas = list(s.estado.get("cartas_upgrade_ativas", []))
+            upgrades_ativas.append(dict(escolhida))
+            from ...cerco_isectum import aplicar_delta
+            s.estado = aplicar_delta(s.estado, {"cartas_upgrade_ativas": upgrades_ativas})
+            s._push("BOT", f"🎁 [BOT] Escolheu a carta [{escolhida.get('nome')}] no Draft!")
+            s.draft_opcoes = None
+            s.fase = "JOGAR_CARTA"
+            s._comprar_mao()
 
     def _resolver_escolha_carta(self):
         """Resolve o modal de escolha de ação de carta (Andar/Coletar/Ambos/Atacar)."""
@@ -595,15 +621,42 @@ class BotHeroi:
                     if _recrutar(MercenarioMelee, 5, cx, cy, "Guarda de Emergência 🛡️"):
                         return
 
-        # ── 2. MINERADORES (4💎) → Pátio/Escavação
-        pedregulhos = e.get("pedregulhos", 0)
-        mineradores_ativos = sum(1 for p in s.motor.combatentes if getattr(p, "classe_nome", None) == "Minerador" and p.hp_atual > 0)
+        # ── 2. MINERADORES (4💎) → Posicionados em Nós de Recursos Estratégicos (Carpintaria, Curtume, Fundição, Pátio)
+        mineradores_ativos = sum(1 for p in s.motor.combatentes if getattr(p, "tipo_mercenario", None) == "minerador" and p.hp_atual > 0)
 
-        if cristais >= (4 + RESERVA_SEGURANCA) and pedregulhos > 0 and mineradores_ativos < 2:
-            livres_patio = _celulas_livres_zona("patio")
-            if livres_patio:
-                cx, cy = livres_patio[0]
-                if _recrutar(MercenarioMinerador, 4, cx, cy, "Minerador ⛏️"):
+        if cristais >= (4 + RESERVA_SEGURANCA) and mineradores_ativos < 3:
+            rec_nec = {"madeira": 0, "couro": 0, "metal": 0}
+            for slot in e.get("slots_upgrade", []):
+                if not slot.get("adquirido") and not slot.get("bloqueado"):
+                    c_base = slot.get("custo", {})
+                    aloc = slot.get("recursos_alocados", {})
+                    for r in ["madeira", "couro", "metal"]:
+                        falta = c_base.get(r, 0) - aloc.get(r, 0)
+                        if falta > 0:
+                            rec_nec[r] += falta
+
+            rec_prio = max(rec_nec, key=lambda k: rec_nec[k])
+            mapa_zona = {"madeira": "carpintaria", "couro": "curtume", "metal": "fundicao"}
+            zona_alvo = mapa_zona.get(rec_prio, "patio") if rec_nec[rec_prio] > 0 else "patio"
+
+            livres_oficina = _celulas_livres_zona(zona_alvo)
+            if not livres_oficina:
+                livres_oficina = _celulas_livres_zona("patio")
+
+            if livres_oficina:
+                cx, cy = livres_oficina[0]
+                m_obj = MercenarioMinerador(nivel=3)
+                m_obj.recurso_extraido = rec_prio if rec_nec[rec_prio] > 0 else "cristais"
+                mapa_simb = {"madeira": "🪵", "couro": "📜", "metal": "⚙️", "cristais": "💎"}
+                m_obj.simbolo_recurso = mapa_simb.get(m_obj.recurso_extraido, "⛏️")
+                m_obj.nome = f"Minerador ({m_obj.recurso_extraido.capitalize()})"
+
+                sucesso = tab.adicionar_personagem(m_obj, cx, cy)
+                if sucesso:
+                    s.motor.time_a.append(m_obj)
+                    s.motor.combatentes.append(m_obj)
+                    s.estado = aplicar_delta(e, {"tesouro": cristais - 4})
+                    s._push("BOT", f"[BOT] Recrutou {m_obj.nome} {m_obj.simbolo_recurso} na oficina [{zona_alvo}] por 4💎!")
                     return
 
         # ── 3. ARQUEIROS (7💎) → Torres dos Cantos Elevadas ou Muralhas Voltadas aos Inimigos

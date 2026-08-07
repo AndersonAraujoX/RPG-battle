@@ -205,19 +205,23 @@ class CercoState(
             "pontos_trabalho":  self.estado.get("pontos_trabalho", 0),
             "pontos_escavacao": self.estado.get("pontos_escavacao", 0),
             "voo_ativo":        self.estado.get("voo_ativo", False),
+            "hp_atual":         p_heroi.hp_max,
+            "hp_max":           p_heroi.hp_max,
         }
         for h in self.herois[1:]:
             deck_sub = copy.deepcopy(CARTAS_BASICAS)
             random.shuffle(deck_sub)
             self.estado["herois_status"][h.nome] = {
-                "mao":              [],
-                "deck_heroi":       deck_sub,
+                "mao":              deck_sub[:3],
+                "deck_heroi":       deck_sub[3:],
                 "descarte":         [],
                 "excluidas_ciclo":  [],
                 "pontos_movimento": 0,
                 "pontos_trabalho":  0,
                 "pontos_escavacao": 0,
                 "voo_ativo":        False,
+                "hp_atual":         h.hp_max,
+                "hp_max":           h.hp_max,
             }
         self._setup_fonts()
         self._setup_layout()
