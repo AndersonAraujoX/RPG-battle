@@ -91,8 +91,8 @@ class Mago(Personagem):
                                         'alvo_central': inimigo
                                     }
             
-            # Só conjura se atingir pelo menos 2 inimigos e 0 aliados
-            if melhor_oportunidade['alvos_atingidos'] >= 2 and melhor_oportunidade['aliados_atingidos'] == 0:
+            # Conjura se atingir pelo menos 1 inimigo e 0 aliados (prioriza limpar grupos ou alvos isolados perigosos)
+            if melhor_oportunidade['alvos_atingidos'] >= 1 and melhor_oportunidade['aliados_atingidos'] == 0:
                 logs_turno.append((f"  {self.nome} vê uma oportunidade para a Bola de Fogo sem atingir aliados!", COR_TEXTO))
                 pos_final = melhor_oportunidade['pos_final']
                 alvo_central = melhor_oportunidade['alvo_central']

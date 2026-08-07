@@ -18,7 +18,7 @@ class CercoStateTurnMixin:
 
     # ── FIM DE TURNO DO HERÓI ────────────────────────────────────────
     def _fim_turno_heroi(self):
-        if self.estado["mao"]:
+        if self.estado["mao"] and not getattr(self, "autoplay_ativo", False):
             self._feedback("Use todas as cartas da mao para encerrar o turno!", C_PERIGO)
             try:
                 self.game.play_sound('invalid_action')

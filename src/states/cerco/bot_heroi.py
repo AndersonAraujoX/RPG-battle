@@ -500,11 +500,16 @@ class BotHeroi:
         """Descarta cartas restantes e encerra o turno do herói."""
         s = self.state
 
-        # Se ainda há cartas na mão, descarta todas antes de encerrar
+        # Se ainda está aguardando escolha de ação de carta, resolve primeiro
+        if s.fase == "ESCOLHER_ACAO_CARTA":
+            self._resolver_escolha_carta()
+
+        # Se ainda há cartas na mão, descarta TODAS antes de encerrar
+        # (sem isso _fim_turno_heroi() bloqueia e o deck de ameaças nunca avança)
         mao = s.estado.get("mao", [])
         if mao:
             from ...cerco_isectum import aplicar_delta
-            desc = list(s.estado["descarte"]) + list(mao)
+            desc = list(s.estado.get("descarte", [])) + list(mao)
             s.estado = aplicar_delta(s.estado, {"mao": [], "descarte": desc})
             s._push("BOT", f"[BOT] Descartou {len(mao)} carta(s) restante(s) da mão.")
 
@@ -538,8 +543,8 @@ class BotHeroi:
         zonas_internas_brecha = [z for z in ("camara_central", "carpintaria", "curtume", "fundicao", "patio") if invasores.get(z, 0) > 0]
         is_emergencia = len(zonas_internas_brecha) > 0
 
-        # Reserva de segurança dinâmica: 1 se em emergência, 3 em situação normal
-        RESERVA_SEGURANCA = 1 if is_emergencia else 3
+        # Reserva de segurança dinâmica: 0 para permitir recrutamento imediato
+        RESERVA_SEGURANCA = 0
         cristais = e.get("tesouro", 0)
 
         if cristais < (4 + RESERVA_SEGURANCA):

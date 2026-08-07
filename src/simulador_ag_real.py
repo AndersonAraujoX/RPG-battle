@@ -20,6 +20,8 @@ import sys
 import time
 import random
 import copy
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Dict, List, Tuple
 
 # Configura o Pygame para rodar em modo Headless (sem janela visual)
@@ -41,6 +43,9 @@ try:
 except Exception:
     pass
 
+# Bypassa funções de render que não são necessárias em modo headless
+def _noop(*args, **kwargs): return None
+
 # Importa as classes reais do jogo
 from src.states.cerco.state import CercoState
 from src.states.cerco.bot_heroi import BotHeroi
@@ -51,7 +56,7 @@ from src.personagens.arqueiro import Arqueiro
 
 # Configurações de Dificuldade Selecionáveis
 DIFICULDADES_DISPONIVEIS = {
-    "1": {"id": "facil", "nome": "Fácil", "fator_deck": 0.25, "pedregulhos": 3, "tesouro": 30, "reserva": 20},
+    "1": {"id": "facil", "nome": "Fácil", "fator_deck": 0.25, "pedregulhos": 2, "tesouro": 45, "reserva": 30},
     "2": {"id": "normal", "nome": "Normal / Médio", "fator_deck": 0.50, "pedregulhos": 5, "tesouro": 25, "reserva": 15},
     "3": {"id": "dificil", "nome": "Difícil", "fator_deck": 1.00, "pedregulhos": 8, "tesouro": 20, "reserva": 10},
 }
@@ -134,8 +139,21 @@ def crossover_real(pai1: GenomaIAReal, pai2: GenomaIAReal) -> GenomaIAReal:
 # ═══════════════════════════════════════════════════════════════════════════
 # SIMULADOR USANDO AS CLASSES E MOTOR REAIS DO JOGO
 # ═══════════════════════════════════════════════════════════════════════════
-def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks: int = 1500) -> Dict[str, any]:
+def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks: int = 3000) -> Dict[str, any]:
     """Instancia um CercoState real e executa o jogo coletando estatísticas detalhadas."""
+    # Re-inicializa o ambiente headless no processo filho (multiprocessing)
+    os.environ["SDL_VIDEODRIVER"] = "dummy"
+    import pygame as _pg
+    if not _pg.get_init():
+        _pg.init()
+        _pg.font.init()
+        _pg.display.set_mode((1, 1), _pg.HIDDEN)
+    try:
+        import src.ui.dado_3d as _d3d
+        _d3d.animar_rolagem_dado = lambda tela, tipo_dado="d6", resultado=None: None
+    except Exception:
+        pass
+
     mock_game = MockGame(diff_preset=diff_preset)
 
     config = {
@@ -177,8 +195,20 @@ def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks
         # Zera timers de delay para rotação instantânea em simulação
         if cerco.bot_heroi is not None:
             cerco.bot_heroi._timer = 0
-        if hasattr(cerco, "ia_comandante") and cerco.ia_comandante is not None:
-            cerco.ia_comandante.timer = 0
+
+        # Esvazia a fila da IA Comandante instantaneamente no mesmo tick em modo headless
+        ia_cmd = getattr(cerco, "ia_comandante", None)
+        if ia_cmd is not None:
+            ia_cmd.delay = 0
+            ia_cmd.timer = 0
+            if cerco.fase == "TURNO_FILHO_IMPERADOR":
+                if not ia_cmd.esta_ativo:
+                    ia_cmd.iniciar_turno()
+                # Processa toda a fila de ações imediatamente
+                while ia_cmd._ativo and ia_cmd._fila:
+                    acao = ia_cmd._fila.pop(0)
+                    acao()
+                ia_cmd._ativo = False
 
         # Rastreia dano sofrido pelos heróis no frame
         for h in cerco.herois:
@@ -229,6 +259,12 @@ def rodar_partida_real(genoma: GenomaIAReal, diff_preset: Dict = None, max_ticks
     }
 
 
+# ── Worker de topo de módulo (necessário para multiprocessing — não pode ser lambda/local) ──
+def _rodar_partida_worker(genoma: GenomaIAReal, diff_preset: Dict, max_ticks: int) -> Dict:
+    """Executa uma partida em processo separado e retorna as métricas."""
+    return rodar_partida_real(genoma, diff_preset=diff_preset, max_ticks=max_ticks)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # ALGORITMO GENÉTICO SOBRE O JOGO REAL
 # ═══════════════════════════════════════════════════════════════════════════
@@ -241,55 +277,63 @@ class AlgoritmoGeneticoReal:
         self.geracao = 0
 
     def avaliar_populacao(self):
-        for ind in self.populacao:
-            vitorias = 0
-            derrotas = 0
-            empates = 0
-            total_rodadas = 0
-            boss_kills = 0
-            boss_spawns = 0
-            tot_dano_c = 0
-            tot_dano_s = 0
-            tot_merc = 0
-            tot_upg = 0
-            tot_sob = {"Stark": 0, "Elden": 0, "Kuro": 0, "Darwin": 0}
+        """Avalia todos os indivíduos em PARALELO usando múltiplos núcleos da CPU."""
+        # Monta a lista de todas as (individuo_idx, genoma, diff) para rodar em paralelo
+        tarefas = [
+            (i, ind, self.diff_preset)
+            for i, ind in enumerate(self.populacao)
+            for _ in range(self.simulacoes_por_ind)
+        ]
 
-            for _ in range(self.simulacoes_por_ind):
-                res = rodar_partida_real(ind, diff_preset=self.diff_preset, max_ticks=3000)
-                if res["vitoria"]:
-                    vitorias += 1
-                elif res["derrota"]:
-                    derrotas += 1
-                else:
-                    empates += 1
-                if res["boss_morto"]:
-                    boss_kills += 1
-                if res["boss_spawnou"]:
-                    boss_spawns += 1
+        # Roda todas as partidas em paralelo — usa todos os núcleos disponíveis
+        n_cpus = max(1, multiprocessing.cpu_count() - 1)  # deixa 1 core livre para o SO
+        resultados_por_ind: Dict[int, List] = {i: [] for i in range(self.tam_populacao)}
 
-                total_rodadas += res["rodadas"]
-                tot_dano_c += res["dano_causado"]
-                tot_dano_s += res["dano_sofrido"]
-                tot_merc += res["mercenarios"]
-                tot_upg += res["upgrades"]
+        with ProcessPoolExecutor(max_workers=n_cpus) as executor:
+            futuros = {
+                executor.submit(_rodar_partida_worker, ind, diff, 3000): i
+                for i, ind, diff in tarefas
+            }
+            for futuro in as_completed(futuros):
+                idx = futuros[futuro]
+                try:
+                    res = futuro.result(timeout=120)
+                    resultados_por_ind[idx].append(res)
+                except Exception:
+                    pass  # partida falhou — ignora
 
-                for h_nome, sob in res["sobreviventes"].items():
-                    tot_sob[h_nome] += sob
+        # Agrega os resultados por indivíduo
+        for i, ind in enumerate(self.populacao):
+            resultados = resultados_por_ind[i]
+            if not resultados:
+                continue
 
-            ind.vitorias = vitorias
-            ind.derrotas = derrotas
-            ind.empates = empates
-            ind.total_rodadas = total_rodadas // self.simulacoes_por_ind
+            vitorias = sum(1 for r in resultados if r["vitoria"])
+            derrotas  = sum(1 for r in resultados if r["derrota"])
+            empates   = sum(1 for r in resultados if r["empate"])
+            boss_kills  = sum(1 for r in resultados if r["boss_morto"])
+            boss_spawns = sum(1 for r in resultados if r["boss_spawnou"])
+            n = max(len(resultados), 1)
+
+            ind.vitorias  = vitorias
+            ind.derrotas  = derrotas
+            ind.empates   = empates
+            ind.total_rodadas = sum(r["rodadas"] for r in resultados) // n
             ind.boss_derrotados = boss_kills
-            ind.boss_spawnou = boss_spawns
-            ind.dano_causado = tot_dano_c // self.simulacoes_por_ind
-            ind.dano_sofrido = tot_dano_s // self.simulacoes_por_ind
-            ind.mercenarios_recrutados = tot_merc // self.simulacoes_por_ind
-            ind.upgrades_comprados = tot_upg // self.simulacoes_por_ind
-            ind.sobreviventes_herois = tot_sob
+            ind.boss_spawnou    = boss_spawns
+            ind.dano_causado = sum(r["dano_causado"] for r in resultados) // n
+            ind.dano_sofrido = sum(r["dano_sofrido"] for r in resultados) // n
+            ind.mercenarios_recrutados = sum(r["mercenarios"] for r in resultados) // n
+            ind.upgrades_comprados     = sum(r["upgrades"]    for r in resultados) // n
+            ind.sobreviventes_herois   = {
+                h: sum(r["sobreviventes"].get(h, 0) for r in resultados)
+                for h in ["Stark", "Elden", "Kuro", "Darwin"]
+            }
 
-            taxa_vit = vitorias / self.simulacoes_por_ind
-            ind.fitness = max(1.0, (taxa_vit * 120) + (ind.dano_causado * 0.4) - (ind.dano_sofrido * 0.2) + (boss_kills * 25))
+            taxa_vit = vitorias / n
+            ind.fitness = max(1.0, (taxa_vit * 120) + (ind.dano_causado * 0.4)
+                             - (ind.dano_sofrido * 0.2) + (boss_kills * 25))
+
 
     def evoluir_geracao(self) -> GenomaIAReal:
         self.avaliar_populacao()
@@ -415,4 +459,5 @@ def executar_simulador_ag_real(geracoes: int = 10):
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()  # necessário para multiprocessing em executáveis empacotados
     executar_simulador_ag_real(geracoes=10)
