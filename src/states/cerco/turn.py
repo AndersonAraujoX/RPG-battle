@@ -38,8 +38,8 @@ class CercoStateTurnMixin:
 
         self._salvar_status_heroi(self.heroi_atual.nome)
 
-        # ⚔️ AVANÇO CONSTANTE DOS INIMIGOS: A cada fim de turno de um herói, a horda de inimigos avança e ataca no mapa 2D!
-        self._processar_turnos_inimigos()
+        # ⚔️ AVANÇO CONSTANTE DOS INIMIGOS: A cada fim de turno de um herói, a horda de inimigos avança 1 passo no mapa 2D sem multiplicar os ataques!
+        self._processar_turnos_inimigos(apenas_passo=True)
         if self._verificar_derrota_imediata():
             return
 
@@ -398,7 +398,7 @@ class CercoStateTurnMixin:
             self._push("SISTEMA", "🎁 Escolha 1 de 3 cartas bônus para adicionar ao seu deck!")
             self._feedback("🎁 Escolha uma carta de recompensa!", (255, 215, 0))
 
-    def _processar_turnos_inimigos(self):
+    def _processar_turnos_inimigos(self, apenas_passo=False):
         """Processa a movimentação tática e combate de todas as criaturas inimigas no mapa 2D."""
         tab = self.motor.tabuleiro
         inimigos = [
@@ -409,21 +409,17 @@ class CercoStateTurnMixin:
         if not inimigos:
             return
 
-        # Alvos potenciais do time dos heróis e aliados (Heróis e Mercenários)
         alvos_aliados = [
             p for p in list(self.motor.combatentes)
             if getattr(p, "time", "A") == "A" and p.hp_atual > 0
         ]
 
-        # Alvo padrão no centro da fortaleza (Câmara Central)
         alvo_centro_x, alvo_centro_y = 9, 9
-
         teve_movimento = False
 
         for ini in inimigos:
             hx, hy = ini.pos_x, ini.pos_y
 
-            # 1. Determina o alvo mais prioritário para a criatura
             alvo_obj = None
             if alvos_aliados:
                 alvo_obj = min(
@@ -439,12 +435,11 @@ class CercoStateTurnMixin:
             alcance = getattr(ini, "alcance", 1)
             dist_inicial = abs(dest_x - hx) + abs(dest_y - hy)
 
-            # 2. Se não estiver em alcance, move-se em direção ao alvo
-            # Inimigos e Bosses avançam de 3 a 5 células/turno para garantir invasões dinâmicas
             curr_x, curr_y = hx, hy
             if dist_inicial > alcance:
                 is_boss_mov = getattr(ini, "_is_boss", False)
-                vel = min(5, getattr(ini, "velocidade", 5)) if is_boss_mov else max(3, min(4, getattr(ini, "velocidade", 3)))
+                # No inter-turno de heróis (apenas_passo=True), inimigos dão 1 passo. No turno oficial, avançam até 3-4 células
+                vel = 1 if apenas_passo else (min(4, getattr(ini, "velocidade", 4)) if is_boss_mov else max(2, min(3, getattr(ini, "velocidade", 2))))
 
                 for _ in range(vel):
                     dx = 1 if dest_x > curr_x else (-1 if dest_x < curr_x else 0)
@@ -453,7 +448,6 @@ class CercoStateTurnMixin:
                     candidatas = []
                     if dx != 0: candidatas.append((curr_x + dx, curr_y))
                     if dy != 0: candidatas.append((curr_x, curr_y + dy))
-                    # Invasores tentam desvios diagonais e laterais se o caminho direto estiver ocupado
                     if dx != 0: candidatas.append((curr_x + dx, curr_y + 1))
                     if dx != 0: candidatas.append((curr_x + dx, curr_y - 1))
                     if dy != 0: candidatas.append((curr_x + 1, curr_y + dy))
@@ -478,7 +472,10 @@ class CercoStateTurnMixin:
                     new_vx, new_vy = self._obter_posicao_virtual(ini, curr_x, curr_y)
                     self._start_monster_walk(ini, (old_vx, old_vy), (new_vx, new_vy))
 
-            # 3. Recalcula a distância após a movimentação e executa o ATAQUE!
+            # No passo intermediário entre heróis (apenas_passo=True), pula o ataque extra para não massacrar o time
+            if apenas_passo:
+                continue
+
             dist_final = abs(dest_x - curr_x) + abs(dest_y - curr_y)
             if dist_final <= alcance and alvo_obj is not None and alvo_obj.hp_atual > 0:
                 is_boss = getattr(ini, "_is_boss", False) or getattr(ini, "NOME_EXIBIDO", "") == "A Mão Rei"
