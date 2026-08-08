@@ -126,9 +126,9 @@ class CercoState(
         self.custo_mercenario_selecionado = 5
         self._slot_rects_cache  = {}     # Cache de rects dos slots do mercado
 
-        # ── Modo Round de Sincronia ──────────────────────────────────────────
-        # Quando True, todos os heróis ativam 1 carta por round simultaneamente
-        self.modo_sincronia = len(herois) > 1  # Ativo por padrão em partidas com 2+ heróis
+        # ── Modo Turno-a-Turno Singleplayer Clássico ─────────────────────────
+        # Cada herói escolhe e ativa o efeito de suas cartas imediatamente em seu próprio turno
+        self.modo_sincronia = False
         self._init_round_simultaneo()
 
         # ── AutoPlay Bot ─────────────────────────────────────────────────────

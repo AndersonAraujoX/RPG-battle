@@ -67,19 +67,26 @@ class CercoStateInputMixin:
                     start_x = (W // 2) - total_w // 2
                     cy = my + 75
 
+                    carta_escolhida = None
                     for idx, carta in enumerate(opcoes):
                         cx = start_x + idx * (cw + gap)
                         crect = pygame.Rect(cx, cy, cw, ch)
                         if crect.collidepoint(mouse):
-                            upgrades_ativas = list(self.estado.get("cartas_upgrade_ativas", []))
-                            upgrades_ativas.append(dict(carta))
-                            from ...cerco_isectum import aplicar_delta
-                            self.estado = aplicar_delta(self.estado, {"cartas_upgrade_ativas": upgrades_ativas})
-                            self._push("SISTEMA", f"🎁 Escolheu a carta [{carta.get('nome')}] no Draft!")
-                            self.draft_opcoes = None
-                            self.fase = "JOGAR_CARTA"
-                            self._comprar_mao()
-                            return
+                            carta_escolhida = carta
+                            break
+                    if not carta_escolhida and opcoes:
+                        carta_escolhida = opcoes[0]
+
+                    if carta_escolhida:
+                        upgrades_ativas = list(self.estado.get("cartas_upgrade_ativas", []))
+                        upgrades_ativas.append(dict(carta_escolhida))
+                        from ...cerco_isectum import aplicar_delta
+                        self.estado = aplicar_delta(self.estado, {"cartas_upgrade_ativas": upgrades_ativas})
+                        self._push("SISTEMA", f"🎁 Escolheu a carta [{carta_escolhida.get('nome')}] no Draft!")
+                        self.draft_opcoes = None
+                        self.fase = "JOGAR_CARTA"
+                        self._comprar_mao()
+                        return
                 continue
 
             if self.fase == "ESCOLHER_ACAO_CARTA":
@@ -103,10 +110,10 @@ class CercoStateInputMixin:
                         self.fase = "ACAO_LIVRE"
                         self.bloqueio_clique_tick = pygame.time.get_ticks()
                         return
-                    elif getattr(self, 'btn_atacar_rect', None) and self.btn_atacar_rect.collidepoint(mouse):
-                        self._aplicar_acao_carta(self.idx_carta_sendo_jogada, "atacar")
-                        self.fase = "ACAO_LIVRE"
-                        self.bloqueio_clique_tick = pygame.time.get_ticks()
+                    elif 0 <= self.idx_carta_sendo_jogada < len(e.get("mao", [])):
+                        self._jogar_carta(self.idx_carta_sendo_jogada)
+                        self.fase = "JOGAR_CARTA"
+                        self.idx_carta_sendo_jogada = -1
                         return
                 continue
 
@@ -250,11 +257,11 @@ class CercoStateInputMixin:
             return
 
         if self.fase == "FASE_AMEACA":
-            if self.carta_cerco and self.btn_confirmar.collidepoint(mouse):
+            if self.carta_cerco:
                 self._resolver_carta_cerco()
             return
 
-        if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE", "REPOVOAR_MERCADO"):
+        if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE", "REPOVOAR_MERCADO", "INICIO_TURNO", "COMPRAR_MAO", "ROUND_SIMULTANEO", "ESCOLHER_ACAO_CARTA"):
             if self.btn_fim_turno.collidepoint(mouse):
                 if self.fase == "REPOVOAR_MERCADO":
                     self._concluir_fim_turno_completo()
@@ -262,7 +269,7 @@ class CercoStateInputMixin:
                     self._fim_turno_heroi()
                 return
 
-            if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE"):
+            if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE", "INICIO_TURNO", "COMPRAR_MAO", "ROUND_SIMULTANEO", "ESCOLHER_ACAO_CARTA"):
                 if getattr(self, "btn_merc_melee", None) and self.btn_merc_melee.collidepoint(mouse):
                     if e.get("tesouro", 0) < 5:
                         self._feedback("Cristais Roxos insuficientes! Requer 5 Cristais.", C_PERIGO)
@@ -293,31 +300,32 @@ class CercoStateInputMixin:
                         self._feedback("⛏️ MINERADOR (4💎): clique na Região das PEDRAS (Pátio) para posicionar!", (180, 120, 255))
                     return
 
-            for i, rect in enumerate(self.carta_rects):
-                if rect.collidepoint(mouse):
-                    if i < len(e["mao"]):
-                        carta = e["mao"][i]
-                        if carta.get("tipo") in ("orc", "invasor"):
-                            self._jogar_carta_invasao(i)
-                            return
+            # ── DETECÇÃO DIRETA E INFALÍVEL DE CLIQUE NAS CARTAS DA MÃO ────────
+            mao = e.get("mao", [])
+            for i, carta in enumerate(mao):
+                cx, cy, cw, ch = self._calcular_pos_carta_na_mao(i, len(mao))
+                # Hitbox generosa e precisa para o clique do mouse na carta
+                crect = pygame.Rect(cx - 2, cy - 14, cw + 4, ch + 20)
+                if crect.collidepoint(mouse):
+                    if carta.get("tipo") in ("orc", "invasor"):
+                        self._jogar_carta_invasao(i)
+                        return
 
-                        # ── Modo Round de Sincronia ──────────────────────
-                        if getattr(self, "modo_sincronia", False) and self.fase == "ROUND_SIMULTANEO":
-                            nome_heroi = self.heroi_atual.nome if self.heroi_atual else None
-                            if nome_heroi:
-                                # Verifica se este herói ainda não selecionou
-                                ja_selecionou = self.rs_cartas_selecionadas.get(nome_heroi) is not None
-                                if ja_selecionou:
-                                    self._feedback("Você já selecionou uma carta para este round!", C_PERIGO)
-                                else:
-                                    self.selecionar_carta_round(nome_heroi, i)
-                            return
-                        # ────────────────────────────────────────────────
+                    # ── Modo Round de Sincronia ──────────────────────
+                    if getattr(self, "modo_sincronia", False) and self.fase == "ROUND_SIMULTANEO":
+                        nome_heroi = self.heroi_atual.nome if self.heroi_atual else None
+                        if nome_heroi:
+                            ja_selecionou = self.rs_cartas_selecionadas.get(nome_heroi) is not None
+                            if ja_selecionou:
+                                self._feedback("Você já selecionou uma carta para este round!", C_PERIGO)
+                            else:
+                                self.selecionar_carta_round(nome_heroi, i)
+                        return
+                    # ────────────────────────────────────────────────
 
-                        # Cartas de upgrade: jogadas normalmente (vão p/ cartas_upgrade_ativas)
-                        self.idx_carta_sendo_jogada = i
-                        self.fase = "ESCOLHER_ACAO_CARTA"
-                        self.fase_aberta_tick = pygame.time.get_ticks()
+                    print(f"🃏 [CLIQUE CARTA] Carta #{i} [{carta.get('nome')}] ativada por clique!")
+                    self._jogar_carta(i)
+                    self.map_backbuffer_sujo = True
                     return
 
 
