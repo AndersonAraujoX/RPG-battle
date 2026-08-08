@@ -201,6 +201,13 @@ class CercoStateHeroMixin:
                 'finalizada': False
             })
 
+        # ── Iniciar Round de Sincronia automaticamente ────────────────────────
+        # Quando o modo sincronia está ativo e nenhum round está em andamento,
+        # inicia o primeiro round do turno global após as cartas serem compradas.
+        if getattr(self, "modo_sincronia", False) and not getattr(self, "rs_ativo", False):
+            self.iniciar_turno_sincronia()
+
+
     def _gerar_drop_inimigo(self, inimigo):
         """MECÂNICA 2: Inimigos derrotados dropam recursos (Madeira, Couro, Metal) para o Mercado de Upgrades."""
         import random as _rnd

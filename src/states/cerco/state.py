@@ -51,6 +51,7 @@ from .turn import CercoStateTurnMixin
 from .enemy import CercoStateEnemyMixin
 from .ia_heroi import IAComandanteImperial
 from .bot_heroi import BotHeroi
+from .round_simultaneo import RoundSimultaneoMixin
 
 
 class CercoState(
@@ -59,6 +60,7 @@ class CercoState(
     CercoStateHeroMixin,
     CercoStateTurnMixin,
     CercoStateEnemyMixin,
+    RoundSimultaneoMixin,
     GameState,
 ):
     """Estado Pygame completo — Resolvedor de Ações como núcleo."""
@@ -123,6 +125,11 @@ class CercoState(
         self.tipo_mercenario_selecionado  = "melee"
         self.custo_mercenario_selecionado = 5
         self._slot_rects_cache  = {}     # Cache de rects dos slots do mercado
+
+        # ── Modo Round de Sincronia ──────────────────────────────────────────
+        # Quando True, todos os heróis ativam 1 carta por round simultaneamente
+        self.modo_sincronia = len(herois) > 1  # Ativo por padrão em partidas com 2+ heróis
+        self._init_round_simultaneo()
 
         # ── AutoPlay Bot ─────────────────────────────────────────────────────
         self.autoplay_ativo       = False      # Toggle: bot controla os heróis

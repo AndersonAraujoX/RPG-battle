@@ -300,11 +300,26 @@ class CercoStateInputMixin:
                         if carta.get("tipo") in ("orc", "invasor"):
                             self._jogar_carta_invasao(i)
                             return
+
+                        # ── Modo Round de Sincronia ──────────────────────
+                        if getattr(self, "modo_sincronia", False) and self.fase == "ROUND_SIMULTANEO":
+                            nome_heroi = self.heroi_atual.nome if self.heroi_atual else None
+                            if nome_heroi:
+                                # Verifica se este herói ainda não selecionou
+                                ja_selecionou = self.rs_cartas_selecionadas.get(nome_heroi) is not None
+                                if ja_selecionou:
+                                    self._feedback("Você já selecionou uma carta para este round!", C_PERIGO)
+                                else:
+                                    self.selecionar_carta_round(nome_heroi, i)
+                            return
+                        # ────────────────────────────────────────────────
+
                         # Cartas de upgrade: jogadas normalmente (vão p/ cartas_upgrade_ativas)
                         self.idx_carta_sendo_jogada = i
                         self.fase = "ESCOLHER_ACAO_CARTA"
                         self.fase_aberta_tick = pygame.time.get_ticks()
                     return
+
 
             if self.fase == "REPOVOAR_MERCADO":
                 if getattr(self, 'btn_concluir_reposicao_rect', None) and self.btn_concluir_reposicao_rect.collidepoint(mouse):

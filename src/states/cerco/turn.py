@@ -18,6 +18,17 @@ class CercoStateTurnMixin:
 
     # ── FIM DE TURNO DO HERÓI ────────────────────────────────────────
     def _fim_turno_heroi(self):
+        # ── Modo Round de Sincronia: delega para o sistema simultâneo ────
+        if getattr(self, "modo_sincronia", False) and getattr(self, "rs_ativo", False):
+            # No modo sincronia, o turno não pode ser encerrado manualmente enquanto
+            # o round não foi resolvido. Orienta o jogador.
+            self._feedback("No modo Sincronia, jogue uma carta para o round atual!", C_PERIGO)
+            try:
+                self.game.play_sound('invalid_action')
+            except Exception:
+                pass
+            return
+
         if self.estado["mao"] and not getattr(self, "autoplay_ativo", False):
             self._feedback("Use todas as cartas da mao para encerrar o turno!", C_PERIGO)
             try:
