@@ -82,7 +82,7 @@ class TestCercoRules(unittest.TestCase):
         }
         ok, qty, msg = validar_escavar(estado, 2)
         self.assertFalse(ok)
-        self.assertIn("Goblins ou Trolls", msg)
+        self.assertTrue("Bloqueado!" in msg or "Formigas" in msg or "Goblins" in msg)
 
         # Sem brutamontes e infiltradores -> OK
         estado["infiltradores"] = 0

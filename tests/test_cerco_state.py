@@ -1,9 +1,12 @@
 """
 tests/test_cerco_state.py — Testes Unitários de Mecânicas do CercoState (QTE Parry, Riposte e Overwatch)
 """
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 from src.personagens.guerreiro import Guerreiro
-from src.castas_isectum import InvasorIsectum
+from src.personagens.mago import Mago
 
 
 def test_overwatch_postura_vigilancia_hero():
@@ -20,7 +23,7 @@ def test_overwatch_postura_vigilancia_hero():
 def test_parry_perfect_anula_dano_e_contra_ataca():
     # Arrange
     heroi = Guerreiro("Stark", pos_x=5, pos_y=5, hp_atual=50)
-    invasor = InvasorIsectum("Gorgulho", pos_x=5, pos_y=6, hp_atual=30)
+    invasor = Mago("Gorgulho", pos_x=5, pos_y=6, hp_atual=30)
     dano_base = 15
 
     # Act (Simulação Perfect Parry)

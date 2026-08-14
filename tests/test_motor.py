@@ -1,7 +1,10 @@
 """
 tests/test_motor.py — Testes Unitários do Motor de Combate (Padrão AAA)
 """
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 from src.motor_combate import MotorCombate
 from src.personagens.guerreiro import Guerreiro
 from src.personagens.mago import Mago

@@ -42,6 +42,9 @@ _MAPA_SUBSTITUICAO_EMOJIS = {
     "⭐": "[Upgrade]",
 }
 
+import functools
+
+@functools.lru_cache(maxsize=1024)
 def sanitizar_texto_fonte(texto: str) -> str:
     """Substitui emojis Unicode por rótulos de texto limpos para evitar retângulos em branco (tofu) na renderização de fontes Pygame."""
     if not isinstance(texto, str):

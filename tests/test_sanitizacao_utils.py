@@ -1,7 +1,10 @@
 """
 tests/test_sanitizacao_utils.py — Testes Unitários de Sanitização de Fontes e Utilitários (Padrão AAA)
 """
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 from src.utils import sanitizar_texto_fonte, remover_emojis
 
 
@@ -46,3 +49,18 @@ def test_remover_emojis_remove_caracteres_unicodes():
     assert "Heroi" in texto_sem_emoji
     assert "atacando" in texto_sem_emoji
     assert "inimigo" in texto_sem_emoji
+
+
+def test_sanitizar_texto_fonte_cache_lru():
+    # Arrange
+    texto = "❤️ 100/100  ⚔️ +10"
+
+    # Act
+    res1 = sanitizar_texto_fonte(texto)
+    res2 = sanitizar_texto_fonte(texto)
+
+    # Assert
+    assert res1 == res2
+    assert hasattr(sanitizar_texto_fonte, "cache_info")
+    info = sanitizar_texto_fonte.cache_info()
+    assert info.hits >= 1

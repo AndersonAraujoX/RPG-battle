@@ -1,7 +1,10 @@
 """
 tests/test_tabuleiro.py — Testes Unitários do Tabuleiro 2D e Grid (Padrão AAA)
 """
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 from src.tabuleiro import Tabuleiro
 from src.personagens.guerreiro import Guerreiro
 
