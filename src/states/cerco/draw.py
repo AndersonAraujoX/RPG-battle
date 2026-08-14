@@ -52,17 +52,24 @@ class CercoStateDrawMixin(
             self._draw_carta_overlay_drag(tela)
 
         # 7. Modais, overlays de ameaça, banners e dev menu
-        if self.fase == "ESCOLHER_DRAFT_RECOMPENSA" and getattr(self, "draft_opcoes", None):
-            self._draw_modal_draft_recompensa(tela, W, H)
+        em_combate_ou_qte = getattr(self, "qte_parry_ativo", False) or getattr(self, "camera_zoom_timer", 0) > 0
 
-        if self.fase == "FASE_AMEACA" and self.carta_cerco:
-            self._draw_carta_overlay(tela, W, H)
+        if not em_combate_ou_qte:
+            if self.fase == "ESCOLHER_DRAFT_RECOMPENSA" and getattr(self, "draft_opcoes", None):
+                self._draw_modal_draft_recompensa(tela, W, H)
 
-        if self.fase == "ESCOLHER_ACAO_CARTA" and 0 <= self.idx_carta_sendo_jogada < len(self.estado["mao"]):
-            self._draw_modal_escolha_carta(tela, W, H)
+            if self.fase == "FASE_AMEACA" and self.carta_cerco:
+                self._draw_carta_overlay(tela, W, H)
+
+            if self.fase == "ESCOLHER_ACAO_CARTA" and 0 <= self.idx_carta_sendo_jogada < len(self.estado["mao"]):
+                self._draw_modal_escolha_carta(tela, W, H)
 
         if self.feedback_timer > 0:
             self._draw_feedback(tela, W, H)
+
+        # QTE Timing Bar Clair Obscur (prioridade no topo)
+        if getattr(self, "qte_parry_ativo", False):
+            self._draw_barrinha_qte_parry(tela, W, H)
 
         # Banner de Turno do Príncipe Lysander
         self._draw_ia_turno_banner(tela, W, H)

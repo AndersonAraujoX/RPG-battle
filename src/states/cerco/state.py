@@ -126,10 +126,22 @@ class CercoState(
         self.custo_mercenario_selecionado = 5
         self._slot_rects_cache  = {}     # Cache de rects dos slots do mercado
 
-        # ── Modo Turno-a-Turno Singleplayer Clássico ─────────────────────────
-        # Cada herói escolhe e ativa o efeito de suas cartas imediatamente em seu próprio turno
-        self.modo_sincronia = False
+        # ── Modo de Turnos Simultâneos de Resolução Conjunta (Co-op Ready) ─────
+        self.modo_sincronia = True
+        self.fila_ordens_simultaneas = []
+        self.timer_planejamento_simultaneo = 20 * 60
+        self.em_resolucao_simultanea = False
         self._init_round_simultaneo()
+
+        # ── QTE Parry & Dodge Timing Bar (Estilo Clair Obscur) ───────────────
+        self.qte_parry_ativo = False
+        self.qte_dados = None
+
+        # ── Câmera Cinematográfica Action Zoom ───────────────────────────────
+        self.zoom_base = 1.0
+        self.zoom_alvo = 1.0
+        self.foco_grid_alvo = None
+        self.camera_zoom_timer = 0
 
         # ── AutoPlay Bot ─────────────────────────────────────────────────────
         self.autoplay_ativo       = False      # Toggle: bot controla os heróis

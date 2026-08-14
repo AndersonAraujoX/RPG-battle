@@ -48,6 +48,8 @@ class CercoStateTurnMixin:
             self.estado = aplicar_delta(self.estado, reset_brute)
 
         self._salvar_status_heroi(self.heroi_atual.nome)
+        if hasattr(self, "heroi_atual") and self.heroi_atual:
+            self.heroi_atual.em_vigilancia = True
 
         # ⚔️ AVANÇO CONSTANTE DOS INIMIGOS: A cada fim de turno de um herói, a horda de inimigos avança 1 passo no mapa 2D sem multiplicar os ataques!
         self._processar_turnos_inimigos(apenas_passo=True)
@@ -483,12 +485,44 @@ class CercoStateTurnMixin:
                     new_vx, new_vy = self._obter_posicao_virtual(ini, curr_x, curr_y)
                     self._start_monster_walk(ini, (old_vx, old_vy), (new_vx, new_vy))
 
+                    # ⚡ MECÂNICA 1: OVERWATCH / INTERCEPTAÇÃO DOS HERÓIS
+                    for h_aliado in alvos_aliados:
+                        if getattr(h_aliado, "em_vigilancia", False) and getattr(h_aliado, "hp_atual", 0) > 0:
+                            dist_vigi = abs(ini.pos_x - h_aliado.pos_x) + abs(ini.pos_y - h_aliado.pos_y)
+                            alcance_vigi = getattr(h_aliado, "alcance", 3)
+                            if dist_vigi <= alcance_vigi:
+                                import random as _rnd
+                                d20 = _rnd.randint(1, 20)
+                                bonus_atk = getattr(h_aliado, "bonus_ataque", 6)
+                                if d20 + bonus_atk >= getattr(ini, "ac", 12):
+                                    dano_vigi = _rnd.randint(3, 8) + 3
+                                    ini.hp_atual -= dano_vigi
+                                    self._push("HEROI", f"⚡ INTERCEPTAÇÃO! [{h_aliado.nome}] disparou em [{ini.nome}] durante a marcha! Dano: {dano_vigi}")
+                                    if hasattr(self, "_push_popup_combate"):
+                                        self._push_popup_combate(ini.pos_x, ini.pos_y, f"⚡ INTERCEPTAÇÃO! -{dano_vigi} HP", (255, 235, 50))
+                                    if ini.hp_atual <= 0:
+                                        if 0 <= ini.pos_y < len(tab.grid) and 0 <= ini.pos_x < len(tab.grid[0]):
+                                            if tab.grid[ini.pos_y][ini.pos_x] is ini:
+                                                tab.grid[ini.pos_y][ini.pos_x] = None
+                                        if ini in self.motor.combatentes:
+                                            self.motor.combatentes.remove(ini)
+                                        break
+                                else:
+                                    self._push("HEROI", f"⚡ Interceptação de [{h_aliado.nome}] errou [{ini.nome}]!")
+                                h_aliado.em_vigilancia = False
+
             # No passo intermediário entre heróis (apenas_passo=True), pula o ataque extra para não massacrar o time
             if apenas_passo:
                 continue
 
             dist_final = abs(dest_x - curr_x) + abs(dest_y - curr_y)
             if dist_final <= alcance and alvo_obj is not None and alvo_obj.hp_atual > 0:
+                # 🎥 Foca a câmera cinematográfica no ponto médio do confronto entre atacante e defensor
+                if hasattr(self, "_focar_camera_combate"):
+                    mid_x = (getattr(ini, "pos_x", 0) + getattr(alvo_obj, "pos_x", 0)) / 2.0
+                    mid_y = (getattr(ini, "pos_y", 0) + getattr(alvo_obj, "pos_y", 0)) / 2.0
+                    self._focar_camera_combate(mid_x, mid_y, zoom=2.1, duracao=70)
+
                 is_boss = getattr(ini, "_is_boss", False) or getattr(ini, "NOME_EXIBIDO", "") == "A Mão Rei"
 
                 if is_boss:
@@ -522,19 +556,9 @@ class CercoStateTurnMixin:
                         dado_d = (2, 6) if getattr(ini, "dado_dano", (1, 6))[1] <= 6 else getattr(ini, "dado_dano", (2, 6))
                         b_dano = max(4, getattr(ini, "bonus_dano", 4))
                         dano = sum(_rnd.randint(1, dado_d[1]) for _ in range(dado_d[0])) + b_dano
-                        alvo_obj.hp_atual -= dano
-                        nome_ini = getattr(ini, "nome", "Invasor")
-                        nome_alvo = getattr(alvo_obj, "nome", "Aliado")
-                        self._push("INIMIGO", f"⚔️ {nome_ini} ATACOU {nome_alvo}! Dano: {dano} (HP: {max(0, alvo_obj.hp_atual)}/{alvo_obj.hp_max})")
-
-                        if hasattr(self, "_push_popup_combate"):
-                            self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, f"💥 -{dano} HP", (255, 60, 60))
-
-                        if hasattr(self, "_salvar_status_heroi") and hasattr(alvo_obj, "nome"):
-                            self._salvar_status_heroi(alvo_obj.nome)
-
-                        if alvo_obj.hp_atual <= 0:
-                            self._push("INIMIGO", f"⚠️ {nome_alvo} foi abatido no combate!")
+                        
+                        # Dispara o sistema QTE Timing Bar no visual
+                        self._iniciar_qte_parry(ini, alvo_obj, dano)
                     else:
                         nome_ini = getattr(ini, "nome", "Invasor")
                         nome_alvo = getattr(alvo_obj, "nome", "Aliado")
@@ -543,21 +567,129 @@ class CercoStateTurnMixin:
                         if hasattr(self, "_push_popup_combate"):
                             self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, "🛡️ MISS!", (180, 200, 220))
 
-                # Verificação de Derrota se todos os heróis caírem em combate
-                if hasattr(self, "herois") and self.herois:
-                    herois_vivos = [h for h in self.herois if h.hp_atual > 0]
-                    if not herois_vivos:
-                        from ...cerco_isectum import aplicar_delta
-                        self.estado = aplicar_delta(self.estado, {
-                            "derrota": True,
-                            "msg_derrota": "A Mão Rei e as castas do Imperador exterminaram todos os heróis! DERROTA TOTAL!"
-                        })
-                        self._push("DERROTA", "💀 Todos os heróis foram mortos! A fortaleza caiu diante da Mão Rei!")
-                        self.fase = "FIM"
-                        return
+    def _iniciar_qte_parry(self, ini, alvo_obj, dano_base):
+        """Inicia a barra de timing QTE de Parry & Dodge no estilo Clair Obscur / Expedition 33."""
+        if hasattr(self, "_focar_camera_combate") and alvo_obj is not None and ini is not None:
+            mid_x = (getattr(ini, "pos_x", 0) + getattr(alvo_obj, "pos_x", 0)) / 2.0
+            mid_y = (getattr(ini, "pos_y", 0) + getattr(alvo_obj, "pos_y", 0)) / 2.0
+            self._focar_camera_combate(mid_x, mid_y, zoom=2.1, duracao=75)
 
-        if teve_movimento:
-            self.map_backbuffer_sujo = True
+        if getattr(self, "autoplay_ativo", False):
+            import random as _rnd
+            res = "PARRY" if _rnd.random() < 0.28 else ("DODGE" if _rnd.random() < 0.40 else "MISS")
+            self._resolver_qte_parry(res, ini_auto=ini, alvo_auto=alvo_obj, dano_auto=dano_base)
+            return
+
+        self.qte_parry_ativo = True
+        self.qte_dados = {
+            'ini': ini,
+            'alvo': alvo_obj,
+            'dano_base': dano_base,
+            'timer': 80,
+            'max_timer': 80,
+            'ponteiro': 0.0,
+        }
+
+    def _resolver_qte_parry(self, resultado, ini_auto=None, alvo_auto=None, dano_auto=0):
+        """Resolve a reação do jogador na Barra de Timing (Perfect Parry, Dodge ou Miss)."""
+        qte = getattr(self, "qte_dados", None)
+        ini = ini_auto or (qte.get('ini') if qte else None)
+        alvo_obj = alvo_auto or (qte.get('alvo') if qte else None)
+        dano_base = dano_auto or (qte.get('dano_base', 12) if qte else 12)
+
+        self.qte_parry_ativo = False
+        self.qte_dados = None
+
+        if not ini or not alvo_obj:
+            return
+
+        import random as _rnd
+        nome_ini = getattr(ini, "nome", "Invasor")
+        nome_alvo = getattr(alvo_obj, "nome", "Aliado")
+        tab = self.motor.tabuleiro
+
+        if resultado == "PARRY":
+            # PERFECT PARRY: Anula 100% do dano + Riposte!
+            dano_riposte = _rnd.randint(5, 12) + getattr(alvo_obj, "bonus_dano", 3)
+            ini.hp_atual -= dano_riposte
+            self._push("HEROI", f"🌟 PERFECT PARRY! [{nome_alvo}] Bloqueou 100% do dano de [{nome_ini}] e CONTRA-ATACOU com {dano_riposte} HP!")
+            if hasattr(self, "_push_popup_combate"):
+                self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, "🌟 PERFECT PARRY!", (255, 215, 0))
+                self._push_popup_combate(ini.pos_x, ini.pos_y, f"⚡ RIPOSTE -{dano_riposte} HP", (0, 255, 240))
+            if ini.hp_atual <= 0:
+                if 0 <= ini.pos_y < len(tab.grid) and 0 <= ini.pos_x < len(tab.grid[0]):
+                    if tab.grid[ini.pos_y][ini.pos_x] is ini:
+                        tab.grid[ini.pos_y][ini.pos_x] = None
+                if ini in self.motor.combatentes:
+                    self.motor.combatentes.remove(ini)
+                self._push("HEROI", f"💀 [{nome_alvo}] ABATEU {nome_ini} no CONTRA-ATAQUE!")
+
+        elif resultado == "DODGE":
+            # DODGE PARCIAL: Reduz dano em 75%
+            dano_reduzido = max(1, int(dano_base * 0.25))
+            alvo_obj.hp_atual -= dano_reduzido
+            self._push("HEROI", f"🛡️ ESQUIVOU! [{nome_alvo}] esquivou do ataque de [{nome_ini}] (-75% dano, sofreu apenas {dano_reduzido} HP)!")
+            if hasattr(self, "_push_popup_combate"):
+                self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, f"🛡️ ESQUIVOU! -{dano_reduzido} HP", (30, 180, 255))
+            if alvo_obj.hp_atual <= 0:
+                self._push("INIMIGO", f"⚠️ {nome_alvo} foi abatido no combate!")
+
+        else:
+            # MISS (Tempo Esgotado ou Fora da Zona): Dano Total!
+            alvo_obj.hp_atual -= dano_base
+            self._push("INIMIGO", f"💥 {nome_ini} ATACOU {nome_alvo}! Dano Total: {dano_base} HP")
+            if hasattr(self, "_push_popup_combate"):
+                self._push_popup_combate(alvo_obj.pos_x, alvo_obj.pos_y, f"💥 -{dano_base} HP", (255, 60, 60))
+            if alvo_obj.hp_atual <= 0:
+                self._push("INIMIGO", f"⚠️ {nome_alvo} foi abatido no combate!")
+
+        if hasattr(self, "_salvar_status_heroi") and hasattr(alvo_obj, "nome"):
+            self._salvar_status_heroi(alvo_obj.nome)
+
+        # Verificação de Derrota se todos os heróis caírem em combate
+        if hasattr(self, "herois") and self.herois:
+            herois_vivos = [h for h in self.herois if h.hp_atual > 0]
+            if not herois_vivos:
+                from ...cerco_isectum import aplicar_delta
+                self.estado = aplicar_delta(self.estado, {
+                    "derrota": True,
+                    "msg_derrota": "A Mão Rei e as castas do Imperador exterminaram todos os heróis! DERROTA TOTAL!"
+                })
+                self._push("DERROTA", "💀 Todos os heróis foram mortos! A fortaleza caiu diante da Mão Rei!")
+                self.fase = "FIM"
+                return
+
+        self.map_backbuffer_sujo = True
+
+    def agendar_ordem_simultanea(self, agente, tipo_acao, dados=None):
+        """Agenda uma ordem de ação simultânea serializável em JSON (Co-op Ready)."""
+        if not hasattr(self, "fila_ordens_simultaneas"):
+            self.fila_ordens_simultaneas = []
+
+        ordem = {
+            "agente_nome": getattr(agente, "nome", "Heroi"),
+            "tipo_acao": tipo_acao,
+            "dados": dados or {},
+        }
+        self.fila_ordens_simultaneas.append(ordem)
+        self._push("COOP", f"⚡ {ordem['agente_nome']} agendou [{tipo_acao}] para a execução conjunta!")
+
+    def executar_fase_resolucao_simultanea(self):
+        """Executa todas as ordens agendadas em paralelo na Fase de Resolução Cinematográfica (Co-op Ready)."""
+        if getattr(self, "em_resolucao_simultanea", False):
+            return
+
+        self.em_resolucao_simultanea = True
+        self._push("SISTEMA", "🎬 EXECUTANDO TÁTICA SIMULTÂNEA CO-OP! Todas as ações colidem em tempo real!")
+
+        for ordem in list(getattr(self, "fila_ordens_simultaneas", [])):
+            self._push("COMBATE", f"💥 {ordem['agente_nome']} disparou {ordem['tipo_acao']}!")
+
+        self.fila_ordens_simultaneas = []
+        self.timer_planejamento_simultaneo = 20 * 60
+
+        self._processar_turnos_inimigos(apenas_passo=False)
+        self.em_resolucao_simultanea = False
 
     def _processar_turnos_mercenarios(self):
         """Processa as ações automáticas de todos os mercenários contratados no time A."""

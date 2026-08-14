@@ -55,6 +55,21 @@ class CercoStateInputMixin:
             return
 
         for event in events:
+            # ⚔️ Interceptação do sistema QTE Timing Bar de Parry & Dodge (Estilo Clair Obscur)
+            if getattr(self, "qte_parry_ativo", False) and getattr(self, "qte_dados", None):
+                if (event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_RETURN)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
+                    pos = self.qte_dados.get("ponteiro", 0.0)
+                    if 0.42 <= pos <= 0.58:
+                        resultado = "PARRY"
+                    elif 0.30 <= pos <= 0.70:
+                        resultado = "DODGE"
+                    else:
+                        resultado = "MISS"
+                    if hasattr(self, "_resolver_qte_parry"):
+                        self._resolver_qte_parry(resultado)
+                    return
+                continue
+
             if self.fase == "ESCOLHER_DRAFT_RECOMPENSA" and getattr(self, "draft_opcoes", None):
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     opcoes = self.draft_opcoes
@@ -202,6 +217,11 @@ class CercoStateInputMixin:
 
     # ── TECLADO ───────────────────────────────────────────────────────
     def _on_key(self, key):
+        if key in (pygame.K_SPACE, pygame.K_RETURN):
+            if getattr(self, "modo_sincronia", False) and hasattr(self, "executar_fase_resolucao_simultanea") and not getattr(self, "em_resolucao_simultanea", False):
+                self.executar_fase_resolucao_simultanea()
+                return
+
         if key == pygame.K_RETURN:
             if self.fase in ("JOGAR_CARTA", "ACAO_LIVRE"):
                 self._fim_turno_heroi()

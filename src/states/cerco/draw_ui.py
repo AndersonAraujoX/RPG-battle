@@ -6,6 +6,7 @@ import math
 import pygame
 
 from ...config import LARGURA_TELA, ALTURA_TELA
+from ...utils import sanitizar_texto_fonte, remover_emojis
 from .data import (
     C_PAINEL, C_BORDA, C_ACENTO, C_OURO, C_VERDE, C_PERIGO,
     C_TEXTO, C_DIM, C_CERCO,
@@ -80,11 +81,11 @@ class CercoDrawUIMixin:
             b_ap = int(30 + 20 * pulso)
             cor_ap  = (r_ap, g_ap, b_ap)
             borda_ap = (60, 255, 80)
-            lbl_ap   = "\U0001f916 ATIVO ▶  [F5]"
+            lbl_ap   = "▶ ATIVO  [F5]"
         else:
             cor_ap   = (30, 50, 28) if ap_hover else (16, 28, 14)
             borda_ap = (60, 130, 50)
-            lbl_ap   = "\U0001f916 AutoPlay  [F5]"
+            lbl_ap   = "AutoPlay  [F5]"
 
         if getattr(self, 'btn_autoplay', None):
             pygame.draw.rect(tela, cor_ap,  self.btn_autoplay, border_radius=7)
@@ -185,11 +186,12 @@ class CercoDrawUIMixin:
 
         # Botões de recrutamento de mercenários (Cristais Roxos)
         cristais = e.get("tesouro", 0)
-        _btn(self.btn_merc_melee,      f"Guarda Melee (5💎)",  cristais >= 5,
+        from ...utils import sanitizar_texto_fonte
+        _btn(self.btn_merc_melee,      sanitizar_texto_fonte("Guarda Melee (5💎)"),  cristais >= 5,
              (50, 20, 70), (90, 40, 130), (25, 12, 35))
-        _btn(self.btn_merc_arqueiro,   f"Arqueiro (7💎)",       cristais >= 7,
+        _btn(self.btn_merc_arqueiro,   sanitizar_texto_fonte("Arqueiro (7💎)"),       cristais >= 7,
              (50, 20, 70), (90, 40, 130), (25, 12, 35))
-        _btn(self.btn_merc_minerador,  f"Minerador (4💎)",      cristais >= 4,
+        _btn(self.btn_merc_minerador,  sanitizar_texto_fonte("Minerador (4💎)"),      cristais >= 4,
              (50, 20, 70), (90, 40, 130), (25, 12, 35))
 
         # Botão de voltar (topo-direito)
@@ -226,7 +228,7 @@ class CercoDrawUIMixin:
             cor_b = C_VERDE if destaque else (C_ACENTO if eh_ativo else C_BORDA)
             pygame.draw.rect(tela, (8, 8, 16), h_rect, border_radius=3)
             if h.nome == "Aquele":
-                fallback = self.fMi.render("\U0001f311", True, C_TEXTO)
+                fallback = self.fMi.render("?", True, C_TEXTO)
                 tela.blit(fallback, (h_rect.centerx - fallback.get_width() // 2, h_rect.centery - fallback.get_height() // 2))
             else:
                 img_key = f"personagem_{h.nome.lower()}"
@@ -249,7 +251,7 @@ class CercoDrawUIMixin:
             d_str = f"{dado_d[0]}d{dado_d[1]}" if isinstance(dado_d, (tuple, list)) else str(dado_d)
             ac_val = getattr(ha, 'ac', getattr(ha, 'ac_base', 14))
 
-            h_stats_txt = f"❤️ {hp_cur}/{hp_max}  ⚔️ +{atk}({d_str})  🛡️ DEF {ac_val}"
+            h_stats_txt = sanitizar_texto_fonte(f"❤️ {hp_cur}/{hp_max}  ⚔️ +{atk}({d_str})  🛡️ {ac_val}")
             lbl_stats = self.fMi.render(h_stats_txt, True, (240, 230, 160))
 
             px_st = bx + bw + 14
@@ -265,6 +267,42 @@ class CercoDrawUIMixin:
         tela.blit(ft, (W // 2 - ft.get_width() // 2, H // 2 - 10))
 
     def _draw_ia_turno_banner(self, tela, W, H):
+        if self.fase == "REPOVOAR_MERCADO":
+            from ...utils import sanitizar_texto_fonte
+            bw, bh = 560, 68
+            bx = (W - bw) // 2
+            by = 95
+            b_rect = pygame.Rect(bx, by, bw, bh)
+            pygame.draw.rect(tela, (24, 20, 12), b_rect, border_radius=10)
+            pygame.draw.rect(tela, C_OURO, b_rect, 2, border_radius=10)
+            t_m = self.fG.render(sanitizar_texto_fonte("🛒 FASE DE MERCADO & REPOSIÇÃO DE RECURSOS"), True, C_OURO)
+            sub_m = self.fMi.render(sanitizar_texto_fonte("Compre upgrades nas oficinas e aloque mineradores [ENTER para continuar]"), True, C_TEXTO)
+            tela.blit(t_m, (W // 2 - t_m.get_width() // 2, by + 12))
+            tela.blit(sub_m, (W // 2 - sub_m.get_width() // 2, by + 42))
+
+        # ⚡ Painel de Planejamento Simultâneo Co-op
+        if getattr(self, "modo_sincronia", False) and not getattr(self, "em_resolucao_simultanea", False):
+            from ...utils import sanitizar_texto_fonte
+            if hasattr(self, "timer_planejamento_simultaneo"):
+                self.timer_planejamento_simultaneo -= 1
+                if self.timer_planejamento_simultaneo <= 0:
+                    if hasattr(self, "executar_fase_resolucao_simultanea"):
+                        self.executar_fase_resolucao_simultanea()
+
+            secs_left = max(0, int(getattr(self, "timer_planejamento_simultaneo", 1200) / 60.0))
+            bw, bh = 600, 50
+            bx = (W - bw) // 2
+            by = 68
+            b_rect = pygame.Rect(bx, by, bw, bh)
+            pygame.draw.rect(tela, (14, 20, 36), b_rect, border_radius=8)
+            pygame.draw.rect(tela, (80, 180, 255), b_rect, 2, border_radius=8)
+
+            ordens_qtd = len(getattr(self, "fila_ordens_simultaneas", []))
+            lbl_tit = self.fMi.render(sanitizar_texto_fonte(f"⚡ PLANEJAMENTO SIMULTÂNEO CO-OP ({secs_left}s)  |  Ordens: {ordens_qtd}"), True, (100, 220, 255))
+            lbl_dica = self.fP.render(sanitizar_texto_fonte("Agende suas cartas e movimentos  [Pressione ESPAÇO para Executar Tática]"), True, (220, 235, 255))
+            tela.blit(lbl_tit, (W // 2 - lbl_tit.get_width() // 2, by + 6))
+            tela.blit(lbl_dica, (W // 2 - lbl_dica.get_width() // 2, by + 26))
+
         timer = 0
         if getattr(self, 'ia_comandante', None) is not None:
             timer = getattr(self.ia_comandante, 'banner_timer', 0)
@@ -632,10 +670,10 @@ class CercoDrawUIMixin:
         pygame.draw.rect(tela, (20, 24, 40), modal_rect, border_radius=12)
         pygame.draw.rect(tela, C_OURO, modal_rect, 2, border_radius=12)
 
-        tit = self.fG.render("🎁 ESCOLHA 1 CARTA BÔNUS PARA SEU DECK!", True, C_OURO)
+        tit = self.fG.render(sanitizar_texto_fonte("🎁 ESCOLHA 1 CARTA BÔNUS PARA SEU DECK!"), True, C_OURO)
         tela.blit(tit, (modal_rect.centerx - tit.get_width() // 2, modal_rect.y + 16))
 
-        sub = self.fMi.render("Inimigos puxaram uma ameaça — fortaleça seu baralho com uma recompensa!", True, C_TEXTO)
+        sub = self.fMi.render(sanitizar_texto_fonte("Inimigos puxaram uma ameaça — fortaleça seu baralho com uma recompensa!"), True, C_TEXTO)
         tela.blit(sub, (modal_rect.centerx - sub.get_width() // 2, modal_rect.y + 45))
 
         opcoes = getattr(self, "draft_opcoes", [])
@@ -661,17 +699,70 @@ class CercoDrawUIMixin:
             pygame.draw.rect(tela, bg_col, crect, border_radius=8)
             pygame.draw.rect(tela, borda_col, crect, 2 if hover else 1, border_radius=8)
 
-            sym = carta.get("simbolo", "🃏")
-            lbl_sym = self.fG.render(sym, True, C_OURO)
+            sym = carta.get("simbolo", "[Carta]")
+            lbl_sym = self.fG.render(sanitizar_texto_fonte(sym), True, C_OURO)
             tela.blit(lbl_sym, (crect.x + 10, crect.y + 10))
 
-            nome = self.fMi.render(carta["nome"][:16], True, C_TEXTO)
+            nome = self.fMi.render(sanitizar_texto_fonte(carta["nome"][:16]), True, C_TEXTO)
             tela.blit(nome, (crect.x + 40, crect.y + 12))
 
             desc = carta.get("descricao", "")
             if desc:
-                lbl_desc = self.fMi.render(desc[:24], True, C_DIM)
+                lbl_desc = self.fMi.render(sanitizar_texto_fonte(desc[:24]), True, C_DIM)
                 tela.blit(lbl_desc, (crect.x + 10, crect.y + 48))
 
             click_lbl = self.fMi.render("Clique para escolher", True, C_VERDE if hover else C_BORDA)
             tela.blit(click_lbl, (crect.centerx - click_lbl.get_width() // 2, crect.bottom - 24))
+
+    def _draw_barrinha_qte_parry(self, tela, W, H):
+        """Renderiza a barra de timing QTE Parry & Dodge no estilo Clair Obscur / Expedition 33."""
+        if not getattr(self, "qte_parry_ativo", False) or not getattr(self, "qte_dados", None):
+            return
+
+        qte = self.qte_dados
+        qte["timer"] -= 1
+
+        import math
+        progresso = math.sin((pygame.time.get_ticks() / 320.0) * math.pi)
+        norm_pos = (progresso + 1.0) / 2.0
+        qte["ponteiro"] = norm_pos
+
+        if qte["timer"] <= 0:
+            if hasattr(self, "_resolver_qte_parry"):
+                self._resolver_qte_parry("MISS")
+            return
+
+        bw, bh = 440, 36
+        bx = (W - bw) // 2
+        by = 110
+        bar_rect = pygame.Rect(bx, by, bw, bh)
+
+        pygame.draw.rect(tela, (14, 16, 28), bar_rect, border_radius=10)
+        pygame.draw.rect(tela, (255, 215, 0), bar_rect, 2, border_radius=10)
+
+        # Zona Azul de Dodge (30% a 70%)
+        d_x = bx + int(bw * 0.30)
+        d_w = int(bw * 0.40)
+        dodge_rect = pygame.Rect(d_x, by + 4, d_w, bh - 8)
+        pygame.draw.rect(tela, (30, 140, 220), dodge_rect, border_radius=6)
+
+        # Zona Dourada de Perfect Parry (42% a 58%)
+        p_x = bx + int(bw * 0.42)
+        p_w = int(bw * 0.16)
+        parry_rect = pygame.Rect(p_x, by + 4, p_w, bh - 8)
+        pygame.draw.rect(tela, (255, 215, 0), parry_rect, border_radius=6)
+        pygame.draw.rect(tela, (255, 255, 255), parry_rect, 2, border_radius=6)
+
+        # Ponteiro Néon
+        px = bx + int(bw * norm_pos)
+        pygame.draw.line(tela, (255, 255, 255), (px, by - 4), (px, by + bh + 4), 5)
+        pygame.draw.line(tela, (0, 255, 240), (px, by - 2), (px, by + bh + 2), 3)
+
+        from ...utils import sanitizar_texto_fonte
+        ini_nome = getattr(qte.get("ini"), "nome", "Inimigo")
+        alvo_nome = getattr(qte.get("alvo"), "nome", "Herói")
+        txt = self.fG.render(sanitizar_texto_fonte(f"⚔️ PARRY! {ini_nome} atacando {alvo_nome}! [ESPAÇO / CLIQUE]"), True, (255, 255, 255))
+        tela.blit(txt, (W // 2 - txt.get_width() // 2, by - 32))
+
+        sub = self.fMi.render(sanitizar_texto_fonte("🌟 Dourado: PERFECT PARRY & RIPOSTE  |  🛡️ Azul: DODGE (-75% Dano)"), True, (210, 230, 255))
+        tela.blit(sub, (W // 2 - sub.get_width() // 2, by + bh + 8))

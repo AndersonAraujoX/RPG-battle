@@ -21,6 +21,35 @@ def remover_emojis(texto: str) -> str:
     res = _EMOJI_PATTERN.sub("", texto)
     return res.strip()
 
+_MAPA_SUBSTITUICAO_EMOJIS = {
+    "⚔️": "[ATK]",
+    "🛡️": "[DEF]",
+    "👁️": "[VIGILÂNCIA]",
+    "🌟": "[PERFECT]",
+    "⚡": "[REAÇÃO]",
+    "💥": "[DANO]",
+    "🎁": "[DRAFT]",
+    "🪵": "[Madeira]",
+    "📜": "[Couro]",
+    "⚙️": "[Metal]",
+    "💎": "[Cristal]",
+    "🃏": "[Carta]",
+    "💀": "[K.O.]",
+    "👑": "[Imperador]",
+    "🐛": "[Invasor]",
+    "🕷️": "[Invasor]",
+    "🎒": "[Loot]",
+    "⭐": "[Upgrade]",
+}
+
+def sanitizar_texto_fonte(texto: str) -> str:
+    """Substitui emojis Unicode por rótulos de texto limpos para evitar retângulos em branco (tofu) na renderização de fontes Pygame."""
+    if not isinstance(texto, str):
+        return str(texto)
+    for emo, sub in _MAPA_SUBSTITUICAO_EMOJIS.items():
+        texto = texto.replace(emo, sub)
+    return remover_emojis(texto)
+
 _BACKGROUNDS_CACHE = {}
 
 def resource_path(relative_path):

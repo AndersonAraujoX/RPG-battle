@@ -6,6 +6,7 @@ import math
 import pygame
 
 from ...config import LARGURA_TELA, ALTURA_TELA
+from ...utils import sanitizar_texto_fonte
 from .data import (
     C_BORDA, C_ACENTO, C_OURO, C_VERDE, C_PERIGO,
     C_TEXTO, C_DIM, C_CERCO, C_PAINEL,
@@ -218,12 +219,12 @@ class CercoDrawCardsMixin:
             pygame.draw.rect(tela, (42, 42, 54), banner_rect, 1, border_radius=4)
             
             nome_cortado = carta["nome"][:14]
-            nt = self.fMi.render(nome_cortado, True, C_OURO if sel else C_TEXTO)
+            nt = self.fMi.render(sanitizar_texto_fonte(nome_cortado), True, C_OURO if sel else C_TEXTO)
             tela.blit(nt, (banner_rect.centerx - nt.get_width() // 2, banner_rect.y + 3))
 
             desc = carta.get("descricao", "")
             if desc:
-                lbl_desc = self.fMi.render(desc[:22], True, C_DIM)
+                lbl_desc = self.fMi.render(sanitizar_texto_fonte(desc[:22]), True, C_DIM)
                 tela.blit(lbl_desc, (crect.centerx - lbl_desc.get_width() // 2, crect.y + 88))
 
             stats = []
@@ -251,7 +252,7 @@ class CercoDrawCardsMixin:
                     tela.blit(lbl_s, (rect_stat.centerx - lbl_s.get_width() // 2, rect_stat.centery - lbl_s.get_height() // 2))
 
             if eh_upgrade:
-                star_lbl = self.fMi.render("⭐ PERMANENTE", True, (255, 220, 60))
+                star_lbl = self.fMi.render(sanitizar_texto_fonte("⭐ PERMANENTE"), True, (255, 220, 60))
                 star_bg = pygame.Rect(crect.centerx - star_lbl.get_width() // 2 - 4,
                                       crect.y + 42, star_lbl.get_width() + 8, 16)
                 pygame.draw.rect(tela, (50, 36, 4), star_bg, border_radius=3)
@@ -290,9 +291,9 @@ class CercoDrawCardsMixin:
         tela.blit(gs, (cx - 10, cy - 10))
         nv_t = self.fMi.render(f"NÍVEL {nivel}", True, cor_niv)
         tela.blit(nv_t, (cx + cw // 2 - nv_t.get_width() // 2, cy + 8))
-        sim = self.fT.render(carta.get("simbolo", "?"), True, C_TEXTO)
+        sim = self.fT.render(sanitizar_texto_fonte(carta.get("simbolo", "?")), True, C_TEXTO)
         tela.blit(sim, (cx + cw // 2 - sim.get_width() // 2, cy + 30))
-        tt = self.fG.render(carta.get("titulo", ""), True, C_TEXTO)
+        tt = self.fG.render(sanitizar_texto_fonte(carta.get("titulo", "")), True, C_TEXTO)
         tela.blit(tt, (cx + cw // 2 - tt.get_width() // 2, cy + 90))
         tipo_lbl = {"invasor": "HORDA DE INSETOS", "mover": "AVANÇO DE INSETOS",
                     "torre_assalto": "TORRE DE ASSALTO",

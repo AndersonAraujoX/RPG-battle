@@ -8,7 +8,7 @@ import zlib
 import pygame
 
 from ...config import LARGURA_TELA, ALTURA_TELA
-from ...utils import remover_emojis
+from ...utils import remover_emojis, sanitizar_texto_fonte
 from .data import (
     C_OURO, C_CRISTAL, C_BORDA, C_VERDE, C_ACENTO,
     C_PERIGO, C_CERCO, C_TEXTO, C_DIM, C_BRUTE,
@@ -176,14 +176,43 @@ class CercoDrawMapMixin:
 
     def _draw_mapa(self, tela):
         r = self.mapa_rect
-        TW = max(6, int(24 * self.zoom))
-        TH = max(3, int(12 * self.zoom))
-        ES = max(2, int(8 * self.zoom))
-        CX = r.centerx
-        CY = r.centery - 5
+
+        # 🎥 CÂMERA CINEMATOGRÁFICA ACTION ZOOM (Interpolação Suave)
+        if getattr(self, "camera_zoom_timer", 0) > 0:
+            self.camera_zoom_timer -= 1
+            self.map_backbuffer_sujo = True
+            if self.camera_zoom_timer <= 0:
+                self.zoom_alvo = getattr(self, "zoom_base", 1.0)
+                self.foco_grid_alvo = None
+                self.map_backbuffer_sujo = True
+
+        target_z = getattr(self, "zoom_alvo", 1.0)
+        curr_z = getattr(self, "zoom", 1.0)
+        if abs(curr_z - target_z) > 0.005:
+            self.zoom += (target_z - curr_z) * 0.12
+            self.map_backbuffer_sujo = True
+
         theta = self.game.angulo_rotacao
         theta_cos = math.cos(theta)
         theta_sin = math.sin(theta)
+
+        # Deslocamento da Câmera para Foco no combate
+        offset_cx, offset_cy = 0, 0
+        foco = getattr(self, "foco_grid_alvo", None)
+        if foco and isinstance(foco, (tuple, list)):
+            fgx, fgy = foco
+            dx_f = fgx - 9.5
+            dy_f = fgy - 9.5
+            rx_f = dx_f * theta_cos - dy_f * theta_sin
+            ry_f = dx_f * theta_sin + dy_f * theta_cos
+            offset_cx = -int((rx_f - ry_f) * (max(6, int(24 * self.zoom)) // 2) * 0.95)
+            offset_cy = -int((rx_f + ry_f) * (max(3, int(12 * self.zoom)) // 2) * 0.95)
+
+        TW = max(6, int(24 * self.zoom))
+        TH = max(3, int(12 * self.zoom))
+        ES = max(2, int(8 * self.zoom))
+        CX = r.centerx + offset_cx
+        CY = r.centery - 5 + offset_cy
         RENDER_MIN = -5
         RENDER_MAX = 24
         GRID_MIN, GRID_MAX = 0, 19
@@ -845,6 +874,10 @@ class CercoDrawMapMixin:
                         if simb_rec:
                             txt_rec = self.fMi.render(simb_rec, True, (255, 255, 255))
                             tela.blit(txt_rec, (cx_draw - int(6 * self.zoom), cy_draw - sh - int(18 * self.zoom)))
+
+                    if getattr(char, "em_vigilancia", False) and getattr(char, "hp_atual", 0) > 0:
+                        txt_vigi = self.fMi.render(sanitizar_texto_fonte("👁️ VIGILÂNCIA"), True, (255, 235, 80))
+                        tela.blit(txt_vigi, (cx_draw - txt_vigi.get_width() // 2, cy_draw - sh - int(24 * self.zoom)))
                     # ── BARRA DE VIDA (HP) ACIMA DO PERSONAGEM ────────
                     hp_cur = getattr(char, "hp_atual", 10)
                     hp_max = max(1, getattr(char, "hp_max", 10))
@@ -953,7 +986,7 @@ class CercoDrawMapMixin:
                     lbl_prince = self.fMi.render("Pr. Lysander", True, (255, 120, 120))
                     tela.blit(lbl_prince, (cx_ - lbl_prince.get_width() // 2, cy_ - sh - int(14 * self.zoom)))
 
-                    lbl_tag = self.fMi.render("👑 COMANDANTE", True, (255, 220, 40))
+                    lbl_tag = self.fMi.render(sanitizar_texto_fonte("👑 COMANDANTE"), True, (255, 220, 40))
                     tela.blit(lbl_tag, (cx_ - lbl_tag.get_width() // 2, cy_ - sh - int(28 * self.zoom)))
 
         e = self.estado
@@ -1040,7 +1073,7 @@ class CercoDrawMapMixin:
 
             y_draw = cy - int(32 * self.zoom) - int(pop['y_offset'])
 
-            txt_surf = self.fM.render(pop['texto'], True, pop['cor'])
+            txt_surf = self.fM.render(sanitizar_texto_fonte(pop['texto']), True, pop['cor'])
             if self.zoom != 1.0:
                 w_s = max(1, int(txt_surf.get_width() * self.zoom))
                 h_s = max(1, int(txt_surf.get_height() * self.zoom))
@@ -1048,7 +1081,7 @@ class CercoDrawMapMixin:
             else:
                 w_s, h_s = txt_surf.get_width(), txt_surf.get_height()
 
-            txt_sombra = self.fM.render(pop['texto'], True, (10, 10, 15))
+            txt_sombra = self.fM.render(sanitizar_texto_fonte(pop['texto']), True, (10, 10, 15))
             if self.zoom != 1.0:
                 txt_sombra = pygame.transform.smoothscale(txt_sombra, (w_s, h_s))
 
@@ -1072,3 +1105,12 @@ class CercoDrawMapMixin:
                }[ct["estado"]]
         ctt = self.fMi.render(f"CATAPULTA: {ct['estado'].upper()}", True, c_c)
         tela.blit(ctt, (x + 180, y))
+
+    def _focar_camera_combate(self, gx, gy, zoom=1.85, duracao=55):
+        """Ativa a câmera cinematográfica deslizando e dando zoom na cena de ataque."""
+        if getattr(self, "autoplay_ativo", False):
+            return
+        self.zoom_alvo = zoom
+        self.foco_grid_alvo = (gx, gy)
+        self.camera_zoom_timer = duracao
+        self.map_backbuffer_sujo = True
