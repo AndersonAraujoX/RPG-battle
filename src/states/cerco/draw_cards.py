@@ -25,7 +25,12 @@ class CercoDrawCardsMixin:
         cw = min(96, largura_disponivel // total_cartas)
         gap = max(2, (largura_disponivel - cw * total_cartas) // (total_cartas + 1))
         cx = mr.x + espaco_reservado_esquerda + gap + idx * (cw + gap)
-        cy = mr.y + 4
+
+        # 🎴 Curvatura suave de Leque (Fan Arc Layout)
+        mid_idx = (total_cartas - 1) / 2.0
+        offset_center = idx - mid_idx
+        fan_arc_y = int((offset_center ** 2) * 1.6)
+        cy = mr.y + 4 + fan_arc_y
         ch = mr.height - 8
         return cx, cy, cw, ch
 
@@ -124,10 +129,10 @@ class CercoDrawCardsMixin:
                 temp_rect = pygame.Rect(cx, cy, cw, ch)
                 hover = temp_rect.collidepoint(mouse)
                 sel   = (i == self.idx_carta_queimar)
-                deslocamento_y = -8 if hover else 0
+                deslocamento_y = -30 if hover else 0
                 crect = pygame.Rect(cx, cy + deslocamento_y, cw, ch)
                 self.carta_rects.append(crect)
-            
+
             eh_upgrade = carta.get("tipo") == "upgrade"
             tipo_gema = "movimento"
             if carta.get("trabalho"):  tipo_gema = "trabalho"
@@ -135,6 +140,13 @@ class CercoDrawCardsMixin:
             cor_gema = GEMAS_COR.get(tipo_gema, (200, 200, 200))
             if eh_upgrade:
                 cor_gema = (255, 200, 50)
+
+            # 🎴 Sombra e Aura de Brilho 3D ao passar o mouse
+            if hover:
+                shadow_rect = pygame.Rect(cx, cy + 4, cw, ch)
+                pygame.draw.rect(tela, (5, 5, 10), shadow_rect, border_radius=8)
+                pygame.draw.rect(tela, (120, 220, 255), crect.inflate(6, 6), 2, border_radius=9)
+                pygame.draw.rect(tela, (255, 225, 80), crect.inflate(2, 2), 1, border_radius=8)
 
             sprite = None
 

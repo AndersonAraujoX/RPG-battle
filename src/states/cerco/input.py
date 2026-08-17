@@ -215,6 +215,25 @@ class CercoStateInputMixin:
                 return (gx, gy)
         return None
 
+    def _obter_alvo_snap_magnetico(self, mouse_x, mouse_y):
+        """Retorna a posição (gx, gy) do inimigo mais próximo no raio de 2 células para Snap Magnético."""
+        gx_gy = self._screen_to_grid(mouse_x, mouse_y)
+        if not gx_gy:
+            return None
+        gx, gy = gx_gy
+        tab = getattr(self.motor, "tabuleiro", None)
+        if not tab:
+            return gx_gy
+
+        for dx in range(-2, 3):
+            for dy in range(-2, 3):
+                nx, ny = gx + dx, gy + dy
+                if 0 <= nx < tab.largura and 0 <= ny < tab.altura:
+                    unidade = tab.grid[ny][nx]
+                    if unidade and getattr(unidade, "time", "A") == "B" and getattr(unidade, "hp_atual", 0) > 0:
+                        return (nx, ny)
+        return (gx, gy)
+
     # ── TECLADO ───────────────────────────────────────────────────────
     def _on_key(self, key):
         if key in (pygame.K_SPACE, pygame.K_RETURN):
@@ -232,6 +251,20 @@ class CercoStateInputMixin:
                 self._resolver_carta_cerco()
         if key == pygame.K_TAB:
             self._alternar_heroi()
+        # ⚡ Quick-Cast por Teclado (Teclas 1, 2, 3, 4, 5)
+        if key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5):
+            idx_carta = key - pygame.K_1
+            mao = self.estado.get("mao", [])
+            if 0 <= idx_carta < len(mao):
+                mouse_pos = pygame.mouse.get_pos()
+                grid_pos = self._obter_alvo_snap_magnetico(mouse_pos[0], mouse_pos[1])
+                if grid_pos:
+                    self.idx_carta_sendo_jogada = idx_carta
+                    if hasattr(self, "_jogar_carta_na_posicao"):
+                        self._jogar_carta_na_posicao(idx_carta, grid_pos[0], grid_pos[1])
+                    self._feedback(f"⚡ Quick-Cast: Carta #{idx_carta + 1} disparada!", (100, 220, 255))
+                    return
+
         if key in (pygame.K_PLUS, pygame.K_EQUALS):
             new_z = min(3.0, self.zoom + 0.25)
             if new_z != self.zoom:
@@ -591,9 +624,34 @@ class CercoStateInputMixin:
             from_pos = (e.get("heroi_x", 9), e.get("heroi_y", 9))
             if from_pos == (cx, cy):
                 return
+
+            tab = self.motor.tabuleiro
+            pts_mov = e.get("pontos_movimento", 0)
+
+            # Usa o pathfinding A* se houver pontos de movimento
+            if pts_mov > 0 and hasattr(tab, "encontrar_caminho"):
+                caminho = tab.encontrar_caminho(from_pos[0], from_pos[1], cx, cy, max_passos=pts_mov)
+                if caminho:
+                    custo_passos = len(caminho)
+                    def _finalize_path():
+                        self.motor.tabuleiro.mover_personagem(self.heroi_atual, cx, cy)
+                        delta = {
+                            "heroi_x": cx,
+                            "heroi_y": cy,
+                            "pos_heroi": obter_zona_por_coordenada(cx, cy) or "camara_central",
+                            "pontos_movimento": max(0, pts_mov - custo_passos)
+                        }
+                        self.estado = aplicar_delta(e, delta)
+                        self._push("HEROI", f"🏃 Percorreu {custo_passos} células até ({cx}, {cy}) via rota inteligente!")
+                        self._processar_acoes_automaticas(mostrar_erro_se_falhar=False)
+                        if hasattr(self, "_verificar_auto_end_turn"):
+                            self._verificar_auto_end_turn()
+                    self._start_walk(self.heroi_atual, from_pos, (cx, cy), on_done=_finalize_path)
+                    return
+
             custo = custo_minimo_grade(self.motor, from_pos, (cx, cy))
             if custo is None:
-                self._feedback("Destino inaccessivel!", C_PERIGO)
+                self._feedback("Destino inacessível!", C_PERIGO)
                 return
             def _finalize_free():
                 self.motor.tabuleiro.mover_personagem(self.heroi_atual, cx, cy)

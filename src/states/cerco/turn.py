@@ -51,6 +51,19 @@ class CercoStateTurnMixin:
         if hasattr(self, "heroi_atual") and self.heroi_atual:
             self.heroi_atual.em_vigilancia = True
 
+    def _verificar_auto_end_turn(self):
+        """Verifica se a mão do herói ativo está vazia e transita o turno automaticamente sem atrito."""
+        if getattr(self, "modo_sincronia", False) or getattr(self, "autoplay_ativo", False):
+            return
+        mao = self.estado.get("mao", [])
+        mov = self.estado.get("pontos_movimento", 0)
+        trab = self.estado.get("pontos_trabalho", 0)
+        esc = self.estado.get("pontos_escavacao", 0)
+
+        if not mao and mov <= 0 and trab <= 0 and esc <= 0:
+            self._feedback("⚡ Auto-End Turn: Turno encerrado automaticamente!", (100, 220, 255))
+            self._fim_turno_heroi()
+
         # ⚔️ AVANÇO CONSTANTE DOS INIMIGOS: A cada fim de turno de um herói, a horda de inimigos avança 1 passo no mapa 2D sem multiplicar os ataques!
         self._processar_turnos_inimigos(apenas_passo=True)
         if self._verificar_derrota_imediata():

@@ -9,6 +9,73 @@ class Tabuleiro:
         self.terrain_grid = [[TERRENO_NORMAL for _ in range(largura)] for _ in range(altura)]
         self.elevation_grid = [[0 for _ in range(largura)] for _ in range(altura)]
         self.itens_no_chao = [[None for _ in range(largura)] for _ in range(altura)]
+        self.ninhos_isectum = []
+        self.estrutura_hp_grid = [[20 if self.terrain_grid[y][x] in (TERRENO_FLORESTA, TERRENO_ROCHA, TERRENO_BARRIL) else 0 for x in range(largura)] for y in range(altura)]
+
+    def obter_bonificacao_cobertura(self, x, y):
+        """Verifica se há elementos de cobertura adjacentes (x+-1, y+-1) e retorna o bônus de AC (+3 ou +5)."""
+        bonus_max = 0
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < self.largura and 0 <= ny < self.altura:
+                    t = self.terrain_grid[ny][nx]
+                    if t in (TERRENO_FLORESTA, TERRENO_BARRIL):
+                        bonus_max = max(bonus_max, 3)
+                    elif t in (TERRENO_ROCHA, TERRENO_PAREDE):
+                        bonus_max = max(bonus_max, 5)
+        return bonus_max
+
+    def aplicar_dano_estrutura(self, x, y, dano):
+        """Aplica dano estrutural a elementos de cobertura. Se HP <= 0, transforma o terreno em escombros (TERRENO_DIFICIL)."""
+        if 0 <= x < self.largura and 0 <= y < self.altura:
+            if hasattr(self, "estrutura_hp_grid") and self.estrutura_hp_grid[y][x] > 0:
+                self.estrutura_hp_grid[y][x] = max(0, self.estrutura_hp_grid[y][x] - dano)
+                if self.estrutura_hp_grid[y][x] <= 0:
+                    self.terrain_grid[y][x] = TERRENO_DIFICIL
+                    return True
+        return False
+
+    def encontrar_caminho(self, start_x, start_y, dest_x, dest_y, max_passos=None):
+        """
+        Encontra o caminho mais curto entre (start_x, start_y) e (dest_x, dest_y) usando BFS.
+        Retorna uma lista de tuplas [(x1, y1), (x2, y2), ...] excluindo a posição inicial.
+        Se não houver caminho ou se exceder max_passos, retorna lista vazia.
+        """
+        if (start_x, start_y) == (dest_x, dest_y):
+            return []
+        if not (0 <= dest_x < self.largura and 0 <= dest_y < self.altura):
+            return []
+        if self.terrain_grid[dest_y][dest_x] == TERRENO_PAREDE:
+            return []
+
+        from collections import deque
+        queue = deque([(start_x, start_y, [])])
+        visitados = {(start_x, start_y)}
+
+        while queue:
+            cx, cy, path = queue.popleft()
+
+            if (cx, cy) == (dest_x, dest_y):
+                return path
+
+            if max_passos is not None and len(path) >= max_passos:
+                continue
+
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                nx, ny = cx + dx, cy + dy
+                if 0 <= nx < self.largura and 0 <= ny < self.altura:
+                    if (nx, ny) not in visitados:
+                        if self.terrain_grid[ny][nx] == TERRENO_PAREDE:
+                            continue
+                        if (nx, ny) != (dest_x, dest_y) and self.grid[ny][nx] is not None:
+                            continue
+                        visitados.add((nx, ny))
+                        queue.append((nx, ny, path + [(nx, ny)]))
+
+        return []
 
     def get_item_em(self, x, y):
         if 0 <= x < self.largura and 0 <= y < self.altura:

@@ -196,17 +196,33 @@ class CercoDrawMapMixin:
         theta_cos = math.cos(theta)
         theta_sin = math.sin(theta)
 
-        # Deslocamento da Câmera para Foco no combate
-        offset_cx, offset_cy = 0, 0
-        foco = getattr(self, "foco_grid_alvo", None)
-        if foco and isinstance(foco, (tuple, list)):
-            fgx, fgy = foco
-            dx_f = fgx - 9.5
-            dy_f = fgy - 9.5
-            rx_f = dx_f * theta_cos - dy_f * theta_sin
-            ry_f = dx_f * theta_sin + dy_f * theta_cos
-            offset_cx = -int((rx_f - ry_f) * (max(6, int(24 * self.zoom)) // 2) * 0.95)
-            offset_cy = -int((rx_f + ry_f) * (max(3, int(12 * self.zoom)) // 2) * 0.95)
+        # 🎥 Deslocamento e Interpolação Suave de Câmera (Soft Target Following)
+        foco_alvo = getattr(self, "foco_grid_alvo", None)
+        if not foco_alvo:
+            # Quando não há Action Zoom de combate ativo, a câmera segue suavemente o herói ativo
+            h_ativo = getattr(self, "heroi_atual", None)
+            if h_ativo and hasattr(h_ativo, "pos_x"):
+                foco_alvo = (h_ativo.pos_x, h_ativo.pos_y)
+            else:
+                foco_alvo = (9.5, 9.5)
+
+        if not hasattr(self, "foco_grid_atual") or self.foco_grid_atual is None:
+            self.foco_grid_atual = [float(foco_alvo[0]), float(foco_alvo[1])]
+
+        dx_c = (foco_alvo[0] - self.foco_grid_atual[0])
+        dy_c = (foco_alvo[1] - self.foco_grid_atual[1])
+        if abs(dx_c) > 0.005 or abs(dy_c) > 0.005:
+            self.foco_grid_atual[0] += dx_c * 0.12
+            self.foco_grid_atual[1] += dy_c * 0.12
+            self.map_backbuffer_sujo = True  # Atualiza a visualização da câmera a cada frame
+
+        fgx, fgy = self.foco_grid_atual[0], self.foco_grid_atual[1]
+        dx_f = fgx - 9.5
+        dy_f = fgy - 9.5
+        rx_f = dx_f * theta_cos - dy_f * theta_sin
+        ry_f = dx_f * theta_sin + dy_f * theta_cos
+        offset_cx = -int((rx_f - ry_f) * (max(6, int(24 * self.zoom)) // 2) * 0.95)
+        offset_cy = -int((rx_f + ry_f) * (max(3, int(12 * self.zoom)) // 2) * 0.95)
 
         TW = max(6, int(24 * self.zoom))
         TH = max(3, int(12 * self.zoom))
@@ -878,6 +894,14 @@ class CercoDrawMapMixin:
                     if getattr(char, "em_vigilancia", False) and getattr(char, "hp_atual", 0) > 0:
                         txt_vigi = self.fMi.render(sanitizar_texto_fonte("👁️ VIGILÂNCIA"), True, (255, 235, 80))
                         tela.blit(txt_vigi, (cx_draw - txt_vigi.get_width() // 2, cy_draw - sh - int(24 * self.zoom)))
+
+                    # ── BADGE DE COBERTURA TÁTICA (+3 / +5 AC) ──────────
+                    tab = getattr(self.motor, "tabuleiro", None)
+                    if tab and hasattr(tab, "obter_bonificacao_cobertura"):
+                        bonus_cob = tab.obter_bonificacao_cobertura(gx, gy)
+                        if bonus_cob > 0 and getattr(char, "hp_atual", 0) > 0:
+                            lbl_cob = self.fMi.render(sanitizar_texto_fonte(f"🛡️ COBERTURA (+{bonus_cob} AC)"), True, (120, 240, 160))
+                            tela.blit(lbl_cob, (cx_draw - lbl_cob.get_width() // 2, cy_draw - sh - int(34 * self.zoom)))
                     # ── BARRA DE VIDA (HP) ACIMA DO PERSONAGEM ────────
                     hp_cur = getattr(char, "hp_atual", 10)
                     hp_max = max(1, getattr(char, "hp_max", 10))
@@ -1019,7 +1043,37 @@ class CercoDrawMapMixin:
                         lif = pygame.transform.scale(lif,
                             (max(1, int(lif.get_width() * self.zoom)),
                              max(1, int(lif.get_height() * self.zoom))))
-                    tela.blit(lif, (lcx - lif.get_width() // 2, y_off)); y_off += gap
+        # 🏃 RENDERIZAÇÃO DA TRILHA DE PATHFINDING A* (Caminho Visual Dinâmico)
+        if hovered_g and hasattr(self, "heroi_atual") and self.heroi_atual:
+            pts_mov = self.estado.get("pontos_movimento", 0)
+            hx, hy = self.heroi_atual.pos_x, self.heroi_atual.pos_y
+            if pts_mov > 0 and (hx, hy) != hovered_g and hasattr(tab, "encontrar_caminho"):
+                caminho = tab.encontrar_caminho(hx, hy, hovered_g[0], hovered_g[1], max_passos=pts_mov)
+                if caminho:
+                    pontos_tela = []
+                    _, h_el = _classificar(hx, hy)
+                    pontos_tela.append(_iso(hx, hy, h_el))
+                    for px, py in caminho:
+                        _, p_el = _classificar(px, py)
+                        pontos_tela.append(_iso(px, py, p_el))
+
+                    if len(pontos_tela) >= 2:
+                        pygame.draw.lines(tela, (60, 200, 255), False, pontos_tela, max(2, int(3 * self.zoom)))
+
+                    pulse_val = abs(self.timer % 60 - 30) / 30.0
+                    for idx_step, (sx, sy) in enumerate(pontos_tela[1:], 1):
+                        r_dot = max(3, int((4 + 2 * pulse_val) * self.zoom))
+                        pygame.draw.circle(tela, (20, 30, 50), (sx, sy), r_dot + 2)
+                        pygame.draw.circle(tela, (100, 220, 255), (sx, sy), r_dot)
+                        pygame.draw.circle(tela, (255, 255, 255), (sx, sy), max(1, r_dot - 2))
+
+                    dest_sx, dest_sy = pontos_tela[-1]
+                    lbl_passos = self.fMi.render(sanitizar_texto_fonte(f"🚶 {len(caminho)} PM"), True, (255, 235, 120))
+                    bg_badge = pygame.Rect(dest_sx - lbl_passos.get_width() // 2 - 4, dest_sy - int(22 * self.zoom), lbl_passos.get_width() + 8, 16)
+                    pygame.draw.rect(tela, (15, 20, 35), bg_badge, border_radius=4)
+                    pygame.draw.rect(tela, (255, 215, 80), bg_badge, 1, border_radius=4)
+                    tela.blit(lbl_passos, (dest_sx - lbl_passos.get_width() // 2, dest_sy - int(21 * self.zoom)))
+
         self._draw_popups_combate(tela)
         self._draw_armas_cerco(tela)
         nr = self.fMi.render(self.narrativa[:88], True, C_DIM)
