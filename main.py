@@ -58,6 +58,7 @@ for dest_name, fallback_name in FALLBACKS.items():
         except Exception as ex:
             print(f"[Assets Manager] Erro ao criar fallback {dest_name}: {ex}")
 
+import sys
 import asyncio
 from src.game import Game
 
@@ -65,5 +66,5 @@ async def main():
     game = Game()
     await game.run_async()
 
-if __name__ == "__main__":
+if __name__ == "__main__" or sys.platform == "emscripten":
     asyncio.run(main())
