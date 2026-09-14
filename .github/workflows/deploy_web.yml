@@ -42,7 +42,7 @@ jobs:
       - name: Compilar para WebAssembly (Pygbag)
         run: |
           # Compila o projeto empacotando assets e gerando build/web
-          python3 -m pygbag --build .
+          python3 -m pygbag --disable-sound-format-error --build .
           ls -la build/web
 
       - name: Upload do Artefato do GitHub Pages

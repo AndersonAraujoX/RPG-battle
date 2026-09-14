@@ -68,7 +68,8 @@ class CutsceneManager:
         
         try:
             # Tocar musica (se especificada ou padrao)
-            caminho_audio = resource_path(musica if musica else "assets/sounds/intro.wav")
+            audio_padrao = "assets/sounds/intro.ogg" if os.path.exists(resource_path("assets/sounds/intro.ogg")) else "assets/sounds/intro.wav"
+            caminho_audio = resource_path(musica if musica else audio_padrao)
             if os.path.exists(caminho_audio):
                  pygame.mixer.music.load(caminho_audio)
                  pygame.mixer.music.play()

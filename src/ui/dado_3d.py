@@ -108,8 +108,8 @@ def animar_rolagem_dado(tela, tipo_dado="d20", resultado=None):
 
     # Sons de rolagem de dados
     try:
-        som_rolar = pygame.mixer.Sound("sons/dado_rolar.wav")
-        som_fim = pygame.mixer.Sound("sons/dado_fim.wav")
+        som_rolar = pygame.mixer.Sound(resource_path("assets/sounds/dado_rolar.ogg"))
+        som_fim = pygame.mixer.Sound(resource_path("assets/sounds/dado_fim.ogg"))
     except:
         som_rolar = None
         som_fim = None

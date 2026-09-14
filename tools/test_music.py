@@ -36,7 +36,7 @@ def main():
     pygame.init()
     pygame.mixer.init()
     
-    files = ['menu.wav', 'battle1.wav']
+    files = ['menu.ogg', 'battle1.ogg']
     for f in files:
         test_file(f)
         time.sleep(1)

@@ -1,3 +1,4 @@
+import os
 import pygame
 from src.config import *
 from src.ui.menu import setup_menu_ui
@@ -6,14 +7,24 @@ from src.utils import resource_path
 
 class GameSetup:
     @staticmethod
+    def _obter_caminho_som(caminho):
+        """Prefere formato .ogg para compatibilidade web/wasm e melhor performance"""
+        ogg_path = os.path.splitext(caminho)[0] + '.ogg'
+        if os.path.exists(resource_path(ogg_path)):
+            return ogg_path
+        return caminho
+
+    @staticmethod
     def tocar_musica(tipo):
         try:
             if tipo == 'menu':
-                pygame.mixer.music.load(resource_path('assets/sounds/menu.wav'))
+                caminho = GameSetup._obter_caminho_som('assets/sounds/menu.ogg')
+                pygame.mixer.music.load(resource_path(caminho))
                 pygame.mixer.music.set_volume(0.5)
                 pygame.mixer.music.play(-1)
             elif tipo == 'batalha':
-                pygame.mixer.music.load(resource_path('assets/sounds/battle1.wav'))
+                caminho = GameSetup._obter_caminho_som('assets/sounds/battle1.ogg')
+                pygame.mixer.music.load(resource_path(caminho))
                 pygame.mixer.music.set_volume(0.5)
                 pygame.mixer.music.play(-1)
         except pygame.error as e:
@@ -23,21 +34,22 @@ class GameSetup:
     def carregar_sons():
         sounds = {}
         sound_paths = {
-            'attack': 'assets/sounds/attack.wav',
-            'button_click': 'assets/sounds/button_click.wav',
-            'heal': 'assets/sounds/heal.wav',
-            'hit': 'assets/sounds/hit.wav',
-            'level_up': 'assets/sounds/level_up.wav',
-            'miss': 'assets/sounds/miss.wav',
-            'critical_hit': 'assets/sounds/critical_hit.wav',
-            'invalid_action': 'assets/sounds/miss.wav',
+            'attack': 'assets/sounds/attack.ogg',
+            'button_click': 'assets/sounds/button_click.ogg',
+            'heal': 'assets/sounds/heal.ogg',
+            'hit': 'assets/sounds/hit.ogg',
+            'level_up': 'assets/sounds/level_up.ogg',
+            'miss': 'assets/sounds/miss.ogg',
+            'critical_hit': 'assets/sounds/critical_hit.ogg',
+            'invalid_action': 'assets/sounds/miss.ogg',
         }
 
         for name, path in sound_paths.items():
+            caminho_final = GameSetup._obter_caminho_som(path)
             try:
-                sounds[name] = pygame.mixer.Sound(resource_path(path))
+                sounds[name] = pygame.mixer.Sound(resource_path(caminho_final))
             except pygame.error as e:
-                print(f"Não foi possível carregar o som {path}: {e}")
+                print(f"Não foi possível carregar o som {caminho_final}: {e}")
                 sounds[name] = None 
         return sounds
 
