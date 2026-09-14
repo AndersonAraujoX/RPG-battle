@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
-      - versao-estavel
   workflow_dispatch:
 
 # Permissões necessárias para publicar no GitHub Pages via GitHub Actions
@@ -51,6 +49,7 @@ jobs:
           path: build/web
 
   deploy:
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
