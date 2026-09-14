@@ -1,4 +1,4 @@
-<html lang="en-us"><script src="{{cookiecutter.cdn}}pythons.js" type=module id="site" data-python="python{{cookiecutter.PYBUILD}}" data-LINES=42 data-COLUMNS=132 data-os="vtx,snd,gui" async defer>#<!--
+<html lang="en-us"><script src="{{cookiecutter.cdn}}pythons.js" type=module id="site" data-python="python{{cookiecutter.PYBUILD}}" data-LINES=42 data-COLUMNS=132 data-os="stdout,snd,gui" async defer>#<!--
 
 print("""
 Loading {{cookiecutter.title}} from {{cookiecutter.archive}}.apk
@@ -62,16 +62,20 @@ async def custom_site():
     while embed.counter() < 0:
         await asyncio.sleep(.1)
 
-    # User media engagement requirement
-    if not platform.window.MM.UME:
-        __import__(__name__).__file__ = main
+    # Garante que main.py receba os metadados corretos
+    __import__(__name__).__file__ = main
 
+    # Desbloqueio de mídia (áudio) se necessário
+    if not getattr(platform.window.MM, "UME", True):
         msg = "⚔️ CLIQUE PARA INICIAR ⚔️"
         platform.window.infobox.innerText = msg
         platform.window.show_infobox()
-
-        while not platform.window.MM.UME:
+        espera = 0
+        while not getattr(platform.window.MM, "UME", False) and espera < 50:
             await asyncio.sleep(.1)
+            espera += 1
+
+    platform.window.MM.UME = True
 
     await TopLevel_async_handler.start_toplevel(platform.shell, console=window.python.config.debug)
     __import__(__name__).__file__ = main
@@ -85,6 +89,7 @@ async def custom_site():
     platform.window.transfer.style.display = "none"
     platform.window.infobox.style.display = "none"
     platform.window.canvas.style.visibility = "visible"
+    platform.window.canvas.focus()
     platform.window.config.gui_divider = 1
     platform.window.window_resize()
 
@@ -107,12 +112,12 @@ config = {
     user_canvas : 0,
     user_canvas_managed : 0,
     gui_divider : 1,
-    ume_block : 1,
+    ume_block : 0,
     can_close : 0,
     archive : "{{cookiecutter.archive}}",
     gui_debug : 0,
     cdn : "{{cookiecutter.cdn}}",
-    autorun : 0,
+    autorun : 1,
     PYBUILD : "{{cookiecutter.PYBUILD}}",
     fb_ar   :  1.77,
     fb_width : "{{cookiecutter.width}}",
@@ -124,6 +129,10 @@ function show_infobox() {
     if (infobox) {
         infobox.style.display = "block";
     }
+    const status = document.getElementById("status");
+    if (status) {
+        status.innerText = "Pronto! Clique abaixo para entrar no combate.";
+    }
 }
 
 </script>
@@ -131,6 +140,9 @@ function show_infobox() {
     <title>{{cookiecutter.title}}</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -383,17 +395,54 @@ function show_infobox() {
         if (percentEl) percentEl.innerText = "95%";
     }
 
-    // Quando o botão for clicado, remove o overlay e inicia o áudio
+    // Desbloqueia contexto de áudio do navegador e ativa o loop do jogo
+    function unlockMediaAndStart() {
+        if (window.MM) {
+            window.MM.UME = true;
+        }
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                const ctx = new AudioCtx();
+                ctx.resume();
+            }
+        } catch (e) {}
+
+        if (progressEl) progressEl.value = 100;
+        if (percentEl) percentEl.innerText = "100%";
+        clearInterval(progressTracker);
+
+        const transfer = document.getElementById("transfer");
+        if (transfer) transfer.style.display = "none";
+        const infoboxBtn = document.getElementById("infobox");
+        if (infoboxBtn) infoboxBtn.style.display = "none";
+
+        const canvas = document.getElementById("canvas");
+        if (canvas) {
+            canvas.style.visibility = "visible";
+            canvas.focus();
+        }
+    }
+
     const infoboxBtn = document.getElementById("infobox");
     if (infoboxBtn) {
-        infoboxBtn.addEventListener("click", () => {
-            if (progressEl) progressEl.value = 100;
-            clearInterval(progressTracker);
-            const transfer = document.getElementById("transfer");
-            if (transfer) transfer.style.display = "none";
-            infoboxBtn.style.display = "none";
+        infoboxBtn.addEventListener("click", unlockMediaAndStart);
+        infoboxBtn.addEventListener("touchend", unlockMediaAndStart);
+    }
+    const transferBox = document.getElementById("transfer");
+    if (transferBox) {
+        transferBox.addEventListener("click", () => {
+            if (infoboxBtn && infoboxBtn.style.display === "block") {
+                unlockMediaAndStart();
+            }
         });
     }
+    window.addEventListener("click", () => {
+        if (window.MM) window.MM.UME = true;
+    });
+    window.addEventListener("keydown", () => {
+        if (window.MM) window.MM.UME = true;
+    });
     </script>
 
 </body>

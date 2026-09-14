@@ -112,6 +112,21 @@ class TestAsyncLoop(unittest.TestCase):
             mock_flip.assert_called_once()
             mock_quit.assert_called_once()
 
+    def test_web_template_config_validations(self):
+        # Arrange
+        template_path = "web_template.tmpl"
+
+        # Act
+        with open(template_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Assert
+        self.assertIn('data-os="stdout,snd,gui"', content, "Terminal vtx deve ser substituído por stdout limpo")
+        self.assertIn('ume_block : 0', content, "ume_block deve ser 0 para evitar travamento de mídia")
+        self.assertIn('autorun : 1', content, "autorun deve ser 1")
+        self.assertIn('window.MM.UME = true', content, "unlockMediaAndStart deve destravar window.MM.UME")
+        self.assertIn('Cache-Control', content, "Headers de prevenção de cache devem estar presentes")
+
 
 if __name__ == "__main__":
     unittest.main()
