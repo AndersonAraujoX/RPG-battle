@@ -537,14 +537,32 @@ class CoopSession:
 
     def to_dict(self, for_player_id: Optional[str] = None) -> Dict[str, Any]:
         """Serializa o estado do jogo para JSON enviado via WebSocket."""
+        SPRITES_HEROIS = {
+            "Aquele": "/assets/images/characters/heroes/Aquele.png",
+            "Stark": "/assets/images/characters/heroes/paladino.png",
+            "Elden": "/assets/images/characters/heroes/mago.png",
+            "Doom": "/assets/images/characters/heroes/ladino.png",
+            "Gruu": "/assets/images/characters/heroes/barbaro.png",
+            "Kuro": "/assets/images/characters/heroes/ladino.png",
+            "Darwin": "/assets/images/characters/heroes/druida.png",
+        }
+
+        SPRITES_INIMIGOS = {
+            "TrabalhadorIsectum": "/assets/images/characters/monsters/isectum/besouro_gorgulho.png",
+            "GuerreiroIsectum": "/assets/images/characters/monsters/isectum/vespa_cacadora.png",
+            "ExploradorIsectum": "/assets/images/characters/monsters/isectum/louva_deus.png",
+        }
+
         heroes_data = []
         for pid, p in self.jogadores.items():
             h = p.get("hero")
             is_me = (pid == for_player_id)
+            h_name = p.get("hero_name")
             heroes_data.append({
                 "player_id": pid,
                 "player_name": p["nome"],
-                "hero_name": p.get("hero_name"),
+                "hero_name": h_name,
+                "sprite_url": SPRITES_HEROIS.get(h_name, "/assets/images/characters/heroes/Aquele.png") if h_name else None,
                 "hp_atual": h.hp_atual if h else 50,
                 "hp_max": h.hp_max if h else 50,
                 "ac": getattr(h, "ac_base", 15) if h else 15,
@@ -565,10 +583,12 @@ class CoopSession:
         enemies_data = []
         for ini in self.inimigos:
             if ini.hp_atual > 0:
+                c_name = ini.__class__.__name__
                 enemies_data.append({
                     "id": ini.nome,
                     "nome": ini.nome,
-                    "tipo": ini.__class__.__name__,
+                    "tipo": c_name,
+                    "sprite_url": SPRITES_INIMIGOS.get(c_name, "/assets/images/characters/monsters/isectum/larva_carniceira.png"),
                     "hp_atual": ini.hp_atual,
                     "hp_max": ini.hp_max,
                     "pos_x": ini.pos_x,

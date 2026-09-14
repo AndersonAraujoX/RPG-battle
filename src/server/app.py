@@ -51,6 +51,7 @@ HERO_INFO = [
         "nome": "Aquele",
         "classe": "Guerreiro",
         "icone": "🌑",
+        "sprite_url": "/assets/images/characters/heroes/Aquele.png",
         "hp_base": 50,
         "ac": 16,
         "descricao": "Guerreiro sombrio implacável com alto poder de absorção e contra-ataques brutais.",
@@ -60,6 +61,7 @@ HERO_INFO = [
         "nome": "Stark",
         "classe": "Paladino",
         "icone": "🛡️",
+        "sprite_url": "/assets/images/characters/heroes/paladino.png",
         "hp_base": 60,
         "ac": 18,
         "descricao": "Bastião inabalável da equipe, provê escudos divinos e proteção para aliados adjacentes.",
@@ -69,6 +71,7 @@ HERO_INFO = [
         "nome": "Elden",
         "classe": "Mago",
         "icone": "✨",
+        "sprite_url": "/assets/images/characters/heroes/mago.png",
         "hp_base": 35,
         "ac": 12,
         "descricao": "Conjurador arcano com alcance devastador de até 8 células no tabuleiro.",
@@ -78,6 +81,7 @@ HERO_INFO = [
         "nome": "Doom",
         "classe": "Ladino",
         "icone": "💀",
+        "sprite_url": "/assets/images/characters/heroes/ladino.png",
         "hp_base": 42,
         "ac": 15,
         "descricao": "Assassino das sombras focado em golpes críticos e evasão letal.",
@@ -87,6 +91,7 @@ HERO_INFO = [
         "nome": "Gruu",
         "classe": "Bárbaro",
         "icone": "🪓",
+        "sprite_url": "/assets/images/characters/heroes/barbaro.png",
         "hp_base": 65,
         "ac": 14,
         "descricao": "Tanque bruto que acumula Fúria ao receber dano para desferir golpes em área.",
@@ -96,6 +101,7 @@ HERO_INFO = [
         "nome": "Kuro",
         "classe": "Ladino",
         "icone": "🗡️",
+        "sprite_url": "/assets/images/characters/heroes/ladino.png",
         "hp_base": 40,
         "ac": 15,
         "descricao": "Especialista ágil em armadilhas, mobilidade extrema e roubo de recursos.",
@@ -105,6 +111,7 @@ HERO_INFO = [
         "nome": "Darwin",
         "classe": "Druida",
         "icone": "🌿",
+        "sprite_url": "/assets/images/characters/heroes/druida.png",
         "hp_base": 48,
         "ac": 14,
         "descricao": "Conexão primal com as matas, escava e manipula terrenos com velocidade inigualável.",
@@ -298,6 +305,10 @@ async def websocket_endpoint(
 
 
 # ── Frontend Static Files & Redirecionamento ─────────────────────────────────
+
+assets_dir = Path(__file__).resolve().parent.parent.parent / "assets"
+if assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
 web_dir = Path(__file__).resolve().parent.parent.parent / "web" / "coop"
 if web_dir.exists():

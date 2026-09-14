@@ -1,23 +1,92 @@
 /**
  * web/coop/app.js — Cliente Web Co-op em Tempo Real (RPG-battle)
  * 
- * Gerencia a conexão WebSocket com o servidor autoritativo,
- * renderização interativa do tabuleiro via Canvas API 20x20,
- * seleção de heróis no lobby, sincronia de cartas e chat tático.
+ * Renderizador de alta fidelidade visual (Paridade 1:1 com main.py):
+ * - Texturas oficiais de terreno (/assets/images/environment/)
+ * - Sprites oficiais de heróis (/assets/images/characters/heroes/)
+ * - Sprites oficiais de monstros Isectum (/assets/images/characters/monsters/isectum/)
+ * - Efeitos sonoros originais (/assets/sounds/)
+ * - Rótulos de dano flutuante, animações suaves e HUD tático.
  */
 
 (function () {
   "use strict";
 
-  // ── Constantes e Terrenos ──────────────────────────────────────────────────
+  // ── Constantes de Terrenos e Tabuleiro ──────────────────────────────────────
   const TERRENO_NORMAL = 0;
   const TERRENO_FLORESTA = 1;
   const TERRENO_DIFICIL = 2;
   const TERRENO_PAREDE = 3;
   const TERRENO_ROCHA = 4;
   const TERRENO_BARRIL = 5;
+  const TERRENO_FOGO = 6;
 
   const GRID_SIZE = 20;
+
+  // ── Mapeamento de Assets Reais do Jogo ─────────────────────────────────────
+  const ASSET_TERRENO_MAP = {
+    [TERRENO_NORMAL]:   "/assets/images/environment/terreno_normal.png",
+    [TERRENO_FLORESTA]: "/assets/images/environment/terreno_floresta.png",
+    [TERRENO_DIFICIL]:  "/assets/images/environment/terreno_dificil.png",
+    [TERRENO_PAREDE]:   "/assets/images/environment/terreno_parede.png",
+    [TERRENO_ROCHA]:    "/assets/images/environment/terreno_rocha.png",
+    [TERRENO_BARRIL]:   "/assets/images/environment/terreno_barril.png",
+    [TERRENO_FOGO]:     "/assets/images/environment/terreno_fogo.png",
+  };
+
+  const ASSET_HERO_MAP = {
+    "Aquele": "/assets/images/characters/heroes/Aquele.png",
+    "Stark":  "/assets/images/characters/heroes/paladino.png",
+    "Elden":  "/assets/images/characters/heroes/mago.png",
+    "Doom":   "/assets/images/characters/heroes/ladino.png",
+    "Gruu":   "/assets/images/characters/heroes/barbaro.png",
+    "Kuro":   "/assets/images/characters/heroes/ladino.png",
+    "Darwin": "/assets/images/characters/heroes/druida.png",
+  };
+
+  const ASSET_ENEMY_MAP = {
+    "TrabalhadorIsectum": "/assets/images/characters/monsters/isectum/besouro_gorgulho.png",
+    "GuerreiroIsectum":   "/assets/images/characters/monsters/isectum/vespa_cacadora.png",
+    "ExploradorIsectum":  "/assets/images/characters/monsters/isectum/louva_deus.png",
+    "default":            "/assets/images/characters/monsters/isectum/larva_carniceira.png",
+  };
+
+  const SOUND_EFFECTS = {
+    attack:   new Audio("/assets/sounds/attack.ogg"),
+    hit:      new Audio("/assets/sounds/hit.ogg"),
+    damage:   new Audio("/assets/sounds/damage.ogg"),
+    critical: new Audio("/assets/sounds/critical_hit.ogg"),
+    click:    new Audio("/assets/sounds/button_click.ogg"),
+    heal:     new Audio("/assets/sounds/heal.ogg"),
+    miss:     new Audio("/assets/sounds/miss.ogg"),
+  };
+
+  function playAudio(name) {
+    try {
+      const snd = SOUND_EFFECTS[name];
+      if (snd) {
+        snd.currentTime = 0;
+        snd.volume = 0.5;
+        snd.play().catch(() => {});
+      }
+    } catch (_) {}
+  }
+
+  // Cache de imagens carregadas
+  const imageCache = {};
+  function getImage(url) {
+    if (!url) return null;
+    if (imageCache[url]) return imageCache[url];
+    const img = new Image();
+    img.src = url;
+    imageCache[url] = img;
+    return img;
+  }
+
+  // Pre-carrega texturas e sprites principais
+  Object.values(ASSET_TERRENO_MAP).forEach(getImage);
+  Object.values(ASSET_HERO_MAP).forEach(getImage);
+  Object.values(ASSET_ENEMY_MAP).forEach(getImage);
 
   // ── Estado do Cliente ──────────────────────────────────────────────────────
   let socket = null;
@@ -27,7 +96,10 @@
   let heroesCatalog = [];
   let gameState = null;
   let hoveredTile = { x: -1, y: -1 };
-  let selectedTile = null;
+  let floatingTexts = [];
+  let lastEnemyHp = {};
+  let lastHeroHp = {};
+  let animTimer = 0;
 
   // ── Elementos DOM ──────────────────────────────────────────────────────────
   const modalEntry = document.getElementById("modalEntry");
@@ -73,38 +145,35 @@
 
   // ── Inicialização ──────────────────────────────────────────────────────────
   window.addEventListener("DOMContentLoaded", async () => {
-    // Verifica parâmetros na URL (convite ?room=XYZ)
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get("room");
     if (roomParam) {
       inputRoomCode.value = roomParam.toUpperCase().trim();
     }
 
-    // Carrega catálogo de heróis da API REST
     await fetchHeroesCatalog();
 
-    // Eventos do Modal
     btnJoinRoom.addEventListener("click", handleJoinSubmit);
     inputRoomCode.addEventListener("keydown", (e) => e.key === "Enter" && handleJoinSubmit());
     inputPlayerName.addEventListener("keydown", (e) => e.key === "Enter" && handleJoinSubmit());
 
-    // Eventos de Ação
-    btnStartGame.addEventListener("click", () => sendSocketMessage("START_GAME"));
-    btnEndTurn.addEventListener("click", () => sendSocketMessage("END_ROUND"));
+    btnStartGame.addEventListener("click", () => { playAudio("click"); sendSocketMessage("START_GAME"); });
+    btnEndTurn.addEventListener("click", () => { playAudio("click"); sendSocketMessage("END_ROUND"); });
     btnCopyInvite.addEventListener("click", copyInviteLink);
 
-    // Eventos do Chat
     btnSendChat.addEventListener("click", sendChatMessage);
     chatInput.addEventListener("keydown", (e) => e.key === "Enter" && sendChatMessage());
 
-    // Eventos do Canvas
     boardCanvas.addEventListener("mousemove", onCanvasMouseMove);
-    boardCanvas.addEventListener("mouseleave", () => { hoveredTile = { x: -1, y: -1 }; renderBoard(); });
+    boardCanvas.addEventListener("mouseleave", () => { hoveredTile = { x: -1, y: -1 }; });
     boardCanvas.addEventListener("click", onCanvasClick);
     boardCanvas.addEventListener("dblclick", onCanvasDblClick);
+
+    // Inicia loop contínuo de renderização para animações fluidas
+    requestAnimationFrame(renderLoop);
   });
 
-  // ── Carregar Heróis da API ─────────────────────────────────────────────────
+  // ── Catálogo de Heróis ─────────────────────────────────────────────────────
   async function fetchHeroesCatalog() {
     try {
       const res = await fetch("/api/heroes");
@@ -112,26 +181,17 @@
         heroesCatalog = await res.json();
       }
     } catch (err) {
-      console.warn("Não foi possível carregar heróis via REST, usando catálogo local:", err);
-      heroesCatalog = [
-        { nome: "Aquele", classe: "Guerreiro", icone: "🌑", hp_base: 50, ac: 16, descricao: "Guerreiro sombrio e resistente.", especial: "Ataque Furioso" },
-        { nome: "Stark", classe: "Paladino", icone: "🛡️", hp_base: 60, ac: 18, descricao: "Bastião inabalável com escudos divinos.", especial: "Aura Protetora" },
-        { nome: "Elden", classe: "Mago", icone: "✨", hp_base: 35, ac: 12, descricao: "Alcance estendido de até 8 células.", especial: "Chuva Arcana" },
-        { nome: "Doom", classe: "Ladino", icone: "💀", hp_base: 42, ac: 15, descricao: "Golpes críticos letais e sombras.", especial: "Passo Sombrio" },
-        { nome: "Gruu", classe: "Bárbaro", icone: "🪓", hp_base: 65, ac: 14, descricao: "Fúria implacável e grande vitalidade.", especial: "Fúria Bárbara" },
-        { nome: "Kuro", classe: "Ladino", icone: "🗡️", hp_base: 40, ac: 15, descricao: "Ágil nas armadilhas e movimentação.", especial: "Truques Ágeis" },
-        { nome: "Darwin", classe: "Druida", icone: "🌿", hp_base: 48, ac: 14, descricao: "Especialista em escavação e terreno.", especial: "Raízes Primais" }
-      ];
+      console.warn("Usando catálogo de heróis offline:", err);
     }
   }
 
   // ── Conexão WebSocket ──────────────────────────────────────────────────────
   function handleJoinSubmit() {
+    playAudio("click");
     const pName = inputPlayerName.value.trim() || "Aventureiro";
     let rCode = inputRoomCode.value.trim().toUpperCase();
 
     if (!rCode) {
-      // Gera código aleatório de 6 caracteres se vazio
       rCode = "SALA" + Math.floor(10 + Math.random() * 90);
     }
 
@@ -161,7 +221,7 @@
         const msg = JSON.parse(event.data);
         handleServerMessage(msg);
       } catch (err) {
-        console.error("Erro ao decodificar mensagem do servidor:", err);
+        console.error("Erro ao decodificar JSON:", err);
       }
     };
 
@@ -169,7 +229,6 @@
       updateConnectionStatus("offline", "Desconectado");
       setTimeout(() => {
         if (modalEntry.style.display === "none") {
-          console.log("Tentando reconectar...");
           connectWebSocket();
         }
       }, 3000);
@@ -189,30 +248,70 @@
   function sendSocketMessage(type, payload = {}) {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type, payload }));
-    } else {
-      console.warn("Socket não está aberto para enviar:", type);
     }
   }
 
-  // ── Despachante de Mensagens do Servidor ────────────────────────────────────
+  // ── Despacho de Mensagens ──────────────────────────────────────────────────
   function handleServerMessage(msg) {
     const { type, payload } = msg;
 
     if (type === "STATE_UPDATE") {
+      checkDamageEvents(payload);
       gameState = payload;
       updateUI();
     } else if (type === "ACTION_REJECTED") {
-      alert(`⚠️ Ação rejeitada: ${payload.motivo || "Comando inválido."}`);
+      playAudio("miss");
+      alert(`⚠️ Comando recusado: ${payload.motivo || "Ação inválida."}`);
     } else if (type === "ERROR") {
-      alert(`🚨 Erro do servidor: ${payload.mensagem || "Falha desconhecida."}`);
+      alert(`🚨 Erro: ${payload.mensagem || "Erro no servidor."}`);
     }
   }
 
-  // ── Atualização Geral da Interface ─────────────────────────────────────────
+  // Detecta alterações de HP para criar textos flutuantes e sons
+  function checkDamageEvents(newState) {
+    if (!gameState) return;
+
+    (newState.enemies || []).forEach((ini) => {
+      const oldHp = lastEnemyHp[ini.id];
+      if (oldHp !== undefined && ini.hp_atual < oldHp) {
+        const diff = oldHp - ini.hp_atual;
+        playAudio("hit");
+        floatingTexts.push({
+          text: `-${diff}`,
+          x: ini.pos_x,
+          y: ini.pos_y,
+          color: "#ef4444",
+          alpha: 1.0,
+          vy: -0.02,
+          timer: 60,
+        });
+      }
+      lastEnemyHp[ini.id] = ini.hp_atual;
+    });
+
+    (newState.heroes || []).forEach((h) => {
+      const oldHp = lastHeroHp[h.player_id];
+      if (oldHp !== undefined && h.hp_atual < oldHp) {
+        const diff = oldHp - h.hp_atual;
+        playAudio("damage");
+        floatingTexts.push({
+          text: `-${diff}`,
+          x: h.pos_x,
+          y: h.pos_y,
+          color: "#f87171",
+          alpha: 1.0,
+          vy: -0.02,
+          timer: 60,
+        });
+      }
+      lastHeroHp[h.player_id] = h.hp_atual;
+    });
+  }
+
+  // ── Atualização da UI ──────────────────────────────────────────────────────
   function updateUI() {
     if (!gameState) return;
 
-    // Header Status
     displayRoomCode.textContent = gameState.room_id || roomId;
     displayPhase.textContent = formatPhaseName(gameState.fase);
     displayRound.textContent = `R${gameState.round || 1}`;
@@ -223,15 +322,13 @@
       resCristal.textContent = gameState.recursos.cristal || 0;
     }
 
-    // Sinergia Banner
     if (gameState.sinergia_ativa) {
       synergyBanner.style.display = "block";
-      synergyText.textContent = gameState.sinergia_ativa.mensagem || "SINCRONIA ATIVA!";
+      synergyText.textContent = gameState.sinergia_ativa.mensagem || "SINCRONIA DE EQUIPE ATIVA!";
     } else {
       synergyBanner.style.display = "none";
     }
 
-    // Alterna Visão: Lobby vs Combate
     if (gameState.fase === "LOBBY") {
       lobbyView.style.display = "block";
       combatView.style.display = "none";
@@ -256,7 +353,6 @@
 
   // ── Renderização do Lobby ──────────────────────────────────────────────────
   function renderLobby() {
-    // Renderiza Cards de Heróis
     heroesGrid.innerHTML = "";
     const takenHeroes = {};
     let mySelectedHero = null;
@@ -274,11 +370,12 @@
       const card = document.createElement("div");
       const isTaken = !!takenHeroes[hero.nome];
       const isMine = mySelectedHero === hero.nome;
+      const spriteUrl = hero.sprite_url || ASSET_HERO_MAP[hero.nome] || "/assets/images/characters/heroes/Aquele.png";
 
       card.className = "hero-card" + (isMine ? " selected-by-me" : isTaken ? " taken" : "");
       card.innerHTML = `
         <div class="hero-card-header">
-          <div class="hero-icon">${hero.icone || "🛡️"}</div>
+          <img src="${spriteUrl}" alt="${hero.nome}" class="hero-portrait" />
           <div>
             <div class="hero-name">${hero.nome}</div>
             <div class="hero-class">${hero.classe}</div>
@@ -298,6 +395,7 @@
       if (!isTaken || isMine) {
         const btn = card.querySelector(".btn-select-hero");
         btn.addEventListener("click", () => {
+          playAudio("click");
           sendSocketMessage("SELECT_HERO", { hero_name: hero.nome });
         });
       }
@@ -305,7 +403,6 @@
       heroesGrid.appendChild(card);
     });
 
-    // Renderiza Lista de Jogadores
     rosterList.innerHTML = "";
     let allReady = (gameState.heroes || []).length > 0;
 
@@ -315,9 +412,11 @@
       const hasHero = !!p.hero_name;
       if (!hasHero) allReady = false;
 
+      const pSprite = hasHero ? (ASSET_HERO_MAP[p.hero_name] || "/assets/images/characters/heroes/Aquele.png") : "";
+
       row.innerHTML = `
         <div class="roster-user">
-          <span class="user-avatar">${hasHero ? "🛡️" : "⏳"}</span>
+          ${hasHero ? `<img src="${pSprite}" class="hero-portrait" style="width: 36px; height: 36px;" />` : `<span class="user-avatar">⏳</span>`}
           <div>
             <div style="font-weight: 700; font-size: 14px;">${p.player_name} ${p.player_id === playerId ? "(Você)" : ""}</div>
             <div style="font-size: 12px; color: var(--gold);">${p.hero_name ? `Herói: ${p.hero_name}` : "Escolhendo herói..."}</div>
@@ -335,7 +434,6 @@
 
   // ── Renderização do Combate ────────────────────────────────────────────────
   function renderCombat() {
-    // Acha meus dados
     const myHero = (gameState.heroes || []).find((h) => h.player_id === playerId);
     if (myHero) {
       apMov.textContent = myHero.pontos_movimento || 0;
@@ -343,26 +441,24 @@
       apEsc.textContent = myHero.pontos_escavacao || 0;
     }
 
-    // Botão de encerrar ações só é útil na fase ACAO_LIVRE
     btnEndTurn.style.display = gameState.fase === "ACAO_LIVRE" ? "inline-block" : "none";
 
     renderCardsHand(myHero);
     renderTeamRoster();
     renderCombatLog();
-    renderBoard();
   }
 
-  // ── Mão de Cartas & Seleção ────────────────────────────────────────────────
+  // ── Mão de Cartas ──────────────────────────────────────────────────────────
   function renderCardsHand(myHero) {
     cardsHand.innerHTML = "";
     if (!myHero) return;
 
     if (gameState.fase === "SELECAO_CARTAS") {
       handTip.textContent = myHero.card_locked
-        ? "🔒 Carta travada! Aguardando os demais heróis escolherem..."
+        ? "🔒 Carta travada! Aguardando a equipe para sincronizar os bônus..."
         : "🃏 Turno de Sincronia: Escolha 1 carta para travar a sinergia.";
     } else {
-      handTip.textContent = "⚔️ Fase de Ação Livre: Mova, ataque ou escave rochas no tabuleiro.";
+      handTip.textContent = "⚔️ Fase de Ação Livre: Mova, ataque inimigos ou escave rochas no tabuleiro.";
     }
 
     (myHero.hand || []).forEach((carta, idx) => {
@@ -381,7 +477,7 @@
           ${trab > 0 ? `<span class="badge-chip badge-trab">🔨 +${trab}</span>` : ""}
           ${esc > 0 ? `<span class="badge-chip badge-esc">⛏️ +${esc}</span>` : ""}
         </div>
-        <div class="card-desc">${carta.descricao || "Ação tática de cerco."}</div>
+        <div class="card-desc">${carta.descricao || "Manobra de combate."}</div>
         ${gameState.fase === "SELECAO_CARTAS" && !isLocked ? `
           <button class="btn-lock-card">TRAVAR CARTA</button>
         ` : ""}
@@ -391,6 +487,7 @@
         const btn = cardEl.querySelector(".btn-lock-card");
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
+          playAudio("click");
           sendSocketMessage("SELECT_CARD", { card_idx: idx });
         });
       }
@@ -399,7 +496,7 @@
     });
   }
 
-  // ── Roster de Aliados na Batalha ───────────────────────────────────────────
+  // ── Roster de Aliados no Combate ───────────────────────────────────────────
   function renderTeamRoster() {
     combatTeamRoster.innerHTML = "";
     (gameState.heroes || []).forEach((h) => {
@@ -409,10 +506,14 @@
 
       const hpPercent = Math.max(0, Math.min(100, Math.round((h.hp_atual / h.hp_max) * 100)));
       const isLow = hpPercent < 30;
+      const spriteUrl = ASSET_HERO_MAP[h.hero_name] || "/assets/images/characters/heroes/Aquele.png";
 
       card.innerHTML = `
         <div class="ally-header">
-          <span><b>${h.player_name}</b> (${h.hero_name || "Herói"})</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <img src="${spriteUrl}" class="hero-portrait" style="width: 30px; height: 30px;" />
+            <span><b>${h.player_name}</b> (${h.hero_name || "Herói"})</span>
+          </div>
           <span style="font-size: 11px;">${h.hp_atual}/${h.hp_max} HP</span>
         </div>
         <div class="hp-bar-bg">
@@ -428,7 +529,6 @@
     });
   }
 
-  // ── Log de Combate e Chat ──────────────────────────────────────────────────
   function renderCombatLog() {
     combatLog.innerHTML = "";
     (gameState.combat_log || []).forEach((item) => {
@@ -452,154 +552,208 @@
   function copyInviteLink() {
     const url = `${window.location.origin}/coop/?room=${roomId}`;
     navigator.clipboard.writeText(url).then(() => {
-      alert("📋 Link de convite copiado para a área de transferência!");
+      alert("📋 Link copiado com sucesso!");
     }).catch(() => {
       prompt("Copie o link de convite:", url);
     });
   }
 
-  // ── Renderizador do Tabuleiro Canvas 20x20 ─────────────────────────────────
+  // ── RenderLoop Contínuo (Canvas 20x20 & Animações 60fps) ───────────────────
+  function renderLoop() {
+    animTimer += 0.05;
+    renderBoard();
+    updateFloatingTexts();
+    requestAnimationFrame(renderLoop);
+  }
+
+  function updateFloatingTexts() {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+      const ft = floatingTexts[i];
+      ft.y += ft.vy;
+      ft.timer -= 1;
+      ft.alpha = Math.max(0, ft.timer / 60);
+      if (ft.timer <= 0) {
+        floatingTexts.splice(i, 1);
+      }
+    }
+  }
+
+  // ── Renderizador do Tabuleiro (Texturas e Sprites Oficiais) ─────────────────
   function renderBoard() {
-    if (!ctx || !gameState) return;
+    if (!ctx || !gameState || gameState.fase === "LOBBY") return;
 
     const width = boardCanvas.width;
     const height = boardCanvas.height;
     const tileSize = width / GRID_SIZE;
 
-    // Fundo limpo
     ctx.clearRect(0, 0, width, height);
 
     const terrainGrid = gameState.grid_terreno || [];
+    const myHero = (gameState.heroes || []).find((h) => h.player_id === playerId);
 
-    // Desenha terrenos
+    // 1. Desenha as texturas do terreno
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const px = x * tileSize;
         const py = y * tileSize;
         const t = terrainGrid[y] ? terrainGrid[y][x] : TERRENO_NORMAL;
 
-        // Cor de base do terreno
-        if (t === TERRENO_PAREDE) {
-          ctx.fillStyle = "#334155";
-        } else if (t === TERRENO_ROCHA) {
-          ctx.fillStyle = "#475569";
-        } else if (t === TERRENO_FLORESTA) {
-          ctx.fillStyle = "#064e3b";
-        } else if (t === TERRENO_BARRIL) {
-          ctx.fillStyle = "#78350f";
-        } else {
-          // Normal: padrão xadrez suave
-          ctx.fillStyle = (x + y) % 2 === 0 ? "#0f172a" : "#131c31";
-        }
-        ctx.fillRect(px, py, tileSize, tileSize);
+        const textureUrl = ASSET_TERRENO_MAP[t] || ASSET_TERRENO_MAP[TERRENO_NORMAL];
+        const textureImg = getImage(textureUrl);
 
-        // Grade suave
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        if (textureImg && textureImg.complete && textureImg.naturalWidth > 0) {
+          ctx.drawImage(textureImg, px, py, tileSize, tileSize);
+        } else {
+          // Fallback de cor
+          ctx.fillStyle = (x + y) % 2 === 0 ? "#0f172a" : "#131c31";
+          ctx.fillRect(px, py, tileSize, tileSize);
+        }
+
+        // Borda sutil de célula tática
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
         ctx.lineWidth = 1;
         ctx.strokeRect(px, py, tileSize, tileSize);
+      }
+    }
 
-        // Símbolos de terreno especial
-        if (t === TERRENO_PAREDE) {
-          drawEmoji(px + tileSize / 2, py + tileSize / 2, "🧱", 16);
-        } else if (t === TERRENO_ROCHA) {
-          drawEmoji(px + tileSize / 2, py + tileSize / 2, "🪨", 16);
-        } else if (t === TERRENO_FLORESTA) {
-          drawEmoji(px + tileSize / 2, py + tileSize / 2, "🌲", 16);
-        } else if (t === TERRENO_BARRIL) {
-          drawEmoji(px + tileSize / 2, py + tileSize / 2, "🛢️", 16);
+    // 2. Indicadores de Alcance de Movimento (se for meu turno na AÇÃO LIVRE)
+    if (myHero && gameState.fase === "ACAO_LIVRE" && myHero.pontos_movimento > 0) {
+      const movRange = myHero.pontos_movimento;
+      const pulseAlpha = 0.15 + 0.1 * Math.sin(animTimer * 2);
+
+      for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+          const dist = Math.abs(x - myHero.pos_x) + Math.abs(y - myHero.pos_y);
+          if (dist > 0 && dist <= movRange) {
+            const t = terrainGrid[y] ? terrainGrid[y][x] : TERRENO_NORMAL;
+            if (t !== TERRENO_PAREDE) {
+              ctx.fillStyle = `rgba(56, 189, 248, ${pulseAlpha})`;
+              ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+          }
         }
       }
     }
 
-    // Realce de Hover
+    // 3. Realce de Hover com Pulso
     if (hoveredTile.x >= 0 && hoveredTile.y >= 0) {
-      ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
-      ctx.fillRect(hoveredTile.x * tileSize, hoveredTile.y * tileSize, tileSize, tileSize);
-      ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+      const hx = hoveredTile.x * tileSize;
+      const hy = hoveredTile.y * tileSize;
+      const pulse = 0.5 + 0.5 * Math.sin(animTimer * 3);
+
+      ctx.strokeStyle = `rgba(245, 158, 11, ${0.4 + 0.6 * pulse})`;
       ctx.lineWidth = 2;
-      ctx.strokeRect(hoveredTile.x * tileSize, hoveredTile.y * tileSize, tileSize, tileSize);
+      ctx.strokeRect(hx + 1, hy + 1, tileSize - 2, tileSize - 2);
     }
 
-    // Desenha Inimigos
+    // 4. Desenha Invasores Isectum (Sprites Reais)
     (gameState.enemies || []).forEach((ini) => {
+      if (ini.hp_atual <= 0) return;
       const ix = ini.pos_x * tileSize;
       const iy = ini.pos_y * tileSize;
 
-      // Aura vermelha
-      ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
-      ctx.beginPath();
-      ctx.arc(ix + tileSize / 2, iy + tileSize / 2, tileSize * 0.45, 0, Math.PI * 2);
-      ctx.fill();
+      // Sombra e base vermelha de ameaça
+      drawUnitBase(ix + tileSize / 2, iy + tileSize * 0.85, tileSize * 0.38, "rgba(239, 68, 68, 0.6)");
 
-      // Emoji do inseto
-      let emoji = "🐛";
-      if (ini.tipo && ini.tipo.includes("Guerreiro")) emoji = "🐝";
-      if (ini.tipo && ini.tipo.includes("Explorador")) emoji = "🦗";
-      if (ini.tipo && ini.tipo.includes("Trabalhador")) emoji = "🐜";
+      // Sprite oficial do inseto
+      const enemySpriteUrl = ini.sprite_url || ASSET_ENEMY_MAP[ini.tipo] || ASSET_ENEMY_MAP.default;
+      const enemyImg = getImage(enemySpriteUrl);
 
-      drawEmoji(ix + tileSize / 2, iy + tileSize / 2, emoji, 20);
+      if (enemyImg && enemyImg.complete && enemyImg.naturalWidth > 0) {
+        ctx.drawImage(enemyImg, ix + 4, iy + 2, tileSize - 8, tileSize - 8);
+      } else {
+        ctx.font = "20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🐛", ix + tileSize / 2, iy + tileSize / 2);
+      }
 
-      // Mini barra de vida do inimigo
-      drawMiniHpBar(ix, iy + tileSize - 5, tileSize, ini.hp_atual, ini.hp_max, "#ef4444");
+      // Barra de Vida e Nome da Casta
+      drawUnitHpBar(ix, iy + tileSize - 4, tileSize, ini.hp_atual, ini.hp_max, "#ef4444");
+      drawUnitName(ini.tipo || ini.nome, ix + tileSize / 2, iy - 2, "#fca5a5");
     });
 
-    // Desenha Heróis da Equipe
+    // 5. Desenha Heróis da Equipe (Sprites Oficiais)
     (gameState.heroes || []).forEach((h) => {
       if (h.hp_atual <= 0) return;
       const hx = h.pos_x * tileSize;
       const hy = h.pos_y * tileSize;
       const isMe = h.player_id === playerId;
 
-      // Círculo base do herói
-      ctx.fillStyle = isMe ? "rgba(245, 158, 11, 0.3)" : "rgba(56, 189, 248, 0.25)";
-      ctx.beginPath();
-      ctx.arc(hx + tileSize / 2, hy + tileSize / 2, tileSize * 0.45, 0, Math.PI * 2);
-      ctx.fill();
+      // Base com anel dourado (is_me) ou ciano (aliados)
+      const ringColor = isMe ? "rgba(245, 158, 11, 0.9)" : "rgba(56, 189, 248, 0.7)";
+      drawUnitBase(hx + tileSize / 2, hy + tileSize * 0.85, tileSize * 0.4, ringColor);
 
-      // Borda do herói
-      ctx.strokeStyle = isMe ? "#f59e0b" : "#38bdf8";
-      ctx.lineWidth = isMe ? 3 : 1.5;
-      ctx.stroke();
+      // Sprite oficial do herói
+      const heroSpriteUrl = h.sprite_url || ASSET_HERO_MAP[h.hero_name] || "/assets/images/characters/heroes/Aquele.png";
+      const heroImg = getImage(heroSpriteUrl);
 
-      // Ícone do Herói
-      let icon = "🛡️";
-      if (h.hero_name === "Aquele") icon = "🌑";
-      if (h.hero_name === "Elden") icon = "✨";
-      if (h.hero_name === "Doom") icon = "💀";
-      if (h.hero_name === "Gruu") icon = "🪓";
-      if (h.hero_name === "Kuro") icon = "🗡️";
-      if (h.hero_name === "Darwin") icon = "🌿";
+      if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
+        ctx.drawImage(heroImg, hx + 3, hy + 2, tileSize - 6, tileSize - 6);
+      } else {
+        ctx.font = "20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🛡️", hx + tileSize / 2, hy + tileSize / 2);
+      }
 
-      drawEmoji(hx + tileSize / 2, hy + tileSize / 2 - 2, icon, 18);
+      // Barra de Vida e Nome do Jogador/Herói
+      drawUnitHpBar(hx, hy + tileSize - 4, tileSize, h.hp_atual, h.hp_max, isMe ? "#10b981" : "#38bdf8");
+      drawUnitName(h.hero_name || h.player_name, hx + tileSize / 2, hy - 2, isMe ? "#fef08a" : "#e2e8f0");
+    });
 
-      // Mini barra de vida do herói
-      drawMiniHpBar(hx, hy + tileSize - 5, tileSize, h.hp_atual, h.hp_max, "#10b981");
-
-      // Nome do herói flutuante
-      ctx.font = "bold 9px Inter, sans-serif";
-      ctx.fillStyle = "#ffffff";
+    // 6. Textos de Combate Flutuantes (Dano, Cura, Crítico)
+    floatingTexts.forEach((ft) => {
+      ctx.save();
+      ctx.globalAlpha = ft.alpha;
+      ctx.font = "bold 15px 'Cinzel', serif";
+      ctx.fillStyle = ft.color;
+      ctx.shadowColor = "#000000";
+      ctx.shadowBlur = 4;
       ctx.textAlign = "center";
-      ctx.fillText(h.hero_name || h.player_name, hx + tileSize / 2, hy - 3);
+      ctx.fillText(ft.text, ft.x * tileSize + tileSize / 2, ft.y * tileSize + tileSize * 0.3);
+      ctx.restore();
     });
   }
 
-  function drawEmoji(cx, cy, emoji, size = 18) {
-    ctx.font = `${size}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(emoji, cx, cy);
+  function drawUnitBase(cx, cy, radius, strokeColor) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, radius, radius * 0.45, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.fill();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
   }
 
-  function drawMiniHpBar(x, y, width, current, max, color) {
+  function drawUnitHpBar(x, y, width, current, max, color) {
     const barW = width - 4;
-    const barH = 3;
+    const barH = 4;
     const pct = Math.max(0, Math.min(1, current / max));
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    // Borda preta dupla estilo retro
+    ctx.fillStyle = "#020617";
     ctx.fillRect(x + 2, y, barW, barH);
 
+    // Preenchimento de vida
     ctx.fillStyle = color;
     ctx.fillRect(x + 2, y, barW * pct, barH);
+
+    // Contorno
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.lineWidth = 0.7;
+    ctx.strokeRect(x + 2, y, barW, barH);
+  }
+
+  function drawUnitName(name, cx, cy, color) {
+    ctx.save();
+    ctx.font = "bold 9px 'Inter', sans-serif";
+    ctx.fillStyle = color;
+    ctx.shadowColor = "#000000";
+    ctx.shadowBlur = 3;
+    ctx.textAlign = "center";
+    ctx.fillText(name, cx, cy);
+    ctx.restore();
   }
 
   // ── Interação com o Tabuleiro ──────────────────────────────────────────────
@@ -620,13 +774,10 @@
     } else {
       hoveredTile = { x: -1, y: -1 };
     }
-    renderBoard();
   }
 
   function onCanvasClick(e) {
-    if (!gameState || gameState.fase !== "ACAO_LIVRE") {
-      return;
-    }
+    if (!gameState || gameState.fase !== "ACAO_LIVRE") return;
 
     const myHero = (gameState.heroes || []).find((h) => h.player_id === playerId);
     if (!myHero || myHero.hp_atual <= 0) return;
@@ -635,14 +786,16 @@
     const ty = hoveredTile.y;
     if (tx < 0 || ty < 0) return;
 
-    // Checa se clicou em um Invasor inimigo -> ATAQUE!
+    // Alvo inimigo -> ATAQUE!
     const enemyAtTile = (gameState.enemies || []).find((ini) => ini.pos_x === tx && ini.pos_y === ty);
     if (enemyAtTile) {
+      playAudio("attack");
       sendSocketMessage("ATTACK_TARGET", { target_x: tx, target_y: ty });
       return;
     }
 
-    // Caso contrário, tenta mover para a célula desimpedida -> MOVIMENTO!
+    // Célula vazia -> MOVIMENTO!
+    playAudio("click");
     sendSocketMessage("MOVE_HERO", { dest_x: tx, dest_y: ty });
   }
 
@@ -653,7 +806,8 @@
     const ty = hoveredTile.y;
     if (tx < 0 || ty < 0) return;
 
-    // Ação de escavação/mineração
+    // Ação de mineração/escavação
+    playAudio("click");
     sendSocketMessage("WORK_ACTION", { target_x: tx, target_y: ty });
   }
 

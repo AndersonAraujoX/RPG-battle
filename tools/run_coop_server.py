@@ -7,7 +7,15 @@ Acesse a interface em: http://localhost:8000/ ou http://localhost:8000/coop/
 """
 import argparse
 import sys
+from pathlib import Path
+
+# Adiciona o diretório raiz do projeto ao sys.path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import uvicorn
+from src.server.app import app
 
 
 def main():
@@ -28,8 +36,9 @@ def main():
     print(" Pressione Ctrl+C para encerrar o servidor.")
     print("=" * 70)
 
+    target = "src.server.app:app" if args.reload else app
     uvicorn.run(
-        "src.server.app:app",
+        target,
         host=args.host,
         port=args.port,
         reload=args.reload,
