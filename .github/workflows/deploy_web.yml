@@ -1,0 +1,59 @@
+name: Deploy RPG-battle to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - versao-estavel
+  workflow_dispatch:
+
+# Permissões necessárias para publicar no GitHub Pages via GitHub Actions
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Garante um único deploy por vez sem concorrência
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Pygbag e Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install pygbag pygame
+
+      - name: Compilar para WebAssembly (Pygbag)
+        run: |
+          # Compila o projeto empacotando assets e gerando build/web
+          python3 -m pygbag --build .
+          ls -la build/web
+
+      - name: Upload do Artefato do GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -21,8 +21,8 @@ class TestFluidityAndUXSuite(unittest.TestCase):
     def test_snap_magnetico_trava_no_inimigo_mais_proximo(self):
         # Arrange
         tab = Tabuleiro(largura=10, altura=10)
-        inimigo = Mago("Gorgulho", pos_x=5, pos_y=5, hp_atual=20)
-        inimigo.time = "B"
+        inimigo = Mago("Gorgulho", "B")
+        inimigo.hp_atual = 20
         tab.adicionar_personagem(inimigo, 5, 5)
 
         # Act (Mouse apontado para 4, 4 - dentro do raio de 2 células)

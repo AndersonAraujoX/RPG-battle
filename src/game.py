@@ -1,6 +1,7 @@
 import pygame
 import sys
 import math
+import asyncio
 from collections import deque
 from src.config import *
 from src.perks import PERKS
@@ -265,6 +266,9 @@ class Game:
             self.estado_jogo = ESTADO_JOGO_MENU_PRINCIPAL
 
     def run(self):
+        asyncio.run(self.run_async())
+
+    async def run_async(self):
         while self.rodando:
             mouse_pos = pygame.mouse.get_pos()
             tick = pygame.time.get_ticks()
@@ -280,6 +284,7 @@ class Game:
             self.draw_elements(tick, mouse_pos, personagem_ativo)
 
             pygame.display.flip()
+            await asyncio.sleep(0)
             self.clock.tick(60)
 
         pygame.quit()

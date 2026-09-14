@@ -77,10 +77,33 @@ Enfrente chefes únicos com mecânicas próprias:
    pip install pygame
    ```
 
-3. **Inicie a batalha:**
+3. **Inicie a batalha localmente (Desktop):**
    ```bash
    python main.py
    ```
+
+4. **Rodar no Navegador (WebAssembly local):**
+   ```bash
+   pip install pygbag
+   pygbag .
+   ```
+   Acesse `http://localhost:8000` no seu navegador!
+
+---
+
+## 🌐 Jogar Online no GitHub Pages
+
+O projeto conta com **CI/CD automatizado** via GitHub Actions para compilar o jogo em WebAssembly e publicá-lo gratuitamente no GitHub Pages a cada push na branch `main`:
+
+### Como ativar no seu repositório:
+1. No seu GitHub, vá em **Settings** > **Pages**.
+2. Em **Build and deployment** > **Source**, selecione **GitHub Actions**.
+3. Faça um push para a branch `main`:
+   ```bash
+   git push origin main
+   ```
+4. O GitHub Actions executará o workflow `.github/workflows/deploy_web.yml` e o jogo estará acessível em:
+   `https://<seu-usuario>.github.io/RPG-battle/`
 
 ---
 

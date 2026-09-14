@@ -13,7 +13,7 @@ class TestCoverAndDestructibleTerrain(unittest.TestCase):
         # Arrange
         tab = Tabuleiro(largura=10, altura=10)
         tab.terrain_grid[4][5] = TERRENO_FLORESTA  # Floresta adjacente em (5, 4)
-        heroi = Guerreiro("Stark", pos_x=4, pos_y=4)
+        heroi = Guerreiro("Stark", "A")
         tab.adicionar_personagem(heroi, 4, 4)
 
         # Act
@@ -26,7 +26,7 @@ class TestCoverAndDestructibleTerrain(unittest.TestCase):
         # Arrange
         tab = Tabuleiro(largura=10, altura=10)
         tab.terrain_grid[4][5] = TERRENO_ROCHA  # Rocha pesada em (5, 4)
-        heroi = Guerreiro("Stark", pos_x=4, pos_y=4)
+        heroi = Guerreiro("Stark", "A")
         tab.adicionar_personagem(heroi, 4, 4)
 
         # Act
