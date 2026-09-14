@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPG-Battle : Cerco Co-op Online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header Superior -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-crest">🛡️</div>
+        <div>
+          <h1 class="brand-title">RPG-BATTLE</h1>
+          <span class="brand-sub">CERCO CO-OP ONLINE</span>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="status-badge" id="connBadge">
+          <span class="pulse-dot offline" id="connDot"></span>
+          <span id="connText">Desconectado</span>
+        </div>
+
+        <div class="room-pill" id="roomPill">
+          <span class="label">SALA:</span>
+          <span class="code" id="displayRoomCode">------</span>
+          <button class="btn-copy" id="btnCopyInvite" title="Copiar Link de Convite">📋</button>
+        </div>
+
+        <div class="phase-pill">
+          <span class="phase-name" id="displayPhase">LOBBY</span>
+          <span class="round-badge" id="displayRound">R1</span>
+        </div>
+
+        <div class="resources-bar" id="resourcesBar">
+          <div class="res-item" title="Madeira"><span class="res-icon">🪵</span> <span id="resMadeira">0</span></div>
+          <div class="res-item" title="Metal"><span class="res-icon">🛡️</span> <span id="resMetal">0</span></div>
+          <div class="res-item" title="Cristal"><span class="res-icon">💎</span> <span id="resCristal">0</span></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Banner de Sinergia de Equipe -->
+    <div class="synergy-banner" id="synergyBanner" style="display: none;">
+      <div class="synergy-glow"></div>
+      <div class="synergy-content">
+        <span class="synergy-icon">⚡</span>
+        <span class="synergy-text" id="synergyText">SINCRONIA DE EQUIPE ATIVADA!</span>
+      </div>
+    </div>
+
+    <!-- Main Views Container -->
+    <main class="main-content">
+      <!-- 1. TELA DE LOBBY / HERO SELECT -->
+      <section class="view-panel" id="lobbyView">
+        <div class="lobby-grid">
+          <!-- Painel Esquerdo: Seleção de Heróis -->
+          <div class="hero-select-panel card-panel">
+            <div class="panel-header">
+              <h2>⚔️ Escolha seu Campeão</h2>
+              <p class="subtitle">Cada aventureiro deve comandar um herói único para combater o enxame.</p>
+            </div>
+            <div class="heroes-grid" id="heroesGrid">
+              <!-- Cards de Heróis populados via JS -->
+            </div>
+          </div>
+
+          <!-- Painel Direito: Lista de Jogadores na Sala & Iniciar -->
+          <div class="room-lobby-panel card-panel">
+            <div class="panel-header">
+              <h2>🏰 Sala de Guerra</h2>
+              <p class="subtitle">Aguardando a congregação da equipe tática (máx 4).</p>
+            </div>
+
+            <div class="roster-list" id="rosterList">
+              <!-- Lista de jogadores e seus heróis -->
+            </div>
+
+            <div class="lobby-actions">
+              <button class="btn-primary btn-gold" id="btnStartGame" disabled>
+                🚀 INICIAR CERCO ISECTUM
+              </button>
+            </div>
+
+            <div class="invite-info">
+              <p>Envie o código da sala ou compartilhe este link com seus companheiros para jogarem juntos em tempo real.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. TELA DE COMBATE TÁTICO & CO-OP -->
+      <section class="view-panel" id="combatView" style="display: none;">
+        <div class="combat-layout">
+          <!-- Coluna Esquerda: Tabuleiro Tático Canvas -->
+          <div class="board-column">
+            <!-- Barra de Ação e Pontos -->
+            <div class="turn-action-bar card-panel">
+              <div class="action-points-display">
+                <span class="ap-item mov"><span class="icon">🏃</span> Movimento: <b id="apMov">0</b></span>
+                <span class="ap-item trab"><span class="icon">🔨</span> Trabalho: <b id="apTrab">0</b></span>
+                <span class="ap-item esc"><span class="icon">⛏️</span> Escavação: <b id="apEsc">0</b></span>
+              </div>
+              <div class="action-buttons">
+                <button class="btn-action btn-emerald" id="btnEndTurn">
+                  ⏩ Finalizar Ações Livres
+                </button>
+              </div>
+            </div>
+
+            <!-- Canvas do Tabuleiro -->
+            <div class="canvas-container card-panel">
+              <canvas id="boardCanvas" width="700" height="700"></canvas>
+              <div class="canvas-legend">
+                <span>🖱️ <b>Clique esquerdo</b>: Mover ou Atacar</span>
+                <span>⛏️ <b>Clique duplo</b>: Minerar Rocha Adjacente</span>
+              </div>
+            </div>
+
+            <!-- Mão de Cartas & Seleção de Sincronia -->
+            <div class="cards-deck-panel card-panel">
+              <div class="deck-header">
+                <h3>🃏 Suas Cartas Táticas</h3>
+                <span class="phase-tip" id="handTip">Fase de Seleção de Cartas: Escolha 1 carta para travar a sinergia.</span>
+              </div>
+              <div class="cards-hand" id="cardsHand">
+                <!-- Cartas geradas dinamicamente -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna Direita: Status da Equipe & Log de Combate -->
+          <div class="sidebar-column">
+            <!-- Painel de Aliados -->
+            <div class="team-panel card-panel">
+              <div class="panel-header">
+                <h3>👥 Companheiros de Equipe</h3>
+              </div>
+              <div class="team-roster" id="combatTeamRoster">
+                <!-- Status de cada aliado -->
+              </div>
+            </div>
+
+            <!-- Log de Combate em Tempo Real -->
+            <div class="log-panel card-panel">
+              <div class="panel-header">
+                <h3>📜 Crônicas do Cerco</h3>
+              </div>
+              <div class="log-messages" id="combatLog">
+                <!-- Mensagens do servidor -->
+              </div>
+              <div class="chat-input-bar">
+                <input type="text" id="chatInput" placeholder="Mensagem para a equipe..." maxlength="120" />
+                <button class="btn-chat" id="btnSendChat">Enviar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal Inicial: Entrar / Criar Sala -->
+    <div class="modal-backdrop" id="modalEntry">
+      <div class="modal-card">
+        <div class="modal-crest">🏰</div>
+        <h2 class="modal-title">RPG-BATTLE CO-OP</h2>
+        <p class="modal-subtitle">Junte-se à resistência contra as castas Isectum</p>
+
+        <div class="form-group">
+          <label for="inputPlayerName">Seu Nome de Aventureiro:</label>
+          <input type="text" id="inputPlayerName" placeholder="Ex: Sir Lancelot" maxlength="16" value="Herói" />
+        </div>
+
+        <div class="form-group">
+          <label for="inputRoomCode">Código da Sala (deixe vazio para criar nova):</label>
+          <input type="text" id="inputRoomCode" placeholder="Ex: ABC123" maxlength="6" style="text-transform: uppercase;" />
+        </div>
+
+        <div class="modal-buttons">
+          <button class="btn-primary btn-gold" id="btnJoinRoom">
+            ⚔️ ENTRAR NO CERCO
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
