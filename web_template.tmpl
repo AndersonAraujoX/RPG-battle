@@ -83,6 +83,13 @@ async def custom_site():
     def ui_callback(pkg):
         platform.window.status.innerText = f"Instalando {pkg}..."
 
+    # Garante instalação e vinculação completa do pacote pygame-ce no WebAssembly
+    try:
+        import aio.pep0723
+        await aio.pep0723.pip_install("pygame")
+    except Exception as ex:
+        print(f"Preload pygame: {ex}")
+
     await shell.source(main, callback=ui_callback)
 
     # Game started: hide overlay and display canvas cleanly

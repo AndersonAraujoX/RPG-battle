@@ -1,5 +1,14 @@
+# /// script
+# dependencies = [
+#   "pygame-ce",
+# ]
+# ///
+
 import os
 import shutil
+import sys
+import asyncio
+import pygame
 
 # Diretório de artefatos e assets do jogo
 ARTIFACTS_DIR = "/home/anderson/.gemini/antigravity-ide/brain/f161e1e2-4ae6-445e-a53d-082d3d4f7f60"
@@ -58,8 +67,6 @@ for dest_name, fallback_name in FALLBACKS.items():
         except Exception as ex:
             print(f"[Assets Manager] Erro ao criar fallback {dest_name}: {ex}")
 
-import sys
-import asyncio
 from src.game import Game
 
 async def main():

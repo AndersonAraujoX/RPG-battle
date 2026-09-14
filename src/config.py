@@ -2,6 +2,53 @@ import pygame
 import json
 import os
 
+try:
+    import pygame.rect
+    if not hasattr(pygame, "Rect") and hasattr(pygame.rect, "Rect"):
+        pygame.Rect = pygame.rect.Rect
+except Exception:
+    pass
+
+def _safe_rect(x, y, w, h):
+    """Retorna pygame.Rect ou um fallback estrutural idêntico se pygame ainda não estiver completamente inicializado."""
+    if hasattr(pygame, "Rect"):
+        return pygame.Rect(x, y, w, h)
+    try:
+        from pygame.rect import Rect
+        return Rect(x, y, w, h)
+    except Exception:
+        pass
+    class _Rect:
+        def __init__(self, _x, _y, _w, _h):
+            self.x = int(_x)
+            self.y = int(_y)
+            self.w = int(_w)
+            self.h = int(_h)
+            self.width = int(_w)
+            self.height = int(_h)
+            self.left = int(_x)
+            self.top = int(_y)
+            self.right = int(_x + _w)
+            self.bottom = int(_y + _h)
+            self.centerx = int(_x + _w // 2)
+            self.centery = int(_y + _h // 2)
+            self.center = (self.centerx, self.centery)
+            self.size = (int(_w), int(_h))
+            self.topleft = (int(_x), int(_y))
+            self.topright = (int(_x + _w), int(_y))
+            self.bottomleft = (int(_x), int(_y + _h))
+            self.bottomright = (int(_x + _w), int(_y + _h))
+        def collidepoint(self, *args):
+            if len(args) == 1:
+                px, py = args[0]
+            else:
+                px, py = args[0], args[1]
+            return self.left <= px <= self.right and self.top <= py <= self.bottom
+        def colliderect(self, other):
+            return not (self.right < other.left or self.left > other.right or
+                        self.bottom < other.top or self.top > other.bottom)
+    return _Rect(x, y, w, h)
+
 # --- Carregar Configurações Persistentes ---
 SETTINGS_FILE = "settings.json"
 LARGURA_PADRAO = 1024
@@ -50,12 +97,11 @@ def atualizar_resolucao(largura, altura):
     ALTURA_TELA = altura + ALTURA_BARRA_INICIATIVA
     LARGURA_LOG = LARGURA_TELA - LARGURA_TABULEIRO
     LARGURA_DIREITA = LARGURA_TELA - LARGURA_ESQUERDA
-    if hasattr(pygame, 'Rect'):
-        RECT_BARRA_ACOES = pygame.Rect(0, 600, LARGURA_ESQUERDA, ALTURA_TELA - 600)
-        RECT_PAINEL_INFO = pygame.Rect(X_DIREITA, 0, LARGURA_DIREITA, 120)
-        RECT_LOG = pygame.Rect(X_DIREITA, 120, LARGURA_DIREITA, 300)
-        RECT_INVENTARIO = pygame.Rect(X_DIREITA, 420, LARGURA_DIREITA, 150)
-        RECT_TUTORIAL = pygame.Rect(X_DIREITA, 570, LARGURA_DIREITA, ALTURA_TELA - 570)
+    RECT_BARRA_ACOES = _safe_rect(0, 600, LARGURA_ESQUERDA, ALTURA_TELA - 600)
+    RECT_PAINEL_INFO = _safe_rect(X_DIREITA, 0, LARGURA_DIREITA, 120)
+    RECT_LOG = _safe_rect(X_DIREITA, 120, LARGURA_DIREITA, 300)
+    RECT_INVENTARIO = _safe_rect(X_DIREITA, 420, LARGURA_DIREITA, 150)
+    RECT_TUTORIAL = _safe_rect(X_DIREITA, 570, LARGURA_DIREITA, ALTURA_TELA - 570)
 
 # --- Cores ---
 COR_FUNDO = (20, 20, 20)
@@ -250,8 +296,8 @@ PROPRIEDADES_STATUS_EFEITO = {
 # A proporção do tabuleiro deve ser mantida ou o tabuleiro deve centralizar?
 # Por simplicidade, mantemos o tabuleiro fixo 600x600 e ajustamos o resto.
 LARGURA_ESQUERDA = 600
-RECT_TABULEIRO = pygame.Rect(0, 0, LARGURA_ESQUERDA, 600)
-RECT_BARRA_ACOES = pygame.Rect(0, 600, LARGURA_ESQUERDA, ALTURA_TELA - 600)
+RECT_TABULEIRO = _safe_rect(0, 0, LARGURA_ESQUERDA, 600)
+RECT_BARRA_ACOES = _safe_rect(0, 600, LARGURA_ESQUERDA, ALTURA_TELA - 600)
 
 # Direita (Ocupa o restante da largura)
 X_DIREITA = LARGURA_ESQUERDA
@@ -263,10 +309,10 @@ LARGURA_DIREITA = LARGURA_TELA - LARGURA_ESQUERDA
 # Log: 300
 # Inventario: 150
 # Tutorial: Restante
-RECT_PAINEL_INFO = pygame.Rect(X_DIREITA, 0, LARGURA_DIREITA, 120)
-RECT_LOG = pygame.Rect(X_DIREITA, 120, LARGURA_DIREITA, 300)
-RECT_INVENTARIO = pygame.Rect(X_DIREITA, 420, LARGURA_DIREITA, 150)
-RECT_TUTORIAL = pygame.Rect(X_DIREITA, 570, LARGURA_DIREITA, ALTURA_TELA - 570)
+RECT_PAINEL_INFO = _safe_rect(X_DIREITA, 0, LARGURA_DIREITA, 120)
+RECT_LOG = _safe_rect(X_DIREITA, 120, LARGURA_DIREITA, 300)
+RECT_INVENTARIO = _safe_rect(X_DIREITA, 420, LARGURA_DIREITA, 150)
+RECT_TUTORIAL = _safe_rect(X_DIREITA, 570, LARGURA_DIREITA, ALTURA_TELA - 570)
 
 # Cores Retro
 COR_BORDA_DOURADA = (184, 134, 11)   # DarkGoldenrod

@@ -127,6 +127,36 @@ class TestAsyncLoop(unittest.TestCase):
         self.assertIn('window.MM.UME = true', content, "unlockMediaAndStart deve destravar window.MM.UME")
         self.assertIn('Cache-Control', content, "Headers de prevenção de cache devem estar presentes")
 
+    def test_main_script_has_pep723_and_pygame_import(self):
+        # Arrange
+        main_path = "main.py"
+
+        # Act
+        with open(main_path, "r", encoding="utf-8") as f:
+            code = f.read()
+
+        # Assert
+        self.assertIn("/// script", code, "main.py deve conter cabeçalho PEP 723 para Pygbag")
+        self.assertIn("pygame-ce", code, "main.py deve declarar dependência pygame-ce no PEP 723")
+        self.assertIn("import pygame", code, "main.py deve conter import pygame no escopo raiz")
+
+    def test_safe_rect_functionality_and_fallback(self):
+        # Arrange
+        from src.config import _safe_rect
+
+        # Act - Criação com valores válidos
+        rect = _safe_rect(10, 20, 100, 50)
+
+        # Assert - Dimensões e posicionamento
+        self.assertEqual(rect.x, 10)
+        self.assertEqual(rect.y, 20)
+        self.assertEqual(rect.width, 100)
+        self.assertEqual(rect.height, 50)
+        self.assertEqual(rect.right, 110)
+        self.assertEqual(rect.bottom, 70)
+        self.assertTrue(rect.collidepoint((50, 30)))
+        self.assertFalse(rect.collidepoint((200, 300)))
+
 
 if __name__ == "__main__":
     unittest.main()
