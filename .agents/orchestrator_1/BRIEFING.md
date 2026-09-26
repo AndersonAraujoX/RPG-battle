@@ -1,4 +1,4 @@
-# BRIEFING — 2026-09-26T12:50:20Z
+# BRIEFING — 2026-09-26T13:03:30Z
 
 ## Mission
 Orchestrate the complete, robust migration of RPG-battle to Godot Engine 4 (statically typed GDScript) in godot_project, maintaining 100% parity with tactical combat rules, 20x20 grid/AStar2D, Cerco contra Isectum, Duelo de Castas, assets, WebSocket client, and passing 100% headless GUT tests.
@@ -29,8 +29,8 @@ Orchestrate the complete, robust migration of RPG-battle to Godot Engine 4 (stat
   5. UI/UX (HUD Dark Fantasy, CanvasLayer, Combat Log, Floating Text) & Audio [pending]
   6. Multiplayer WebSocket Co-op Client [pending]
   7. Final Milestone: 100% GUT Test Suite Pass & Adversarial Hardening [pending]
-- **Current phase**: 2B.b (Milestone 1 Worker)
-- **Current focus**: Milestone 1 Implementation
+- **Current phase**: 2B.c-e (Milestone 1 Review, Challenge & Audit)
+- **Current focus**: Milestone 1 Verification Gate
 
 ## 🔒 Key Constraints
 - DISPATCH-ONLY orchestrator: NEVER write source code directly, NEVER run build/test commands directly.
@@ -48,9 +48,8 @@ Orchestrate the complete, robust migration of RPG-battle to Godot Engine 4 (stat
 - Updated: not yet
 
 ## Key Decisions Made
-- Survey Phase completed and verified.
-- Milestone 1 Explorers completed.
-- Milestone 1 Worker dispatched with full specifications and integrity warning.
+- Milestone 1 Worker completed implementation with 44/44 tests and 97/97 assertions passing.
+- Dispatched 2 Reviewers, 2 Challengers, and 1 Forensic Auditor.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -61,12 +60,17 @@ Orchestrate the complete, robust migration of RPG-battle to Godot Engine 4 (stat
 | m1_explorer_project | teamwork_preview_explorer | M1 Project Setup Explorer | completed | 47ac0e34-429e-49c9-9146-e1427b5eaeaa |
 | m1_explorer_autoloads | teamwork_preview_explorer | M1 Autoloads Architecture Explorer | completed | 83d276e6-d5f7-4656-a693-fbf932aa9ec0 |
 | m1_spec_miner_gut | teamwork_preview_spec_miner | M1 GUT Runner Spec Miner | completed | 9f0314cd-803c-4d0b-a98f-036bda6826eb |
-| m1_worker_core | teamwork_preview_worker | M1 Core Implementation Worker | in-progress | 583cfb46-28a7-41cb-bb68-24e9b922616b |
+| m1_worker_core | teamwork_preview_worker | M1 Core Implementation Worker | completed | 583cfb46-28a7-41cb-bb68-24e9b922616b |
+| m1_reviewer_architecture | teamwork_preview_reviewer | M1 Architecture Review | in-progress | f6502201-b295-4c19-bd3f-64ba958ab415 |
+| m1_reviewer_tests | teamwork_preview_reviewer | M1 Tests Review | in-progress | 6a0d2674-19c5-4774-a817-b4d54c95096b |
+| m1_challenger_fsm_signals | teamwork_preview_challenger | M1 FSM & Signals Challenge | in-progress | 6b9da375-eac9-495c-9712-085828aff0df |
+| m1_challenger_data_audio | teamwork_preview_challenger | M1 Data & Audio Challenge | in-progress | 49718470-8ae6-4f0a-b85d-a9a129666dd1 |
+| m1_auditor_integrity | teamwork_preview_auditor | M1 Integrity Audit | in-progress | 9c30a11c-01d4-476b-87a0-4dc84fbcc335 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 7 / 16
-- Pending subagents: 583cfb46-28a7-41cb-bb68-24e9b922616b
+- Spawn count: 12 / 16
+- Pending subagents: f6502201-b295-4c19-bd3f-64ba958ab415, 6a0d2674-19c5-4774-a817-b4d54c95096b, 6b9da375-eac9-495c-9712-085828aff0df, 49718470-8ae6-4f0a-b85d-a9a129666dd1, 9c30a11c-01d4-476b-87a0-4dc84fbcc335
 - Predecessor: none
 - Successor: not yet spawned
 
@@ -78,6 +82,5 @@ Orchestrate the complete, robust migration of RPG-battle to Godot Engine 4 (stat
 - /home/anderson/Documents/projeto/RPG-battle/TEST_INFRA.md — E2E Testing Framework & Thresholds
 - /home/anderson/Documents/projeto/RPG-battle/.agents/orchestrator_1/GATE_STATUS.md — Gate tracker
 - /home/anderson/Documents/projeto/RPG-battle/.agents/orchestrator_1/progress.md — Liveness & status
-- /home/anderson/Documents/projeto/RPG-battle/.agents/m1_explorer_project/analysis.md — Project setup analysis
-- /home/anderson/Documents/projeto/RPG-battle/.agents/m1_explorer_autoloads/analysis.md — Autoloads analysis
-- /home/anderson/Documents/projeto/RPG-battle/.agents/m1_spec_miner_gut/analysis.md — GUT runner analysis
+- /home/anderson/Documents/projeto/RPG-battle/.agents/m1_worker_core/report.md — Worker report
+- /home/anderson/Documents/projeto/RPG-battle/.agents/m1_worker_core/handoff.md — Worker handoff
