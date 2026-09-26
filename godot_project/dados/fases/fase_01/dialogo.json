@@ -1,0 +1,16 @@
+{
+    "inicio": [
+        {
+            "nome": "Sienna",
+            "texto": "Você não pode me derrotar!",
+            "retrato": "sienna"
+        }
+    ],
+    "fim": [
+        {
+            "nome": "Sienna",
+            "texto": "Impossível...",
+            "retrato": "sienna"
+        }
+    ]
+}

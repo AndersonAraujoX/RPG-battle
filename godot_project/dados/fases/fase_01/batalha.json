@@ -1,0 +1,29 @@
+{
+    "inimigos": [
+        {
+            "tipo": "Sienna",
+            "qtd": 1,
+            "pos": [
+                [
+                    15,
+                    10
+                ]
+            ]
+        }
+    ],
+    "itens": [],
+    "mapa": "mapa_torre.json",
+    "mensagem_inicio": "Sienna aguarda no topo da torre.",
+    "dialogo_inicio": [
+        {
+            "nome": "Sienna",
+            "texto": "Então você chegou.",
+            "retrato": "sienna"
+        },
+        {
+            "nome": "Novak",
+            "texto": "Acabou, Sienna.",
+            "retrato": "novak"
+        }
+    ]
+}

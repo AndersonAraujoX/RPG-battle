@@ -1,0 +1,55 @@
+{
+    "inimigos": [
+        {
+            "tipo": "Goblin",
+            "qtd": 1,
+            "pos": [
+                [
+                    17,
+                    5
+                ]
+            ]
+        },
+        {
+            "tipo": "Goblin",
+            "qtd": 1,
+            "pos": [
+                [
+                    15,
+                    11
+                ]
+            ]
+        },
+        {
+            "tipo": "Goblin",
+            "qtd": 1,
+            "pos": [
+                [
+                    16,
+                    11
+                ]
+            ]
+        },
+        {
+            "tipo": "Goblin",
+            "qtd": 1,
+            "pos": [
+                [
+                    14,
+                    10
+                ]
+            ]
+        },
+        {
+            "tipo": "Goblin",
+            "qtd": 1,
+            "pos": [
+                [
+                    15,
+                    7
+                ]
+            ]
+        }
+    ],
+    "itens": []
+}

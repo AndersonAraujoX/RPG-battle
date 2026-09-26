@@ -1,0 +1,16 @@
+{
+    "inicio": [
+        {
+            "nome": "Narrador",
+            "texto": "Fase 6 inicia.",
+            "retrato": null
+        }
+    ],
+    "fim": [
+        {
+            "nome": "Narrador",
+            "texto": "Vitória na Fase 6!",
+            "retrato": null
+        }
+    ]
+}

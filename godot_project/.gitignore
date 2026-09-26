@@ -1,0 +1,11 @@
+# Godot 4 generated cache and imported assets
+.godot/
+*.translation
+
+# Local binaries or temporary dumps
+bin/godot*
+*.tmp
+*.log
+
+# User data
+user/
