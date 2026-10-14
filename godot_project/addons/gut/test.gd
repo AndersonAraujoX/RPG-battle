@@ -68,7 +68,7 @@ func _internal_after_each() -> void:
 		if is_instance_valid(node):
 			if node.get_parent() != null:
 				node.get_parent().remove_child(node)
-			node.queue_free()
+			node.free()
 	_autofree_nodes.clear()
 
 	# Disconnect any remaining signal receivers
@@ -283,6 +283,21 @@ func assert_has(collection, element, text: String = "") -> void:
 		_pass_assertion()
 	else:
 		_fail_assertion("Expected collection to contain [%s]" % str(element), text)
+
+func assert_does_not_have(collection, element, text: String = "") -> void:
+	var has_item: bool = false
+	if collection is Array or collection is PackedStringArray or collection is PackedInt32Array:
+		has_item = collection.has(element)
+	elif collection is Dictionary:
+		has_item = collection.has(element)
+	elif collection is String:
+		has_item = collection.contains(str(element))
+
+	if not has_item:
+		_pass_assertion()
+	else:
+		_fail_assertion("Expected collection to NOT contain [%s]" % str(element), text)
+
 
 func pass_test(text: String = "") -> void:
 	_pass_assertion()

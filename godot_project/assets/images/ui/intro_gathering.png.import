@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cupayx8onpkth"
-valid=false
+uid="uid://b7vwa6dvinokg"
+path="res://.godot/imported/intro_gathering.png-3f2999f496e4f18412ca89dae43abbb9.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/ui/intro_gathering.png"
+dest_files=["res://.godot/imported/intro_gathering.png-3f2999f496e4f18412ca89dae43abbb9.ctex"]
 
 [params]
 

@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cyjvaj5h4s37c"
-valid=false
+uid="uid://ca2qa4nvfuy4d"
+path="res://.godot/imported/terreno_muralha_lo.png-61759bb9da409905b513e5973c4ebf11.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_muralha_lo.png"
+dest_files=["res://.godot/imported/terreno_muralha_lo.png-61759bb9da409905b513e5973c4ebf11.ctex"]
 
 [params]
 

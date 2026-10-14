@@ -14,6 +14,11 @@ const CANONICAL_CLASS_IDS: Array[String] = [
 	"Clerigo", "Paladino", "Druida", "Bruxo"
 ]
 
+const KNOWN_ENEMY_IDS: Array[String] = [
+	"ReiGoblin", "LordeLich", "DragaoAnciao", "Goblin",
+	"Esqueleto", "Kobold", "Sienna", "SiennaPhoenix"
+]
+
 const DEFAULT_PERSONAGENS_PATH: String = "res://dados/personagens.json"
 
 var _characters_cache: Dictionary = {} # Dictionary[String, CharacterData]
@@ -93,7 +98,8 @@ func _parse_single_character(char_id: String, d: Dictionary) -> CharacterData:
 	var c: CharacterData = CharacterData.new()
 	c.id = char_id
 	c.name = d.get("nome", char_id)
-	c.team = d.get("time", "A" if (CANONICAL_HERO_IDS.has(char_id) or CANONICAL_CLASS_IDS.has(char_id)) else "B")
+	var default_team: String = "B" if KNOWN_ENEMY_IDS.has(char_id) else "A"
+	c.team = d.get("time", default_team)
 
 	var stats: Dictionary = d.get("stats", {})
 	c.forca = int(stats.get("forca", 10))
@@ -148,7 +154,15 @@ func get_hero_duplicate(hero_id: String) -> CharacterData:
 func get_all_heroes() -> Array[CharacterData]:
 	var result: Array[CharacterData] = []
 	for c in _characters_cache.values():
-		result.append(c)
+		if c.team == "A":
+			result.append(c)
+	return result
+
+func get_all_enemies() -> Array[CharacterData]:
+	var result: Array[CharacterData] = []
+	for c in _characters_cache.values():
+		if c.team == "B":
+			result.append(c)
 	return result
 
 func has_character(char_id: String) -> bool:

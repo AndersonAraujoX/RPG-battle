@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bow27uxjo0jyj"
-valid=false
+uid="uid://ckx1ariyhqvtp"
+path="res://.godot/imported/terreno_campo.png-de85f19c1375876093be9281de14b7bb.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_campo.png"
+dest_files=["res://.godot/imported/terreno_campo.png-de85f19c1375876093be9281de14b7bb.ctex"]
 
 [params]
 

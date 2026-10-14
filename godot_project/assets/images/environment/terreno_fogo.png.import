@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c4q3pps3kvj0h"
-valid=false
+uid="uid://8pesgkxar0ii"
+path="res://.godot/imported/terreno_fogo.png-1f10b56dd9431e7a0994aa2442413779.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_fogo.png"
+dest_files=["res://.godot/imported/terreno_fogo.png-1f10b56dd9431e7a0994aa2442413779.ctex"]
 
 [params]
 

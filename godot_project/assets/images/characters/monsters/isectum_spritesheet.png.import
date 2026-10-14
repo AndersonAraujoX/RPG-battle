@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://o5eytcp0ecye"
-valid=false
+uid="uid://dxvp0jd172ius"
+path="res://.godot/imported/isectum_spritesheet.png-c83eb495594df14b3d114e5992c81e47.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/characters/monsters/isectum_spritesheet.png"
+dest_files=["res://.godot/imported/isectum_spritesheet.png-c83eb495594df14b3d114e5992c81e47.ctex"]
 
 [params]
 

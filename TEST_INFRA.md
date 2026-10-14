@@ -53,20 +53,20 @@
 
 ---
 
-## Real-World Application Scenarios (Tier 4)
+## Real-World Application Scenarios (Tier 4 - Cerco Fortress Defense)
 | # | Scenario | Features Exercised | Complexity |
 |---|----------|--------------------|------------|
-| 1 | Full Tactical Skirmish (Novak & Koema vs Invasor Swarm) | F4, F5, F7, F8, F9, F10, F11, F12, F13, F14 | High |
-| 2 | Death Save Dramatic Comeback (Natural 20 Revive under Fire) | F8, F9, F10, F23, F24 | Medium |
-| 3 | Cerco Round 1-3 Simultaneous Sync & Fortress Excavation | F16, F17, F18, F19, F20, F21, F22 | High |
-| 4 | Boss Caste Encounter (Libélula Blindada / Enxame Rainha Inverted) | F8, F15, F21, F23, F25 | High |
+| 1 | Fortress Defense against Swarm (Lysander on Tower vs Zangões) | F4, F15, F16, F21, F22, F23, F25 | High |
+| 2 | Tower Ranged Balestra Barrage & Elevation Advantage | F4, F21, F23, F24, F25 | Medium |
+| 3 | Co-op Cerco Synchrony (4 Players, Supreme Synergy Combo) | F16, F17, F18, F19, F20, F21, F27, F28 | Very High |
+| 4 | Boss Caste Encounter (Libélula Blindada / Enxame Rainha Inverted) | F15, F21, F23, F25 | High |
 | 5 | Co-op 2-Player WebSocket Session (Room Join -> Sync Card -> Move -> End) | F1, F2, F18, F26, F27, F28 | Very High |
 
 ---
 
 ## Coverage Thresholds
-- **Tier 1 (Feature Coverage)**: $\ge 5$ test cases per feature ($28 \times 5 = 140$ tests).
-- **Tier 2 (Boundary & Corner Cases)**: $\ge 5$ test cases per feature ($28 \times 5 = 140$ tests).
-- **Tier 3 (Cross-Feature Pairwise)**: $\ge 28$ interaction test cases.
+- **Tier 1 (Feature Coverage)**: $\ge 5$ test cases per Cerco feature.
+- **Tier 2 (Boundary & Corner Cases)**: $\ge 5$ test cases per feature (bounds, limits, breaches).
+- **Tier 3 (Cross-Feature Pairwise)**: interaction test cases between FortressBoard, CercoCombatJudge, Castes, and Deck.
 - **Tier 4 (Real-World Scenarios)**: $\ge 5$ end-to-end integration scenarios.
-- **Total Minimum Target**: $\ge 313$ assertions / test cases passing with exit code 0.
+- **Total Minimum Target**: 100% passing tests with exit code 0 and zero memory leaks.

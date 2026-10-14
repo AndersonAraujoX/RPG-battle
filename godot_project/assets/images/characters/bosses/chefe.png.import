@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://4ui8n6qka8so"
-valid=false
+uid="uid://bl1p2t8ads3ul"
+path="res://.godot/imported/chefe.png-6d99ec4924ac653a20c3499a40396142.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/characters/bosses/chefe.png"
+dest_files=["res://.godot/imported/chefe.png-6d99ec4924ac653a20c3499a40396142.ctex"]
 
 [params]
 

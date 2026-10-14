@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bpihk222de88k"
-valid=false
+uid="uid://cl8trsjrg3sw7"
+path="res://.godot/imported/terreno_barril.png-f36f213287a6079d51ca63e0be385cd6.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_barril.png"
+dest_files=["res://.godot/imported/terreno_barril.png-f36f213287a6079d51ca63e0be385cd6.ctex"]
 
 [params]
 

@@ -110,7 +110,31 @@ func _run_tests() -> void:
 
 	var exit_code: int = 0 if (_total_failed_assertions == 0 and _total_tests_failed == 0) else 1
 
+	# Teardown autoload singletons from root to prevent leaked instances and active playback at exit
+	if root != null:
+		if root.has_node("AudioManager"):
+			var am = root.get_node("AudioManager")
+			if am.has_method("cleanup"):
+				am.cleanup()
+			elif am.has_method("stop_all_sfx"):
+				am.stop_all_sfx()
+
+		# Wait frames before calling remove_child and node.free() on autoloads
+		# This allows AudioServer to process and destroy playback instances while the node hierarchy remains valid.
+		for _f in range(10):
+			await process_frame
+
+		var cf: ConfigFile = ConfigFile.new()
+		if cf.load("res://project.godot") == OK and cf.has_section("autoload"):
+			for key in cf.get_section_keys("autoload"):
+				if root.has_node(key):
+					var node = root.get_node(key)
+					root.remove_child(node)
+					node.free()
+
 	if _exit_on_finish:
+		for _f in range(5):
+			await process_frame
 		quit(exit_code)
 
 func _find_test_files(dir_path: String, results: Array[String]) -> void:
@@ -191,4 +215,4 @@ func _run_test_file(file_path: String) -> void:
 	_total_failed_assertions += test_instance._failed_count
 
 	root.remove_child(test_instance)
-	test_instance.queue_free()
+	test_instance.free()

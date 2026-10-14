@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bps6hqiqve6jx"
-valid=false
+uid="uid://cgvey67766a60"
+path="res://.godot/imported/intro_destruction.png-78e84a85ac23877f7cb4773d7c66399b.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/ui/intro_destruction.png"
+dest_files=["res://.godot/imported/intro_destruction.png-78e84a85ac23877f7cb4773d7c66399b.ctex"]
 
 [params]
 

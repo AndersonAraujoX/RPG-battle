@@ -25,10 +25,20 @@ func before_each():
 		_am = autofree(AudioManagerScript.new())
 
 func after_each():
+	if _am != null and _am.has_method("stop_all_sfx"):
+		_am.stop_all_sfx()
 	if _am != null and _am.has_method("stop_bgm"):
 		_am.stop_bgm(0.0)
 	if _dm != null and _dm.has_method("load_all_data"):
 		_dm.load_all_data() # restore canonical state
+
+func after_all():
+	if _am != null and _am.has_method("stop_all_sfx"):
+		_am.stop_all_sfx()
+	if _am != null and _am.has_method("stop_bgm"):
+		_am.stop_bgm(0.0)
+	_dm = null
+	_am = null
 
 # ==============================================================================
 # SECTION 1: DataManager Adversarial JSON & Schema Stress Tests
@@ -61,10 +71,15 @@ func test_dm_stress_malformed_syntax_json():
 		"NaN",
 		"{'single_quotes': true}"
 	]
-	# Act & Assert
+	var results: Array[bool] = []
+
+	# Act
 	for payload in malformed_payloads:
-		var result = custom_dm.parse_raw_json(payload)
-		assert_false(result, "Malformed JSON syntax must return false: %s" % payload)
+		results.append(custom_dm.parse_raw_json(payload))
+
+	# Assert
+	for i in range(results.size()):
+		assert_false(results[i], "Malformed JSON syntax must return false: %s" % malformed_payloads[i])
 
 func test_dm_stress_json_trailing_comma_behavior():
 	# Arrange: Godot's JSON parser accepts trailing commas in dictionaries
@@ -88,10 +103,15 @@ func test_dm_stress_root_scalar_types():
 	# Arrange
 	var custom_dm = autofree(DataManagerScript.new())
 	var scalars = ["123", "true", "\"just a string\"", "null"]
-	# Act & Assert
+	var results: Array[bool] = []
+
+	# Act
 	for s in scalars:
-		var result = custom_dm.parse_raw_json(s)
-		assert_false(result, "Root scalar '%s' must be rejected" % s)
+		results.append(custom_dm.parse_raw_json(s))
+
+	# Assert
+	for i in range(results.size()):
+		assert_false(results[i], "Root scalar '%s' must be rejected" % scalars[i])
 
 func test_dm_stress_parse_raw_json_retains_existing_cache():
 	# Arrange: Custom DataManager already loads 28 default characters in _ready()
@@ -293,10 +313,14 @@ func test_dm_isolation_get_all_heroes_returns_shared_references():
 
 func test_dm_isolation_isectum_and_cards_lack_duplicate_api():
 	# Arrange
-	var caste = _dm.get_isectum_caste("vespa_cacadora")
-	var card = _dm.get_card_data("trabalho_1")
+	var caste_id = "vespa_cacadora"
+	var card_id = "trabalho_1"
 
-	# Assert: IsectumCasteData and CardData do not implement duplicate_data()
+	# Act
+	var caste = _dm.get_isectum_caste(caste_id)
+	var card = _dm.get_card_data(card_id)
+
+	# Assert
 	assert_not_null(caste)
 	assert_not_null(card)
 	assert_false(caste.has_method("duplicate_data"), "IsectumCasteData lacks duplicate_data() method")
@@ -350,7 +374,6 @@ func test_am_stress_pool_exhaustion_100_concurrent_requests():
 
 func test_am_stress_pool_exhaustion_allocation_policy_bias():
 	# Arrange
-	# In AudioManager.gd line 190: "# Pool exhausted: borrow first player (oldest) \n return _sfx_pool[0]"
 	var pool = _am.get("_sfx_pool")
 	assert_not_null(pool)
 	assert_eq(pool.size(), 12, "SFX pool size is 12")
@@ -360,75 +383,110 @@ func test_am_stress_pool_exhaustion_allocation_policy_bias():
 	var p2 = _am.play_sfx("damage")
 	var p3 = _am.play_sfx("heal")
 
-	# Assert: In headless mode (dummy audio driver), p.playing remains false,
-	# so _get_available_sfx_player() repeatedly matches _sfx_pool[0]!
-	var all_same = (p1 == pool[0] and p2 == pool[0] and p3 == pool[0])
-	assert_true(all_same, "CRITICAL FINDING: In headless dummy driver, all play_sfx() calls collapse to _sfx_pool[0]")
+	# Assert: Round-robin allocation ensures successive calls cycle through distinct players
+	assert_ne(p1, p2, "Round-robin allocation ensures p1 and p2 use distinct players")
+	assert_ne(p2, p3, "Round-robin allocation ensures p2 and p3 use distinct players")
+	assert_ne(p1, p3, "Round-robin allocation ensures p1 and p3 use distinct players")
 
 # ==============================================================================
 # SECTION 4: AudioManager Volume Bounds & Extreme Values
 # ==============================================================================
 
 func test_am_stress_bus_volume_extreme_upper():
-	# Arrange & Act
-	_am.set_bus_volume("SFX", 100.0)
+	# Arrange
+	var high_vol = 100.0
+
+	# Act
+	_am.set_bus_volume("SFX", high_vol)
 	var vol = _am.get_bus_volume("SFX")
+
 	# Assert
 	assert_eq(vol, 1.0, "Bus volume above 1.0 must be clamped to 1.0")
 
 func test_am_stress_bus_volume_extreme_lower():
-	# Arrange & Act
-	_am.set_bus_volume("SFX", -50.0)
+	# Arrange
+	var low_vol = -50.0
+
+	# Act
+	_am.set_bus_volume("SFX", low_vol)
 	var vol = _am.get_bus_volume("SFX")
+
 	# Assert
 	assert_eq(vol, 0.0, "Bus volume below 0.0 must be clamped to 0.0")
 
 func test_am_stress_bus_volume_zero_db_conversion():
-	# Arrange & Act
-	_am.set_bus_volume("SFX", 0.0)
-	# Assert
+	# Arrange
+	var zero_vol = 0.0
+
+	# Act
+	_am.set_bus_volume("SFX", zero_vol)
 	var vol = _am.get_bus_volume("SFX")
-	assert_eq(vol, 0.0)
 	var idx = AudioServer.get_bus_index("SFX")
+	var db = AudioServer.get_bus_volume_db(idx) if idx != -1 else -80.0
+
+	# Assert
+	assert_eq(vol, 0.0)
 	if idx != -1:
-		var db = AudioServer.get_bus_volume_db(idx)
 		assert_lte(db, -79.0, "Volume 0.0 should map to <= -79 dB (near silent), preventing -inf crash")
 
 func test_am_stress_bus_volume_nonexistent_bus():
 	# Arrange
 	var fake_bus = "HyperDrive_Bus_99"
-	# Act & Assert
+
+	# Act
 	_am.set_bus_volume(fake_bus, 0.5)
 	var vol = _am.get_bus_volume(fake_bus)
+
+	# Assert
 	assert_eq(vol, 0.5, "Non-existent bus volume stored in cache safely")
 
 func test_am_stress_sfx_volume_scale_bounds():
-	# Arrange & Act: Assert immediately before subsequent call reuses node
-	var p_high = _am.play_sfx("attack", 50.0)
+	# Arrange
+	var high_scale = 50.0
+	var neg_scale = -10.0
+	var zero_scale = 0.0
+
+	# Act
+	var p_high = _am.play_sfx("attack", high_scale)
+	var p_high_vol = p_high.volume_db if p_high != null else -999.0
+
+	var p_neg = _am.play_sfx("attack", neg_scale)
+	var p_neg_vol = p_neg.volume_db if p_neg != null else -999.0
+
+	var p_zero = _am.play_sfx("attack", zero_scale)
+	var p_zero_vol = p_zero.volume_db if p_zero != null else -999.0
+
+	# Assert
 	assert_not_null(p_high)
-	assert_between(p_high.volume_db, -0.1, 0.1, "50.0 volume scale clamped to 1.0 (0 dB)")
-
-	var p_neg = _am.play_sfx("attack", -10.0)
+	assert_between(p_high_vol, -0.1, 0.1, "50.0 volume scale clamped to 1.0 (0 dB)")
 	assert_not_null(p_neg)
-	assert_lte(p_neg.volume_db, -79.0, "Negative volume scale clamped to 0.0001 (~ -80 dB)")
-
-	var p_zero = _am.play_sfx("attack", 0.0)
+	assert_lte(p_neg_vol, -79.0, "Negative volume scale clamped to 0.0001 (~ -80 dB)")
 	assert_not_null(p_zero)
-	assert_lte(p_zero.volume_db, -79.0, "Zero volume scale clamped to 0.0001 (~ -80 dB)")
+	assert_lte(p_zero_vol, -79.0, "Zero volume scale clamped to 0.0001 (~ -80 dB)")
 
 func test_am_stress_sfx_pitch_scale_bounds():
-	# Arrange & Act: Assert immediately before subsequent call reuses node
-	var p_high = _am.play_sfx("attack", 1.0, 99.0)
+	# Arrange
+	var high_pitch = 99.0
+	var low_pitch = -5.0
+	var zero_pitch = 0.0
+
+	# Act
+	var p_high = _am.play_sfx("attack", 1.0, high_pitch)
+	var p_high_val = p_high.pitch_scale if p_high != null else 0.0
+
+	var p_low = _am.play_sfx("attack", 1.0, low_pitch)
+	var p_low_val = p_low.pitch_scale if p_low != null else 0.0
+
+	var p_zero = _am.play_sfx("attack", 1.0, zero_pitch)
+	var p_zero_val = p_zero.pitch_scale if p_zero != null else 0.0
+
+	# Assert
 	assert_not_null(p_high)
-	assert_eq(p_high.pitch_scale, 2.0, "Pitch above 2.0 must be clamped to 2.0")
-
-	var p_low = _am.play_sfx("attack", 1.0, -5.0)
+	assert_eq(p_high_val, 2.0, "Pitch above 2.0 must be clamped to 2.0")
 	assert_not_null(p_low)
-	assert_eq(p_low.pitch_scale, 0.5, "Pitch below 0.5 must be clamped to 0.5")
-
-	var p_zero = _am.play_sfx("attack", 1.0, 0.0)
+	assert_eq(p_low_val, 0.5, "Pitch below 0.5 must be clamped to 0.5")
 	assert_not_null(p_zero)
-	assert_eq(p_zero.pitch_scale, 0.5, "Pitch 0.0 must be clamped to 0.5")
+	assert_eq(p_zero_val, 0.5, "Pitch 0.0 must be clamped to 0.5")
 
 # ==============================================================================
 # SECTION 5: Mute Toggle Cycles Stress Tests
@@ -470,30 +528,52 @@ func test_am_stress_concurrent_bus_mute_toggle():
 func test_am_stress_headless_bgm_rapid_track_swapping():
 	# Arrange
 	var tracks = ["menu", "battle1", "intro", "menu", "battle1"]
-	# Act: switch tracks immediately without waiting for crossfade
+	var recorded_bgms: Array[String] = []
+	var recorded_playing: Array[bool] = []
+
+	# Act
 	for t in tracks:
 		_am.play_bgm(t, 0.0)
-		assert_eq(_am.get_current_bgm(), t, "BGM track should update immediately")
-		assert_true(_am.is_bgm_playing(), "BGM should be active")
+		recorded_bgms.append(_am.get_current_bgm())
+		recorded_playing.append(_am.is_bgm_playing())
 
 	_am.stop_bgm(0.0)
-	assert_false(_am.is_bgm_playing(), "BGM should stop cleanly")
+	var stopped_playing = _am.is_bgm_playing()
+
+	# Assert
+	for i in range(tracks.size()):
+		assert_eq(recorded_bgms[i], tracks[i], "BGM track should update immediately to %s" % tracks[i])
+		assert_true(recorded_playing[i], "BGM should be active for %s" % tracks[i])
+	assert_false(stopped_playing, "BGM should stop cleanly")
 
 func test_am_stress_stop_bgm_when_already_stopped():
 	# Arrange
 	_am.stop_bgm(0.0)
-	assert_false(_am.is_bgm_playing())
-	# Act: repeat stop multiple times
+	var initial_playing = _am.is_bgm_playing()
+
+	# Act
 	_am.stop_bgm(0.0)
 	_am.stop_bgm(0.5)
-	# Assert: no crash or warning
-	assert_false(_am.is_bgm_playing(), "Repeated stop_bgm is safe no-op")
+	var after_repeat_playing = _am.is_bgm_playing()
+
+	# Assert
+	assert_false(initial_playing, "BGM initially stopped")
+	assert_false(after_repeat_playing, "Repeated stop_bgm is safe no-op")
 
 func test_am_stress_bgm_crossfade_duration_zero_and_negative():
-	# Arrange & Act
-	_am.play_bgm("menu", -1.0)
-	assert_true(_am.is_bgm_playing())
-	_am.play_bgm("battle1", 0.0)
-	assert_true(_am.is_bgm_playing())
+	# Arrange
+	var track1 = "menu"
+	var track2 = "battle1"
+
+	# Act
+	_am.play_bgm(track1, -1.0)
+	var playing_after_negative = _am.is_bgm_playing()
+	_am.play_bgm(track2, 0.0)
+	var playing_after_zero = _am.is_bgm_playing()
 	_am.stop_bgm(-0.5)
-	assert_false(_am.is_bgm_playing())
+	var playing_after_stop = _am.is_bgm_playing()
+
+	# Assert
+	assert_true(playing_after_negative, "BGM must be playing after negative crossfade")
+	assert_true(playing_after_zero, "BGM must be playing after zero crossfade")
+	assert_false(playing_after_stop, "BGM must stop cleanly with negative fade duration")

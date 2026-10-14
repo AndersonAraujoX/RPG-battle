@@ -1,0 +1,224 @@
+[gd_scene format=3 uid="uid://c6y06ebckfcl8"]
+
+[ext_resource type="Script" path="res://scripts/cerco/CercoSetup.gd" id="1_setup"]
+
+[node name="CercoSetup" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_setup")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0313726, 0.0392157, 0.0784314, 1)
+
+[node name="Header" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 68.0
+grow_horizontal = 2
+
+[node name="HeaderBg" type="ColorRect" parent="Header"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.047, 0.094, 0.88)
+
+[node name="BorderBottom" type="ColorRect" parent="Header"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -1.0
+grow_horizontal = 2
+grow_vertical = 0
+color = Color(0.18, 0.19, 0.31, 1)
+
+[node name="BtnBack" type="Button" parent="Header"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 16.0
+offset_right = 120.0
+offset_bottom = 52.0
+focus_mode = 0
+text = "< MENU"
+
+[node name="TitleBox" type="HBoxContainer" parent="Header"]
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = 14.0
+offset_right = 200.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="TitlePart1" type="Label" parent="Header/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.705882, 0.470588, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "CONFIGURAÇÃO DO"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TitlePart2" type="Label" parent="Header/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.764706, 0.156863, 1)
+theme_override_font_sizes/font_size = 28
+text = "CERCO"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 78.0
+offset_right = -32.0
+offset_bottom = -72.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="MainContent" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="HeroesSection" type="PanelContainer" parent="ScrollContainer/MainContent"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/MainContent/HeroesSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SectionTitle" type="Label" parent="ScrollContainer/MainContent/HeroesSection/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.705882, 0.470588, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "SELECIONE SEUS HERÓIS"
+
+[node name="HeroesGrid" type="GridContainer" parent="ScrollContainer/MainContent/HeroesSection/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 12
+columns = 4
+
+[node name="DiffSection" type="PanelContainer" parent="ScrollContainer/MainContent"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/MainContent/DiffSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SectionTitle" type="Label" parent="ScrollContainer/MainContent/DiffSection/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.705882, 0.470588, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "DIFICULDADE DO COMBATE"
+
+[node name="DiffBox" type="HBoxContainer" parent="ScrollContainer/MainContent/DiffSection/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ResSection" type="PanelContainer" parent="ScrollContainer/MainContent"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/MainContent/ResSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SectionTitle" type="Label" parent="ScrollContainer/MainContent/ResSection/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.705882, 0.470588, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "RESOLUÇÃO DA TELA"
+
+[node name="ResBox" type="HBoxContainer" parent="ScrollContainer/MainContent/ResSection/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Footer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -68.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="FooterBorder" type="ColorRect" parent="Footer"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 1.0
+grow_horizontal = 2
+color = Color(0.18, 0.19, 0.31, 0.6)
+
+[node name="ButtonsHBox" type="HBoxContainer" parent="Footer"]
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = 10.0
+offset_right = 260.0
+offset_bottom = -22.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="BtnStart" type="Button" parent="Footer/ButtonsHBox"]
+custom_minimum_size = Vector2(240, 42)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.9, 1, 0.9, 1)
+theme_override_font_sizes/font_size = 16
+text = "INICIAR CERCO (1 herói)"
+
+[node name="BtnCastes" type="Button" parent="Footer/ButtonsHBox"]
+custom_minimum_size = Vector2(210, 42)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.9, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "📖 Castas dos Isectum"
+
+[node name="HintLabel" type="Label" parent="Footer"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.43, 0.47, 0.61, 1)
+theme_override_font_sizes/font_size = 12
+text = "Clique nos heróis para selecionar/deselecionar | ESC para voltar ao Menu"
+horizontal_alignment = 1
+vertical_alignment = 1

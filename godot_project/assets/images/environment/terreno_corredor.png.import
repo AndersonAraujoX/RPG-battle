@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dd2j3ujggk0vq"
-valid=false
+uid="uid://1y63rqjr4kug"
+path="res://.godot/imported/terreno_corredor.png-d643facaec936add10221f9b47e3dbf0.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_corredor.png"
+dest_files=["res://.godot/imported/terreno_corredor.png-d643facaec936add10221f9b47e3dbf0.ctex"]
 
 [params]
 

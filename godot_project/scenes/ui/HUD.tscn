@@ -1,0 +1,388 @@
+[gd_scene load_steps=6 format=3 uid="uid://hudcerco1280"]
+
+[ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scripts/ui/ResourceScoreboard.gd" id="2_scoreboard"]
+[ext_resource type="Script" path="res://scripts/ui/FortressBoardView.gd" id="3_board"]
+[ext_resource type="Script" path="res://scripts/ui/CardFanContainer.gd" id="4_fan"]
+[ext_resource type="Script" path="res://scripts/ui/CercoMarketPanel.gd" id="5_market"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+scoreboard_path = NodePath("RootControl/ResourceScoreboard")
+board_view_path = NodePath("RootControl/MainArea/LeftArea/BoardContainer/FortressBoardView")
+card_fan_path = NodePath("RootControl/MainArea/LeftArea/BottomArea/CardsHBox/CardFanContainer")
+market_panel_path = NodePath("RootControl/MainArea/RightArea/CercoMarketPanel")
+
+[node name="RootControl" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="RootControl"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.035, 0.04, 0.08, 1)
+
+[node name="ResourceScoreboard" type="Control" parent="RootControl"]
+visible = false
+layout_mode = 1
+anchors_preset = 0
+offset_right = 100.0
+offset_bottom = 20.0
+script = ExtResource("2_scoreboard")
+
+[node name="TopBar" type="Control" parent="RootControl"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 54.0
+grow_horizontal = 2
+
+[node name="TopBarBg" type="ColorRect" parent="RootControl/TopBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.047, 0.094, 0.95)
+
+[node name="TopBarBorder" type="ColorRect" parent="RootControl/TopBar"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -1.0
+grow_horizontal = 2
+grow_vertical = 0
+color = Color(0.18, 0.19, 0.31, 0.8)
+
+[node name="TitleBox" type="HBoxContainer" parent="RootControl/TopBar"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 16.0
+offset_top = -14.0
+offset_right = 260.0
+offset_bottom = 14.0
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title1" type="Label" parent="RootControl/TopBar/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.705882, 0.470588, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "CERCO CONTRA"
+vertical_alignment = 1
+
+[node name="Title2" type="Label" parent="RootControl/TopBar/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.764706, 0.156863, 1)
+theme_override_font_sizes/font_size = 20
+text = "ISECTUM"
+vertical_alignment = 1
+
+[node name="ActiveHeroBox" type="PanelContainer" parent="RootControl/TopBar"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -240.0
+offset_top = -16.0
+offset_right = 240.0
+offset_bottom = 16.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HeroHBox" type="HBoxContainer" parent="RootControl/TopBar/ActiveHeroBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="HeroAvatarIcon" type="TextureRect" parent="RootControl/TopBar/ActiveHeroBox/HeroHBox"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="AvatarBadge" type="Label" parent="RootControl/TopBar/ActiveHeroBox/HeroHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "[ ? ]"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HeroStats" type="Label" parent="RootControl/TopBar/ActiveHeroBox/HeroHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 12
+text = "?????   48/48   [ATK] +3(1d10)   [DEF] 17"
+vertical_alignment = 1
+
+[node name="TopButtons" type="HBoxContainer" parent="RootControl/TopBar"]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -345.0
+offset_top = -15.0
+offset_right = -16.0
+offset_bottom = 15.0
+grow_horizontal = 0
+grow_vertical = 2
+alignment = 2
+theme_override_constants/separation = 10
+
+[node name="BtnAutoPlay" type="Button" parent="RootControl/TopBar/TopButtons"]
+custom_minimum_size = Vector2(105, 30)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
+theme_override_font_sizes/font_size = 12
+text = "AutoPlay [F5]"
+
+[node name="BtnOptions" type="Button" parent="RootControl/TopBar/TopButtons"]
+custom_minimum_size = Vector2(95, 30)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.9, 0.85, 0.5, 1)
+theme_override_font_sizes/font_size = 12
+text = "⚙ Som [O]"
+
+[node name="BtnMenu" type="Button" parent="RootControl/TopBar/TopButtons"]
+custom_minimum_size = Vector2(95, 30)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.9, 0.9, 0.95, 1)
+theme_override_font_sizes/font_size = 12
+text = "Menu [ESC]"
+
+[node name="SimultaneousBanner" type="PanelContainer" parent="RootControl"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -280.0
+offset_top = 58.0
+offset_right = 280.0
+offset_bottom = 104.0
+grow_horizontal = 2
+
+[node name="BannerVBox" type="VBoxContainer" parent="RootControl/SimultaneousBanner"]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="BannerTitle" type="Label" parent="RootControl/SimultaneousBanner/BannerVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "[REAÇÃO] PLANEJAMENTO SIMULTÂNEO CO-OP (14s)  |  Ordens: 0"
+horizontal_alignment = 1
+
+[node name="BannerSubtitle" type="Label" parent="RootControl/SimultaneousBanner/BannerVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "Agende suas cartas e movimentos  [Pressione ESPAÇO para Executar Tática]"
+horizontal_alignment = 1
+
+[node name="MainArea" type="HBoxContainer" parent="RootControl"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 56.0
+offset_right = -8.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="LeftArea" type="VBoxContainer" parent="RootControl/MainArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.4
+theme_override_constants/separation = 6
+
+[node name="BoardContainer" type="PanelContainer" parent="RootControl/MainArea/LeftArea"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 2.6
+
+[node name="FortressBoardView" type="Control" parent="RootControl/MainArea/LeftArea/BoardContainer"]
+layout_mode = 2
+script = ExtResource("3_board")
+
+[node name="BottomArea" type="VBoxContainer" parent="RootControl/MainArea/LeftArea"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 185)
+theme_override_constants/separation = 6
+
+[node name="ReservesAndQuoteHBox" type="HBoxContainer" parent="RootControl/MainArea/LeftArea/BottomArea"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="LblReserves" type="Label" parent="RootControl/MainArea/LeftArea/BottomArea/ReservesAndQuoteHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.8, 1)
+theme_override_font_sizes/font_size = 11
+text = "TORRE: RESERVA     CATAPULTA: RESERVA"
+
+[node name="LblQuote" type="Label" parent="RootControl/MainArea/LeftArea/BottomArea/ReservesAndQuoteHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.65, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "Pela barba de Durin! O cerco começa!"
+
+[node name="HireHBox" type="HBoxContainer" parent="RootControl/MainArea/LeftArea/BottomArea"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BtnHireMelee" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/HireHBox"]
+custom_minimum_size = Vector2(150, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "Guarda Melee (5[Cristal])"
+
+[node name="BtnHireArcher" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/HireHBox"]
+custom_minimum_size = Vector2(150, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "Arqueiro (7[Cristal])"
+
+[node name="BtnHireMiner" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/HireHBox"]
+custom_minimum_size = Vector2(160, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "Minerador (4[Cristal])"
+
+[node name="CardsHBox" type="HBoxContainer" parent="RootControl/MainArea/LeftArea/BottomArea"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 140)
+theme_override_constants/separation = 12
+
+[node name="DeckIniBox" type="PanelContainer" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox"]
+custom_minimum_size = Vector2(80, 130)
+layout_mode = 2
+
+[node name="DeckIniVBox" type="VBoxContainer" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox/DeckIniBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="DeckIniTitle" type="Label" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox/DeckIniBox/DeckIniVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.25, 0.25, 1)
+theme_override_font_sizes/font_size = 11
+text = "DECK INI"
+horizontal_alignment = 1
+
+[node name="DeckIniCount" type="Label" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox/DeckIniBox/DeckIniVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "24"
+horizontal_alignment = 1
+
+[node name="CardFanContainer" type="Control" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("4_fan")
+
+[node name="BaralhoBox" type="PanelContainer" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox"]
+custom_minimum_size = Vector2(80, 130)
+layout_mode = 2
+
+[node name="BaralhoVBox" type="VBoxContainer" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox/BaralhoBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="BaralhoTitle" type="Label" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox/BaralhoBox/BaralhoVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.75, 0.25, 1)
+theme_override_font_sizes/font_size = 11
+text = "BARALHO"
+horizontal_alignment = 1
+
+[node name="BaralhoCount" type="Label" parent="RootControl/MainArea/LeftArea/BottomArea/CardsHBox/BaralhoBox/BaralhoVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "7"
+horizontal_alignment = 1
+
+[node name="ActionButtonsHBox" type="HBoxContainer" parent="RootControl/MainArea/LeftArea/BottomArea"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BtnMove" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/ActionButtonsHBox"]
+custom_minimum_size = Vector2(85, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_size/font_size = 11
+text = "Mover [M]"
+
+[node name="BtnWork" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/ActionButtonsHBox"]
+custom_minimum_size = Vector2(95, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_size/font_size = 11
+text = "Trabalhar [T]"
+
+[node name="BtnExcavate" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/ActionButtonsHBox"]
+custom_minimum_size = Vector2(90, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_size/font_size = 11
+text = "Escavar [X]"
+
+[node name="BtnBribe" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/ActionButtonsHBox"]
+custom_minimum_size = Vector2(95, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_size/font_size = 11
+text = "Subornar [S]"
+
+[node name="BtnAttack" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/ActionButtonsHBox"]
+custom_minimum_size = Vector2(85, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_size/font_size = 11
+text = "Atacar [A]"
+
+[node name="BtnShoot" type="Button" parent="RootControl/MainArea/LeftArea/BottomArea/ActionButtonsHBox"]
+custom_minimum_size = Vector2(85, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_size/font_size = 11
+text = "Atirar [F]"
+
+[node name="RightArea" type="PanelContainer" parent="RootControl/MainArea"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+
+[node name="CercoMarketPanel" type="Control" parent="RootControl/MainArea/RightArea"]
+layout_mode = 2
+script = ExtResource("5_market")

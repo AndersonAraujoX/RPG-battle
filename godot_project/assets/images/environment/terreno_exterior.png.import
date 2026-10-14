@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ckdtas5yden3k"
-valid=false
+uid="uid://bd7ff0yck6xqa"
+path="res://.godot/imported/terreno_exterior.png-1b7c5e8bdc5d870a2c852c3e3637e530.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_exterior.png"
+dest_files=["res://.godot/imported/terreno_exterior.png-1b7c5e8bdc5d870a2c852c3e3637e530.ctex"]
 
 [params]
 

@@ -1,0 +1,103 @@
+[gd_scene load_steps=3 format=3 uid="uid://cgameovermodalrpg"]
+
+[ext_resource type="Script" path="res://scripts/ui/GameOverModal.gd" id="1_gameover"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal"]
+bg_color = Color(0.0627451, 0.0784314, 0.12549, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85, 0.25, 0.25, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.75)
+shadow_size = 14
+
+[node name="GameOverModal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_gameover")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.03, 0.04, 0.06, 0.85)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ModalPanel" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(580, 360)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal")
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/ModalPanel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="HeaderLabel" type="Label" parent="CenterContainer/ModalPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0.25, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_size/font_size = 28
+text = "💀 A FORTALEZA CAIU"
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/ModalPanel/VBox"]
+custom_minimum_size = Vector2(500, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.88, 0.92, 0.95)
+theme_override_font_size/font_size = 14
+text = "O Enxame Isectum invadiu a Câmara Central e superou as defesas de Kuar-Tor."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/ModalPanel/VBox"]
+layout_mode = 2
+
+[node name="StatsLabel" type="RichTextLabel" parent="CenterContainer/ModalPanel/VBox"]
+custom_minimum_size = Vector2(520, 100)
+layout_mode = 2
+theme_override_font_size/normal_font_size = 13
+theme_override_font_size/bold_font_size = 14
+bbcode_enabled = true
+text = "[center]Rodadas: 1 | Inimigos: 0[/center]"
+fit_content = true
+
+[node name="HSeparator2" type="HSeparator" parent="CenterContainer/ModalPanel/VBox"]
+layout_mode = 2
+
+[node name="ButtonsHBox" type="HBoxContainer" parent="CenterContainer/ModalPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="BtnRestart" type="Button" parent="CenterContainer/ModalPanel/VBox/ButtonsHBox"]
+custom_minimum_size = Vector2(190, 42)
+layout_mode = 2
+theme_override_font_size/font_size = 14
+text = "🔄 Reiniciar Cerco [Espaço]"
+
+[node name="BtnMenu" type="Button" parent="CenterContainer/ModalPanel/VBox/ButtonsHBox"]
+custom_minimum_size = Vector2(170, 42)
+layout_mode = 2
+theme_override_font_size/font_size = 14
+text = "🏠 Menu Principal [ESC]"

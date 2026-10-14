@@ -1,0 +1,1019 @@
+ERROR: Could not create directory: '/home/anderson/.local'.
+   at: make_dir_recursive (core/io/dir_access.cpp:179)
+ERROR: Error attempting to create data dir: /home/anderson/.local/share/godot/app_userdata/RPG-battle.
+   at: ensure_user_data_dir (core/os/os.cpp:442)
+ERROR: Could not create directory: 'user://logs'.
+   at: make_dir_recursive (core/io/dir_access.cpp:179)
+ERROR: Failed to open log file for writing: user://logs/godot.log
+   at: rotate_file (core/io/logger.cpp:169)
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+
+============================================================
+                    GUT TEST RUNNER                         
+============================================================
+Scanning directory: res://test/unit/
+Found 15 test script(s).
+
+--- Running Suite: res://test/unit/test_adversarial_data_audio.gd ---
+ERROR: [DataManager] JSON Parse Error on line 0: Unknown error getting token
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_empty_string_json (res://test/unit/test_adversarial_data_audio.gd:51)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_dm_stress_empty_string_json
+ERROR: [DataManager] JSON Parse Error on line 1: Expected value, got 'EOF'
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_whitespace_only_json (res://test/unit/test_adversarial_data_audio.gd:59)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_dm_stress_whitespace_only_json
+ERROR: [DataManager] JSON Parse Error on line 0: Expected '}'
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_malformed_syntax_json (res://test/unit/test_adversarial_data_audio.gd:78)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] JSON Parse Error on line 0: Expected value, got ''}''
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_malformed_syntax_json (res://test/unit/test_adversarial_data_audio.gd:78)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] JSON Parse Error on line 0: Unterminated string
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_malformed_syntax_json (res://test/unit/test_adversarial_data_audio.gd:78)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] JSON Parse Error on line 0: Unexpected character
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_malformed_syntax_json (res://test/unit/test_adversarial_data_audio.gd:78)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] JSON Parse Error on line 0: Expected 'true', 'false', or 'null', got 'NaN'
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_malformed_syntax_json (res://test/unit/test_adversarial_data_audio.gd:78)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] JSON Parse Error on line 0: Unexpected character
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_dm_stress_malformed_syntax_json (res://test/unit/test_adversarial_data_audio.gd:78)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_dm_stress_malformed_syntax_json
+  [PASS] test_dm_stress_json_trailing_comma_behavior
+ERROR: [DataManager] Root JSON data is not a Dictionary.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:79)
+       [1] test_dm_stress_root_array_instead_of_dict (res://test/unit/test_adversarial_data_audio.gd:98)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_dm_stress_root_array_instead_of_dict
+ERROR: [DataManager] Root JSON data is not a Dictionary.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:79)
+       [1] test_dm_stress_root_scalar_types (res://test/unit/test_adversarial_data_audio.gd:110)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] Root JSON data is not a Dictionary.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:79)
+       [1] test_dm_stress_root_scalar_types (res://test/unit/test_adversarial_data_audio.gd:110)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] Root JSON data is not a Dictionary.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:79)
+       [1] test_dm_stress_root_scalar_types (res://test/unit/test_adversarial_data_audio.gd:110)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+ERROR: [DataManager] Root JSON data is not a Dictionary.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:79)
+       [1] test_dm_stress_root_scalar_types (res://test/unit/test_adversarial_data_audio.gd:110)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_dm_stress_root_scalar_types
+  [PASS] test_dm_stress_parse_raw_json_retains_existing_cache
+  [PASS] test_dm_stress_parse_raw_json_after_clear_cache
+  [PASS] test_dm_stress_non_dict_entries_in_root
+  [PASS] test_dm_stress_character_empty_data_dictionary
+  [PASS] test_dm_stress_character_missing_stats_block
+  [PASS] test_dm_stress_large_scale_character_payload
+  [PASS] test_dm_isolation_primitive_field_mutation
+  [PASS] test_dm_isolation_nested_dictionary_mutation
+  [PASS] test_dm_isolation_array_mutation
+  [PASS] test_dm_isolation_duplicate_data_provides_deep_isolation
+  [PASS] test_dm_isolation_get_hero_duplicate_isolates_cache
+  [PASS] test_dm_isolation_get_all_heroes_returns_shared_references
+  [PASS] test_dm_isolation_isectum_and_cards_lack_duplicate_api
+  [PASS] test_am_stress_pool_exhaustion_35_requests
+  [PASS] test_am_stress_pool_exhaustion_100_concurrent_requests
+  [PASS] test_am_stress_pool_exhaustion_allocation_policy_bias
+  [PASS] test_am_stress_bus_volume_extreme_upper
+  [PASS] test_am_stress_bus_volume_extreme_lower
+  [PASS] test_am_stress_bus_volume_zero_db_conversion
+  [PASS] test_am_stress_bus_volume_nonexistent_bus
+  [PASS] test_am_stress_sfx_volume_scale_bounds
+  [PASS] test_am_stress_sfx_pitch_scale_bounds
+  [PASS] test_am_stress_rapid_mute_toggle_100_cycles
+  [PASS] test_am_stress_concurrent_bus_mute_toggle
+  [PASS] test_am_stress_headless_bgm_rapid_track_swapping
+  [PASS] test_am_stress_stop_bgm_when_already_stopped
+  [PASS] test_am_stress_bgm_crossfade_duration_zero_and_negative
+
+--- Running Suite: res://test/unit/test_status_conditions.gd ---
+  [PASS] test_registration_all_23_conditions
+  [PASS] test_apply_and_extend_duration
+  [PASS] test_immunity_blocks_application
+  [PASS] test_movement_restriction_grappled_restrained_paralyzed
+  [PASS] test_movement_hasted_and_slowed
+  [PASS] test_action_blocked_stunned_paralyzed_unconscious
+  [PASS] test_attack_advantage_blinded_and_invisible
+  [PASS] test_advantage_disadvantage_cancellation
+  [PASS] test_prone_melee_vs_ranged_distance_threshold
+  [PASS] test_auto_crit_paralyzed_and_unconscious_melee_only
+  [PASS] test_poison_and_bleed_dot_tick_lifecycle
+  [PASS] test_burning_and_cursed_dot_ticks
+  [PASS] test_duration_decrement_and_removal
+  [PASS] test_stat_modifiers_blessed_cursed_slowed_hasted
+  [PASS] test_eventbus_signal_emissions
+  [PASS] test_clear_all_conditions
+
+--- Running Suite: res://test/unit/test_websocket_stress_adversarial.gd ---
+  [PASS] test_burst_100_packets_queued_before_single_poll
+  [PASS] test_burst_500_packets_stress_throughput
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (ff)
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (fe)
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (fd)
+  [PASS] test_burst_mixed_valid_invalid_and_corrupted_packets
+  [PASS] test_rapid_connect_disconnect_cycling_50_iterations
+  [PASS] test_disconnect_while_connecting_aborts_cleanly
+  [PASS] test_rapid_abnormal_disconnect_and_reconnect_recovery
+  [PASS] test_client_reset_state_idempotence_and_stability
+  [PASS] test_massive_chat_message_payload_100kb
+  [PASS] test_massive_combat_log_array_payload_500_entries
+  [PASS] test_massive_state_update_with_deep_nested_structures
+  [PASS] test_send_large_chat_message_client_to_server
+  [PASS] test_special_characters_emojis_accents_and_bbcode
+  [PASS] test_boundary_coordinates_move_hero
+  [PASS] test_boundary_coordinates_attack_target
+  [PASS] test_boundary_coordinates_work_action
+  [PASS] test_select_card_boundary_values
+  [PASS] test_adversarial_hero_name_inputs
+  [PASS] test_adversarial_chat_message_inputs
+SCRIPT ERROR: Trying to assign value of type 'float' to a variable of type 'String'.
+          at: WebSocketClient._dispatch_message (res://scripts/network/WebSocketClient.gd:413)
+          GDScript backtrace (most recent call first):
+              [0] _dispatch_message (res://scripts/network/WebSocketClient.gd:413)
+              [1] _process_incoming_packets (res://scripts/network/WebSocketClient.gd:383)
+              [2] poll (res://scripts/network/WebSocketClient.gd:220)
+              [3] test_combat_log_payload_with_null_or_heterogeneous_entries (res://test/unit/test_websocket_stress_adversarial.gd:569)
+              [4] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [5] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_combat_log_payload_with_null_or_heterogeneous_entries
+  [PASS] test_chat_message_payload_with_heterogeneous_types
+  [PASS] test_round_resolved_with_missing_or_corrupted_payload
+  [PASS] test_action_rejected_with_unicode_reason
+
+--- Running Suite: res://test/unit/test_cerco_deck_economy_stress.gd ---
+  [PASS] test_stress_negative_resource_addition
+  [PASS] test_stress_negative_and_zero_spending
+  [PASS] test_stress_atomic_spending_all_or_nothing_4_resources
+  [PASS] test_stress_atomic_spending_multi_key_aggregation_overflow
+  [PASS] test_stress_wall_repair_over_repair_clamping
+  [PASS] test_stress_wall_repair_non_existent_wall_id_behavior
+  [PASS] test_stress_wall_repair_breached_wall_reconstitution
+  [PASS] test_stress_wall_repair_insufficient_partial_resources
+  [PASS] test_stress_draw_cards_empty_draw_and_empty_discard
+  [PASS] test_stress_draw_cards_partial_reshuffle
+  [PASS] test_stress_buy_card_not_in_market
+  [PASS] test_stress_buy_card_insufficient_single_resource
+  [PASS] test_stress_card_clone_mutation_independence
+  [PASS] test_stress_play_card_duplicate_ids_in_hand
+  [PASS] test_stress_discard_card_not_in_hand
+  [PASS] test_stress_sync_round_solo_player_all_badges
+  [PASS] test_stress_sync_round_supreme_synchrony_exact_boundary_two_players
+  [PASS] test_stress_sync_round_split_synergy_4_players
+  [PASS] test_stress_sync_round_unknown_badge_and_invalid_layer
+  [PASS] test_stress_sync_round_special_badge_ap_bonus_and_layer_execution
+  [PASS] test_stress_sync_round_consecutive_rounds_state_isolation
+  [PASS] test_stress_sync_round_movement_failure_flag
+  [PASS] test_stress_sync_round_combat_with_zero_dice
+  [PASS] test_stress_lifecycle_repeated_instantiations_zero_leaks
+
+--- Running Suite: res://test/unit/test_websocket_adversarial.gd ---
+  [PASS] test_adversarial_midgame_disconnect_preserves_state_and_reconnects
+  [PASS] test_adversarial_exponential_backoff_timing_progression
+  [PASS] test_adversarial_reconnect_capping_at_max_delay
+  [PASS] test_adversarial_anti_cheat_state_mutation_isolation
+  [PASS] test_adversarial_anti_cheat_multi_player_privacy_enforcement
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_select_hero (res://scripts/network/WebSocketClient.gd:463)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:352)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_start_game (res://scripts/network/WebSocketClient.gd:467)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:353)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_select_card (res://scripts/network/WebSocketClient.gd:473)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:354)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_move_hero (res://scripts/network/WebSocketClient.gd:479)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:355)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_attack_target (res://scripts/network/WebSocketClient.gd:488)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:356)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_work_action (res://scripts/network/WebSocketClient.gd:494)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:357)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_end_round (res://scripts/network/WebSocketClient.gd:498)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:358)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_chat (res://scripts/network/WebSocketClient.gd:504)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:359)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_ping (res://scripts/network/WebSocketClient.gd:512)
+         [2] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:360)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] test_adversarial_send_calls_rejected_during_connecting_state (res://test/unit/test_websocket_adversarial.gd:361)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_adversarial_send_calls_rejected_during_connecting_state
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_move_hero (res://scripts/network/WebSocketClient.gd:479)
+         [2] test_adversarial_send_calls_rejected_during_reconnecting_state (res://test/unit/test_websocket_adversarial.gd:373)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_chat (res://scripts/network/WebSocketClient.gd:504)
+         [2] test_adversarial_send_calls_rejected_during_reconnecting_state (res://test/unit/test_websocket_adversarial.gd:374)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_adversarial_send_calls_rejected_during_reconnecting_state
+  [PASS] test_adversarial_send_when_peer_fails_with_buffer_full
+  [PASS] test_adversarial_concurrent_rapid_fire_packet_burst
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_move_hero (res://scripts/network/WebSocketClient.gd:479)
+         [2] test_adversarial_send_with_null_peer_safe (res://test/unit/test_websocket_adversarial.gd:413)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] test_adversarial_send_with_null_peer_safe (res://test/unit/test_websocket_adversarial.gd:414)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_adversarial_send_with_null_peer_safe
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (ff)
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (fe)
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (fd)
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (80)
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (81)
+  [PASS] test_adversarial_corrupt_non_utf8_binary_frame_injection
+  [PASS] test_adversarial_truncated_json_payload_triggers_protocol_error
+  [PASS] test_adversarial_payload_with_null_and_unexpected_types
+  [PASS] test_adversarial_extreme_payload_size_and_special_characters
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (fe)
+Unicode parsing error: Byte fa is not a correct continuation byte after ed
+Unicode parsing error, some characters were replaced with � (U+FFFD): Invalid UTF-8 leading byte (fa)
+Unicode parsing error, some characters were replaced with � (U+FFFD): Missing ce UTF-8 continuation byte
+  [PASS] test_adversarial_mixed_corrupt_and_valid_packet_interleaving
+
+--- Running Suite: res://test/unit/test_cerco_combat_judge.gd ---
+  [PASS] test_d6_face_enum_values_and_names
+  [PASS] test_deterministic_roll_injection_via_forced_rolls
+  [PASS] test_integer_enum_mapping_in_forced_rolls
+  [PASS] test_advantage_and_disadvantage_modify_dice_count
+  [PASS] test_melee_math_two_impacts_equal_one_damage
+  [PASS] test_melee_odd_impacts_round_down
+  [PASS] test_melee_crit_counts_as_two_impacts
+  [PASS] test_melee_armor_deducts_from_raw_damage
+  [PASS] test_melee_ignores_non_impact_faces
+  [PASS] test_melee_flanking_flag_and_bonus
+  [PASS] test_tower_ranged_one_shot_equals_one_damage
+  [PASS] test_tower_ranged_crit_counts_as_two_shots
+  [PASS] test_tower_ranged_elevation_advantage_and_disadvantage
+  [PASS] test_tower_ranged_target_validation_rules
+  [PASS] test_brutamontes_initial_state
+  [PASS] test_brutamontes_damage_progression_across_3_circles
+  [PASS] test_brutamontes_zero_damage_does_not_mark_circle
+  [PASS] test_brutamontes_overkill_damage_clamped_at_total
+  [PASS] test_infiltrator_bypasses_unattended_unbreached_wall
+  [PASS] test_infiltrator_blocked_by_defenders_on_unbreached_wall
+  [PASS] test_infiltrator_passes_breached_wall_regardless_of_defenders
+  [PASS] test_infiltrator_board_integration
+  [PASS] test_catapult_deals_direct_siege_damage_to_wall
+  [PASS] test_static_helper_math_formulas
+
+--- Running Suite: res://test/unit/test_combat_rules.gd ---
+  [PASS] test_modifier_baseline_ten_and_eleven
+  [PASS] test_modifier_even_positive_values
+  [PASS] test_modifier_negative_odd_precision
+  [PASS] test_modifier_extreme_values
+  [PASS] test_proficiency_levels_1_to_20
+  [PASS] test_proficiency_boundary_zero_and_negative
+  [PASS] test_roll_d20_advantage_picks_higher
+  [PASS] test_roll_d20_disadvantage_picks_lower
+  [PASS] test_roll_d20_mutual_cancellation
+SCRIPT ERROR: Invalid assignment of property or key 'dice_rolled' with value of type 'Array' on a base object of type 'RefCounted (AttackResult)'.
+          at: resolve_attack (res://scripts/combat/CombatRules.gd:139)
+          GDScript backtrace (most recent call first):
+              [0] resolve_attack (res://scripts/combat/CombatRules.gd:139)
+              [1] test_attack_roll_meets_ac_hits (res://test/unit/test_combat_rules.gd:113)
+              [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+SCRIPT ERROR: Invalid access to property or key 'hit' on a base object of type 'Nil'.
+          at: test_attack_roll_meets_ac_hits (res://test/unit/test_combat_rules.gd:116)
+          GDScript backtrace (most recent call first):
+              [0] test_attack_roll_meets_ac_hits (res://test/unit/test_combat_rules.gd:116)
+              [1] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [2] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_attack_roll_meets_ac_hits
+SCRIPT ERROR: Invalid assignment of property or key 'dice_rolled' with value of type 'Array' on a base object of type 'RefCounted (AttackResult)'.
+          at: resolve_attack (res://scripts/combat/CombatRules.gd:139)
+          GDScript backtrace (most recent call first):
+              [0] resolve_attack (res://scripts/combat/CombatRules.gd:139)
+              [1] test_attack_roll_below_ac_misses (res://test/unit/test_combat_rules.gd:131)
+              [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+SCRIPT ERROR: Invalid access to property or key 'hit' on a base object of type 'Nil'.
+          at: test_attack_roll_below_ac_misses (res://test/unit/test_combat_rules.gd:134)
+          GDScript backtrace (most recent call first):
+              [0] test_attack_roll_below_ac_misses (res://test/unit/test_combat_rules.gd:134)
+              [1] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [2] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_attack_roll_below_ac_misses
+SCRIPT ERROR: Invalid assignment of property or key 'dice_rolled' with value of type 'Array' on a base object of type 'RefCounted (AttackResult)'.
+          at: resolve_attack (res://scripts/combat/CombatRules.gd:139)
+          GDScript backtrace (most recent call first):
+              [0] resolve_attack (res://scripts/combat/CombatRules.gd:139)
+              [1] test_attack_roll_soft_cover_bonus_turns_hit_to_miss (res://test/unit/test_combat_rules.gd:148)
+              [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+SCRIPT ERROR: Invalid access to property or key 'hit' on a base object of type 'Nil'.
+          at: test_attack_roll_soft_cover_bonus_turns_hit_to_miss (res://test/unit/test_combat_rules.gd:151)
+          GDScript backtrace (most recent call first):
+              [0] test_attack_roll_soft_cover_bonus_turns_hit_to_miss (res://test/unit/test_combat_rules.gd:151)
+              [1] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [2] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_attack_roll_soft_cover_bonus_turns_hit_to_miss
+  [PASS] test_attack_roll_total_cover_blocked
+SCRIPT ERROR: Invalid assignment of property or key 'dice_rolled' with value of type 'Array' on a base object of type 'RefCounted (AttackResult)'.
+          at: resolve_attack (res://scripts/combat/CombatRules.gd:139)
+          GDScript backtrace (most recent call first):
+              [0] resolve_attack (res://scripts/combat/CombatRules.gd:139)
+              [1] test_critical_hit_nat_20_always_hits (res://test/unit/test_combat_rules.gd:177)
+              [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+SCRIPT ERROR: Invalid access to property or key 'hit' on a base object of type 'Nil'.
+          at: test_critical_hit_nat_20_always_hits (res://test/unit/test_combat_rules.gd:180)
+          GDScript backtrace (most recent call first):
+              [0] test_critical_hit_nat_20_always_hits (res://test/unit/test_combat_rules.gd:180)
+              [1] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [2] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_critical_hit_nat_20_always_hits
+SCRIPT ERROR: Invalid assignment of property or key 'dice_rolled' with value of type 'Array' on a base object of type 'RefCounted (AttackResult)'.
+          at: resolve_attack (res://scripts/combat/CombatRules.gd:139)
+          GDScript backtrace (most recent call first):
+              [0] resolve_attack (res://scripts/combat/CombatRules.gd:139)
+              [1] test_critical_miss_nat_1_always_misses (res://test/unit/test_combat_rules.gd:193)
+              [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+SCRIPT ERROR: Invalid access to property or key 'hit' on a base object of type 'Nil'.
+          at: test_critical_miss_nat_1_always_misses (res://test/unit/test_combat_rules.gd:196)
+          GDScript backtrace (most recent call first):
+              [0] test_critical_miss_nat_1_always_misses (res://test/unit/test_combat_rules.gd:196)
+              [1] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [2] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_critical_miss_nat_1_always_misses
+SCRIPT ERROR: Invalid assignment of property or key 'dice_rolled' with value of type 'Array' on a base object of type 'RefCounted (AttackResult)'.
+          at: resolve_attack (res://scripts/combat/CombatRules.gd:139)
+          GDScript backtrace (most recent call first):
+              [0] resolve_attack (res://scripts/combat/CombatRules.gd:139)
+              [1] test_melee_attack_on_paralyzed_target_auto_crits (res://test/unit/test_combat_rules.gd:210)
+              [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+SCRIPT ERROR: Invalid access to property or key 'hit' on a base object of type 'Nil'.
+          at: test_melee_attack_on_paralyzed_target_auto_crits (res://test/unit/test_combat_rules.gd:213)
+          GDScript backtrace (most recent call first):
+              [0] test_melee_attack_on_paralyzed_target_auto_crits (res://test/unit/test_combat_rules.gd:213)
+              [1] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [2] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_melee_attack_on_paralyzed_target_auto_crits
+SCRIPT ERROR: Invalid assignment of property or key 'dice_rolled' with value of type 'Array' on a base object of type 'RefCounted (AttackResult)'.
+          at: resolve_attack (res://scripts/combat/CombatRules.gd:139)
+          GDScript backtrace (most recent call first):
+              [0] resolve_attack (res://scripts/combat/CombatRules.gd:139)
+              [1] test_ranged_attack_on_paralyzed_target_does_not_auto_crit (res://test/unit/test_combat_rules.gd:227)
+              [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+SCRIPT ERROR: Invalid access to property or key 'hit' on a base object of type 'Nil'.
+          at: test_ranged_attack_on_paralyzed_target_does_not_auto_crit (res://test/unit/test_combat_rules.gd:230)
+          GDScript backtrace (most recent call first):
+              [0] test_ranged_attack_on_paralyzed_target_does_not_auto_crit (res://test/unit/test_combat_rules.gd:230)
+              [1] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+              [2] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_ranged_attack_on_paralyzed_target_does_not_auto_crit
+  [PASS] test_critical_hit_doubles_damage_dice
+  [PASS] test_damage_minimum_floor_is_one
+  [PASS] test_damage_immunity_yields_zero
+  [PASS] test_damage_resistance_halves_damage
+  [PASS] test_damage_vulnerability_doubles_damage
+  [PASS] test_canonical_14_damage_types_exist
+  [PASS] test_damage_drops_character_to_unconscious
+  [PASS] test_massive_damage_causes_instant_death
+  [PASS] test_perk_last_stand_triggers_at_zero_hp
+  [PASS] test_damage_while_unconscious_adds_death_save_failures
+  [PASS] test_death_save_nat_20_revives_character_to_one_hp
+  [PASS] test_death_save_nat_1_adds_two_failures
+  [PASS] test_death_save_three_successes_stabilizes
+  [PASS] test_death_save_three_failures_causes_death
+
+--- Running Suite: res://test/unit/test_isectum_castes.gd ---
+  [PASS] test_isectum_caste_data_default_properties
+  [PASS] test_isectum_caste_data_typed_fields_integrity
+  [PASS] test_isectum_caste_data_damage_and_healing
+  [PASS] test_isectum_caste_data_clone_independence
+  [PASS] test_isectum_caste_data_to_dict_serialization
+  [PASS] test_all_24_canonical_castes_registered
+  [PASS] test_every_caste_has_valid_attributes
+  [PASS] test_all_24_castes_have_unique_traits
+  [PASS] test_brutamontes_archetype_castes
+  [PASS] test_infiltrator_archetype_castes
+  [PASS] test_catapult_archetype_castes
+  [PASS] test_flyer_archetype_castes
+  [PASS] test_boss_archetype_castes
+  [PASS] test_archetype_query_case_insensitivity_and_aliases
+  [PASS] test_create_instance_returns_independent_instance
+  [PASS] test_caste_aliases_backward_compatibility
+  [PASS] test_nonexistent_caste_query_returns_null
+  [PASS] test_threat_deck_initialization
+  [PASS] test_wave_generation_early_rounds
+  [PASS] test_wave_generation_uses_all_four_spawn_zones
+  [PASS] test_wave_generation_scaling_with_difficulty
+  [PASS] test_boss_wave_generation_in_advanced_rounds
+  [PASS] test_forced_waves_deterministic_injection
+  [PASS] test_build_standard_deck_populates_draw_pile
+  [PASS] test_draw_threat_moves_card_to_active_queue
+  [PASS] test_draw_threat_empty_deck_triggers_reshuffle_from_discard
+  [PASS] test_resolve_threat_moves_to_discard_pile
+  [PASS] test_discard_threat_moves_to_discard_pile
+  [PASS] test_peek_threats_does_not_modify_draw_pile
+  [PASS] test_defense_escudo_quitina_counters_infiltration
+  [PASS] test_defense_teia_endurecida_blocks_spawn_wave
+  [PASS] test_defense_antidoto_alquimico_cleanses_miasma_and_stun
+  [PASS] test_rune_runa_visao_peeks_upcoming_threats
+  [PASS] test_rune_runa_fortaleza_counters_catapult_siege
+  [PASS] test_incompatible_defense_card_rejected
+  [PASS] test_defense_reaction_with_empty_active_queue_returns_failure
+  [PASS] test_signals_emitted_on_draw_counter_resolve_and_wave
+  [PASS] test_clear_active_threats_moves_all_to_discard
+  [PASS] test_memory_leak_free_teardown
+
+--- Running Suite: res://test/unit/test_websocket_client.gd ---
+  [PASS] test_client_instantiation_default_state
+  [PASS] test_client_peer_injection
+  [PASS] test_client_autofree_lifecycle_zero_leaks
+  [PASS] test_client_reset_state_clears_buffers_and_subscriptions
+  [PASS] test_connect_to_server_url_generation_standard
+  [PASS] test_connect_to_server_url_generation_tls_wss
+  [PASS] test_poll_detects_connection_open_and_emits_signal
+WARNING: [WebSocketClient] Failed to connect to ws://127.0.0.1:8000/ws/SALA1/p1?player_name=Nome (code 25)
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] _do_connect (res://scripts/network/WebSocketClient.gd:247)
+         [1] connect_to_server (res://scripts/network/WebSocketClient.gd:145)
+         [2] test_connect_fails_when_peer_returns_error (res://test/unit/test_websocket_client.gd:246)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_connect_fails_when_peer_returns_error
+WARNING: [WebSocketClient] Already connecting or connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] connect_to_server (res://scripts/network/WebSocketClient.gd:127)
+         [1] test_connect_called_while_already_connected_is_rejected (res://test/unit/test_websocket_client.gd:261)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_connect_called_while_already_connected_is_rejected
+WARNING: [WebSocketClient] room_id and player_id cannot be empty.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] connect_to_server (res://scripts/network/WebSocketClient.gd:123)
+         [1] test_connect_validates_required_parameters (res://test/unit/test_websocket_client.gd:271)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [WebSocketClient] room_id and player_id cannot be empty.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] connect_to_server (res://scripts/network/WebSocketClient.gd:123)
+         [1] test_connect_validates_required_parameters (res://test/unit/test_websocket_client.gd:272)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_connect_validates_required_parameters
+  [PASS] test_send_select_hero_formats_and_sends_packet
+  [PASS] test_send_start_game_formats_and_sends_packet
+  [PASS] test_send_select_card_formats_and_sends_packet
+  [PASS] test_send_move_hero_formats_and_sends_packet
+  [PASS] test_send_attack_target_formats_and_sends_packet
+  [PASS] test_send_work_action_formats_and_sends_packet
+  [PASS] test_send_end_round_formats_and_sends_packet
+  [PASS] test_send_chat_message_formats_and_sends_packet
+  [PASS] test_send_ping_packet
+  [PASS] test_generic_send_message_payload
+  [PASS] test_receive_state_update_emits_signals
+  [PASS] test_receive_action_rejected_emits_signal
+  [PASS] test_receive_combat_log_emits_signal
+  [PASS] test_receive_multiple_packets_in_single_poll
+  [PASS] test_event_bus_relay_of_network_message
+  [PASS] test_receive_game_started_emits_specific_signal
+  [PASS] test_receive_empty_string_ignored_safely
+  [PASS] test_receive_whitespace_string_ignored_safely
+  [PASS] test_receive_malformed_syntax_json_rejected
+  [PASS] test_receive_root_array_json_rejected
+  [PASS] test_receive_primitive_root_json_rejected
+  [PASS] test_receive_missing_type_field_rejected
+  [PASS] test_receive_non_string_type_field_rejected
+  [PASS] test_receive_missing_payload_defaults_to_empty_dict
+  [PASS] test_receive_unknown_message_type_graceful
+WARNING: [WebSocketClient] Cannot send message: client is not connected.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] send_message (res://scripts/network/WebSocketClient.gd:445)
+         [1] send_select_hero (res://scripts/network/WebSocketClient.gd:463)
+         [2] test_send_message_when_disconnected_returns_error (res://test/unit/test_websocket_client.gd:658)
+         [3] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [4] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_send_message_when_disconnected_returns_error
+  [PASS] test_send_methods_boundary_and_empty_validation
+  [PASS] test_clean_server_disconnect_emits_connection_closed
+  [PASS] test_abnormal_disconnect_emits_connection_closed
+  [PASS] test_disconnect_from_server_client_initiated
+  [PASS] test_poll_when_peer_is_null_safe
+  [PASS] test_auto_reconnect_disabled_by_default_or_toggleable
+  [PASS] test_auto_reconnect_triggers_on_unexpected_disconnect
+  [PASS] test_auto_reconnect_does_not_trigger_on_clean_disconnect
+  [PASS] test_reconnect_retry_counter_and_failure_signal
+  [PASS] test_reconnect_success_resets_retry_counter
+  [PASS] test_anti_cheat_hand_privacy_in_state_update
+
+--- Running Suite: res://test/unit/test_cerco_hud.gd ---
+  [PASS] test_card_fan_empty_hand
+  [PASS] test_card_fan_single_card
+  [PASS] test_card_fan_two_cards_symmetry
+  [PASS] test_card_fan_five_cards_zenith_symmetry
+  [PASS] test_card_fan_ten_cards_clamped_rotation
+  [PASS] test_card_fan_hover_lift_calculation
+  [PASS] test_card_fan_selection_lift_calculation
+  [PASS] test_card_ui_data_binding
+  [PASS] test_card_ui_badge_color_palette
+  [PASS] test_card_ui_selection_toggle_signals
+  [PASS] test_card_ui_hover_signals
+  [PASS] test_card_ui_play_request_signal
+  [PASS] test_card_fan_container_set_hand
+  [PASS] test_card_fan_container_add_and_remove_card
+  [PASS] test_card_fan_container_mutual_exclusion_selection
+  [PASS] test_scoreboard_initial_values_zero
+  [PASS] test_scoreboard_update_resources_direct
+  [PASS] test_scoreboard_wall_hp_tracking
+  [PASS] test_scoreboard_round_and_layer_updates
+  [PASS] test_board_view_all_17_zones_resolution
+  [PASS] test_board_view_elevation_mapping
+  [PASS] test_board_view_coordinate_conversions
+  [PASS] test_board_view_wall_breach_alert
+  [PASS] test_board_view_wall_unbreach_on_repair
+  [PASS] test_zone_overlay_tactical_highlights
+  [PASS] test_combat_log_initial_state
+  [PASS] test_combat_log_append_message
+  [PASS] test_combat_log_append_tagged_categories
+  [PASS] test_combat_log_max_entries_truncation
+  [PASS] test_combat_log_clear
+  [PASS] test_hud_scene_instantiation
+  [PASS] test_hud_model_dependency_injection_board
+  [PASS] test_hud_model_dependency_injection_economy
+  [PASS] test_hud_model_dependency_injection_deck
+  [PASS] test_hud_card_play_signal_relay
+  [PASS] test_hud_sync_round_trigger
+  [PASS] test_hud_audio_request_emission
+  [PASS] test_hud_eventbus_integration_forwarding
+  [PASS] test_hud_rapid_creation_and_destruction_zero_leaks
+  [PASS] test_hud_unbind_all_safely
+
+--- Running Suite: res://test/unit/test_fsm_signals_stress.gd ---
+WARNING: [GameManager] Invalid state transition: MENU -> FIM_DE_JOGO
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:75)
+         [1] test_gm_exhaustive_transition_matrix (res://test/unit/test_fsm_signals_stress.gd:65)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state transition: COMBATE_TATICO -> CERCO_ISECTUM
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:75)
+         [1] test_gm_exhaustive_transition_matrix (res://test/unit/test_fsm_signals_stress.gd:65)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state transition: COMBATE_TATICO -> MULTIPLAYER_LOBBY
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:75)
+         [1] test_gm_exhaustive_transition_matrix (res://test/unit/test_fsm_signals_stress.gd:65)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state transition: CERCO_ISECTUM -> COMBATE_TATICO
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:75)
+         [1] test_gm_exhaustive_transition_matrix (res://test/unit/test_fsm_signals_stress.gd:65)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state transition: CERCO_ISECTUM -> MULTIPLAYER_LOBBY
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:75)
+         [1] test_gm_exhaustive_transition_matrix (res://test/unit/test_fsm_signals_stress.gd:65)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state transition: FIM_DE_JOGO -> MULTIPLAYER_LOBBY
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:75)
+         [1] test_gm_exhaustive_transition_matrix (res://test/unit/test_fsm_signals_stress.gd:65)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state transition: MULTIPLAYER_LOBBY -> FIM_DE_JOGO
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:75)
+         [1] test_gm_exhaustive_transition_matrix (res://test/unit/test_fsm_signals_stress.gd:65)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_gm_exhaustive_transition_matrix
+WARNING: [GameManager] Invalid state value: -1000
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:68)
+         [1] test_gm_out_of_bounds_states (res://test/unit/test_fsm_signals_stress.gd:88)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state value: -1
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:68)
+         [1] test_gm_out_of_bounds_states (res://test/unit/test_fsm_signals_stress.gd:88)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state value: 5
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:68)
+         [1] test_gm_out_of_bounds_states (res://test/unit/test_fsm_signals_stress.gd:88)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state value: 6
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:68)
+         [1] test_gm_out_of_bounds_states (res://test/unit/test_fsm_signals_stress.gd:88)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state value: 99
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:68)
+         [1] test_gm_out_of_bounds_states (res://test/unit/test_fsm_signals_stress.gd:88)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Invalid state value: 999999
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:68)
+         [1] test_gm_out_of_bounds_states (res://test/unit/test_fsm_signals_stress.gd:88)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_gm_out_of_bounds_states
+  [PASS] test_gm_high_frequency_state_cycling
+  [PASS] test_gm_payload_aliasing_and_mutability
+  [PASS] test_gm_extreme_payload_handling
+  [PASS] test_gm_reentrant_state_change_from_signal
+WARNING: [GameManager] Transition rejected: already transitioning
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] can_transition_to (res://scripts/autoload/GameManager.gd:53)
+         [1] test_gm_is_transitioning_guard_audit (res://test/unit/test_fsm_signals_stress.gd:202)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+WARNING: [GameManager] Transition rejected: already transitioning
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:64)
+         [1] test_gm_is_transitioning_guard_audit (res://test/unit/test_fsm_signals_stress.gd:203)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_gm_is_transitioning_guard_audit
+  [PASS] test_gm_reset_state_does_not_emit_signals
+  [PASS] test_eb_high_throughput_burst
+  [PASS] test_eb_multi_subscriber_fanout
+  [PASS] test_eb_subscriber_self_disconnect_during_callback
+  [PASS] test_eb_peer_disconnect_during_emission
+  [PASS] test_eb_recursive_bounded_reentrancy
+  [PASS] test_eb_cross_signal_cascading
+  [PASS] test_eb_extreme_and_boundary_payloads
+  [PASS] test_eb_emit_logged_telemetry_ring_buffer
+WARNING: [EventBus] Signal 'non_existent_signal_xyz' does not exist.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] emit_logged (res://scripts/autoload/EventBus.gd:75)
+         [1] test_eb_emit_logged_nonexistent_signal (res://test/unit/test_fsm_signals_stress.gd:444)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_eb_emit_logged_nonexistent_signal
+  [PASS] test_eb_emit_logged_argument_count_limit
+  [PASS] test_gm_eventbus_reentrant_state_desynchronization
+  [PASS] test_eb_telemetry_history_aliasing_audit
+
+--- Running Suite: res://test/unit/test_fortress_board.gd ---
+  [PASS] test_board_grid_dimensions_is_20x20
+  [PASS] test_is_valid_cell_boundary_checks
+  [PASS] test_all_17_zones_exist_and_match_canonical_names
+  [PASS] test_full_400_cell_mapping_no_duplicates_no_missing
+  [PASS] test_zone_cell_distribution_exact_counts
+  [PASS] test_get_cells_in_zone_returns_matching_cells
+  [PASS] test_elevation_levels_by_zone_type
+  [PASS] test_elevation_at_coordinates
+  [PASS] test_adjacency_graph_symmetry
+  [PASS] test_tower_adjacencies_connect_to_neighboring_walls_and_spawns
+  [PASS] test_invasion_pathway_from_all_spawns_to_camara_central
+  [PASS] test_wall_initial_hp_and_max_hp
+  [PASS] test_wall_damage_and_breach_detection
+  [PASS] test_wall_repair_restores_hp_and_clears_breach
+  [PASS] test_wall_signals_fired_on_damage_repair_and_breach
+  [PASS] test_place_unit_tracks_position_and_zone
+  [PASS] test_move_unit_updates_position_and_zone_membership
+  [PASS] test_remove_unit_cleans_up_all_tracking
+  [PASS] test_invalid_unit_operations_fail_gracefully
+  [PASS] test_board_reset_restores_clean_state
+
+--- Running Suite: res://test/unit/test_autoloads.gd ---
+  [PASS] test_game_manager_initial_state_is_menu
+  [PASS] test_game_manager_change_state_updates_current_and_previous
+  [PASS] test_game_manager_emits_state_changed_signal
+  [PASS] test_game_manager_all_valid_transitions
+  [PASS] test_game_manager_is_in_combat_flag
+  [PASS] test_game_manager_get_state_name_mapping
+  [PASS] test_game_manager_transition_to_same_state_is_noop
+  [PASS] test_game_manager_reset_state_restores_menu
+  [PASS] test_game_manager_rapid_sequential_transitions
+WARNING: [GameManager] Invalid state value: 999
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] change_state (res://scripts/autoload/GameManager.gd:68)
+         [1] test_game_manager_invalid_state_transition_rejected (res://test/unit/test_autoloads.gd:226)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_game_manager_invalid_state_transition_rejected
+  [PASS] test_game_manager_payload_deep_copy_isolation
+  [PASS] test_game_manager_can_transition_to_validation
+  [PASS] test_game_manager_reset_to_menu
+  [PASS] test_game_manager_change_state_and_scene_headless
+  [PASS] test_event_bus_unit_moved_signal
+  [PASS] test_event_bus_unit_attacked_signal
+  [PASS] test_event_bus_unit_damaged_signal
+  [PASS] test_event_bus_unit_died_signal
+  [PASS] test_event_bus_death_save_rolled_signal
+  [PASS] test_event_bus_status_applied_and_removed_signals
+  [PASS] test_event_bus_card_selected_and_round_resolved_signals
+  [PASS] test_event_bus_resources_updated_signal
+  [PASS] test_event_bus_multiple_subscribers_receive_event
+  [PASS] test_event_bus_disconnected_subscriber_ignored
+  [PASS] test_event_bus_extreme_values_safe
+  [PASS] test_event_bus_telemetry_recording_and_reset
+  [PASS] test_event_bus_game_reset_signal
+  [PASS] test_data_manager_loads_personagens_json
+  [PASS] test_data_manager_get_hero_data_guerreiro
+  [PASS] test_data_manager_get_hero_data_mago
+  [PASS] test_data_manager_get_hero_data_ladino
+  [PASS] test_data_manager_get_all_heroes_count
+  [PASS] test_data_manager_boss_stats_rei_goblin
+  [PASS] test_data_manager_query_nonexistent_hero_returns_null
+  [PASS] test_data_manager_query_empty_string_returns_null
+  [PASS] test_data_manager_cache_persistence
+  [PASS] test_data_manager_clear_cache
+WARNING: [DataManager] File 'res://dados/non_existent_file.json' not found.
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] load_from_file (res://scripts/autoload/DataManager.gd:56)
+         [1] test_data_manager_missing_file_graceful_handling (res://test/unit/test_autoloads.gd:547)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_data_manager_missing_file_graceful_handling
+ERROR: [DataManager] JSON Parse Error on line 0: Unexpected character
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] parse_raw_json (res://scripts/autoload/DataManager.gd:75)
+       [1] test_data_manager_corrupted_json_handling (res://test/unit/test_autoloads.gd:556)
+       [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+       [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_data_manager_corrupted_json_handling
+  [PASS] test_data_manager_heroes_and_enemies_segregation
+  [PASS] test_data_manager_hero_duplicate_mutation_isolation
+  [PASS] test_data_manager_isectum_castes_helper_methods
+  [PASS] test_data_manager_cards_helper_methods
+  [PASS] test_audio_manager_play_bgm
+  [PASS] test_audio_manager_stop_bgm
+  [PASS] test_audio_manager_switch_bgm_track
+  [PASS] test_audio_manager_play_sfx_pool_allocation
+  [PASS] test_audio_manager_set_and_get_bus_volume
+WARNING: [AudioManager] Unknown SFX 'laser_cannon_9000'
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] play_sfx (res://scripts/autoload/AudioManager.gd:226)
+         [1] test_audio_manager_play_nonexistent_sfx_graceful (res://test/unit/test_autoloads.gd:671)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_audio_manager_play_nonexistent_sfx_graceful
+WARNING: [AudioManager] Unknown BGM track 'nonexistent_orchestra'
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] play_bgm (res://scripts/autoload/AudioManager.gd:130)
+         [1] test_audio_manager_play_nonexistent_bgm_graceful (res://test/unit/test_autoloads.gd:679)
+         [2] _run_test_file (res://addons/gut/gut_cmdln.gd:192)
+         [3] _run_tests (res://addons/gut/gut_cmdln.gd:97)
+  [PASS] test_audio_manager_play_nonexistent_bgm_graceful
+  [PASS] test_audio_manager_volume_clamping_upper
+  [PASS] test_audio_manager_volume_clamping_lower
+  [PASS] test_audio_manager_sfx_pool_rapid_fire
+  [PASS] test_audio_manager_headless_safety
+  [PASS] test_audio_manager_bus_mute_controls
+  [PASS] test_audio_manager_stop_all_sfx
+  [PASS] test_audio_manager_pitch_scale_setting
+
+--- Running Suite: res://test/unit/test_cerco_deck_economy.gd ---
+  [PASS] test_card_data_default_properties
+  [PASS] test_card_data_custom_initialization_and_legacy_sync
+  [PASS] test_card_data_legacy_name_setter_syncs_card_name
+  [PASS] test_card_data_get_cost_dict
+  [PASS] test_card_data_can_afford_validation
+  [PASS] test_card_data_clone_is_independent_deep_copy
+  [PASS] test_workshop_economy_initial_and_set_resources
+  [PASS] test_workshop_economy_add_and_spend_resources
+  [PASS] test_workshop_economy_can_afford_and_spend_costs_atomic
+  [PASS] test_workshop_economy_production_per_workshop
+  [PASS] test_workshop_economy_production_zero_workers_or_invalid_zone
+  [PASS] test_workshop_economy_repair_wall_with_resources
+  [PASS] test_workshop_economy_repair_wall_insufficient_resources_fails
+  [PASS] test_cerco_deck_build_starter_deck
+  [PASS] test_cerco_deck_draw_and_play_card
+  [PASS] test_cerco_deck_discard_card
+  [PASS] test_cerco_deck_automatic_reshuffle_when_draw_pile_empty
+  [PASS] test_cerco_deck_upgrade_market_buying
+  [PASS] test_cerco_deck_upgrade_market_buying_unaffordable_fails
+  [PASS] test_sync_round_register_actions
+  [PASS] test_sync_round_register_action_rejects_invalid
+  [PASS] test_sync_round_synergy_detection_team_synergy
+  [PASS] test_sync_round_supreme_synchrony_awards_two_crystals
+  [PASS] test_sync_round_supreme_synchrony_with_escavacao_stacks_bonus
+  [PASS] test_sync_round_4_layer_execution_order_and_details
+  [PASS] test_card_data_can_afford_individual_cost_shortages
+  [PASS] test_workshop_economy_zero_and_negative_operations
+  [PASS] test_workshop_economy_patio_central_crystal_production
+  [PASS] test_workshop_economy_repair_wall_zero_resources_returns_current_hp
+  [PASS] test_workshop_economy_repair_wall_null_board_or_negative_returns_zero
+  [PASS] test_workshop_economy_reset_clears_all_resources
+  [PASS] test_cerco_deck_play_card_by_index_bounds
+  [PASS] test_cerco_deck_draw_when_empty_and_no_discard_is_safe
+  [PASS] test_cerco_deck_add_custom_card_to_market
+  [PASS] test_sync_round_empty_or_single_player_no_synergies
+  [PASS] test_sync_round_player_re_registration_overwrites_action
+  [PASS] test_sync_round_team_synergy_trabalho_wall_repair_bonus
+  [PASS] test_sync_round_team_synergy_combate_adds_bonus_die
+  [PASS] test_sync_round_resolve_with_null_dependencies_safe
+
+--- Running Suite: res://test/unit/test_tactical_grid.gd ---
+  [PASS] test_grid_dimensions_default_20x20
+  [PASS] test_is_valid_cell_boundaries
+  [PASS] test_point_to_id_and_reverse_mapping
+  [PASS] test_add_border_walls_applies_perimeter_walls
+  [PASS] test_border_walls_clear_occupants
+  [PASS] test_terrain_walkability_flags
+  [PASS] test_terrain_cost_values
+  [PASS] test_structure_hp_initialized_to_20
+  [PASS] test_apply_structure_damage_partial
+  [PASS] test_apply_structure_damage_destruction_transforms_to_dificil
+  [PASS] test_structure_damage_signals_emitted
+  [PASS] test_elemental_fire_ignites_forest_to_fire
+  [PASS] test_elemental_ice_freezes_water_to_ice
+  [PASS] test_elemental_fire_melts_ice_to_water
+  [PASS] test_elemental_ice_extinguishes_fire_to_normal
+  [PASS] test_hazard_triggers
+  [PASS] test_unit_occupancy_lifecycle
+  [PASS] test_find_path_straight_line
+  [PASS] test_find_path_diagonal_8_way
+  [PASS] test_find_path_obstacle_detour
+  [PASS] test_find_path_unit_detour_when_not_ignored
+  [PASS] test_find_path_unreachable_returns_empty
+  [PASS] test_find_path_max_movement_truncation
+  [PASS] test_diagonal_corner_cutting_prevention
+  [PASS] test_bresenham_line_generation
+  [PASS] test_line_of_sight_clear
+  [PASS] test_line_of_sight_blocked_by_wall
+  [PASS] test_line_of_sight_blocked_by_rock
+  [PASS] test_line_of_sight_blocked_by_unit_when_not_ignored
+  [PASS] test_cover_adjacent_forest_grants_3_ac
+  [PASS] test_cover_adjacent_rock_grants_5_ac
+  [PASS] test_cover_open_field_is_zero
+  [PASS] test_cover_raycast_creature_soft_cover_2_ac
+  [PASS] test_cover_raycast_wall_total_cover_1000
+  [PASS] test_total_cover_bonus_calculation
+  [PASS] test_distance_metrics
+
+============================================================
+                    TEST SUMMARY                            
+============================================================
+Test Scripts Executed:   15
+Tests Run:               463
+Tests Passed:            463
+Tests Failed:            0
+Total Assertions:        3564
+Assertions Passed:       3564
+Assertions Failed:       0
+============================================================
+

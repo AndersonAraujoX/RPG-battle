@@ -71,3 +71,25 @@ Portar as regras do modo Cerco:
 ### Verificação Automatizada (Forcing Function)
 - [ ] A suíte de testes GUT é executável de forma autônoma via CLI em modo headless.
 - [ ] 100% dos testes unitários portados passam com código de saída 0 e sem warnings críticos.
+
+## Follow-up — 2026-09-26T16:53:31Z
+
+[DECISÃO DO USUÁRIO — PIVOT ESTRATÉGICO DE ESCOPO]
+
+O usuário redefiniu oficialmente o escopo do projeto:
+FOCO EXCLUSIVO NO "CERCO DA FORTALEZA CONTRA ISECTUM" (o jogo de tabuleiro tático de deckbuilding, fortaleza, zonas de produção, dados D6 customizados, 24 castas de insetos e co-op).
+
+DIRETRIZES DE PIVOTAGEM:
+1. PODAR REGRAS D&D TRADICIONAIS:
+   - Remover dependência de regras complexas de D&D 5e tradicional (14 tipos de dano D&D, d20 de combate padrão, Death Saves tradicionais, atributos de D&D fora do contexto do Cerco).
+2. PRIORIDADE ABSOLUTA PARA O CERCO:
+   - Tabuleiro da Fortaleza: 17 zonas lógicas mapeadas na grade 20x20 (Câmara Central, Carpintaria, Curtume, Fundição, Pátio, 4 Muralhas, 4 Torres, 4 Campos de Spawn), com elevações e fluxo de invasão.
+   - Motor do Cerco (CercoCombatJudge / juiz_combate.py): Dado D6 customizado (Impactos e Disparos de Balestra), combate Melee (2 impactos = 1 dano), combate Ranged das Torres (1 disparo = 1 dano), Brutamontes (3 círculos de HP), Infiltradores e Catapulta.
+   - 24 Castas Isectum (castas_isectum.py): Insetos com habilidades únicas, cartas de Runa e Defesa.
+   - Deckbuilder & Economia (cerco_isectum.py): Cartas básicas (Marcha, Trabalho, Escavação), mercado de upgrades, produção nas oficinas (Madeira, Couro, Metal, Cristal) e Turno de Sincronia Co-op com combos de Sinergia.
+   - HUD & Cena do Cerco: Mão de cartas em leque, tabuleiro com highlight de zonas, placar de recursos e log do cerco.
+   - Suíte GUT: Testes focados 100% nas regras do Cerco, tabuleiro, dados D6 e castas Isectum.
+
+## Follow-up — 2026-10-01T00:38:03Z
+
+O servidor foi reiniciado. Por favor, retome a execução contínua do projeto com foco exclusivo no Cerco da Fortaleza contra Isectum (Tabuleiro das 17 zonas da fortaleza, Juiz de Combate com dados D6 customizados, 24 Castas Isectum, Deckbuilder e Sincronia Co-op). Avance com os marcos e testes GUT!

@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c54sobc8pej8h"
-valid=false
+uid="uid://dpnbsw2f1dpqa"
+path="res://.godot/imported/terreno_parede.png-6e21925157acb464b8fa23c72ab8f35c.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_parede.png"
+dest_files=["res://.godot/imported/terreno_parede.png-6e21925157acb464b8fa23c72ab8f35c.ctex"]
 
 [params]
 

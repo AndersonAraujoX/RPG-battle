@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dnqjoe8ltyhg6"
-valid=false
+uid="uid://dveulth5clsoi"
+path="res://.godot/imported/terreno_subsolo.png-ea6cd0aeb657e357aed124fbbaa37368.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_subsolo.png"
+dest_files=["res://.godot/imported/terreno_subsolo.png-ea6cd0aeb657e357aed124fbbaa37368.ctex"]
 
 [params]
 

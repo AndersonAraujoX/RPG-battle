@@ -1,3 +1,9 @@
-[gd_scene format=3 uid="uid://cmainscenerpg"]
+[gd_scene load_steps=3 format=3 uid="uid://cmainscenerpg"]
+
+[ext_resource type="Script" path="res://scripts/main/CercoGameController.gd" id="1_controller"]
+[ext_resource type="PackedScene" uid="uid://hudcerco1280" path="res://scenes/ui/HUD.tscn" id="2_hud"]
 
 [node name="Main" type="Node2D"]
+script = ExtResource("1_controller")
+
+[node name="HUD" parent="." instance=ExtResource("2_hud")]

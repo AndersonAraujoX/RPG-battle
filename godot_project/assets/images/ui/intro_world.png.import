@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bu4w2o5r2mgn5"
-valid=false
+uid="uid://bsmb2jl6qhkfq"
+path="res://.godot/imported/intro_world.png-500f2a6ea7b84b07872d91c43d68c63d.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/ui/intro_world.png"
+dest_files=["res://.godot/imported/intro_world.png-500f2a6ea7b84b07872d91c43d68c63d.ctex"]
 
 [params]
 

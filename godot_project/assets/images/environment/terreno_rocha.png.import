@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbh1ev6ma7gg0"
-valid=false
+uid="uid://b5j5a4bjniwl2"
+path="res://.godot/imported/terreno_rocha.png-9661b0117c2815470fa1f6c9c38c5554.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_rocha.png"
+dest_files=["res://.godot/imported/terreno_rocha.png-9661b0117c2815470fa1f6c9c38c5554.ctex"]
 
 [params]
 

@@ -1,0 +1,277 @@
+[gd_scene load_steps=14 format=3 uid="uid://sf8j70k0ggyp"]
+
+[ext_resource type="Script" path="res://scripts/main/Menu.gd" id="1_menu"]
+[ext_resource type="Texture2D" uid="uid://c3kadtr6bxtxd" path="res://assets/images/ui/menu_background.png" id="2_bg"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[sub_resource type="SystemFont" id="SystemFont_title"]
+font_names = PackedStringArray("Liberation Sans", "DejaVu Sans", "Sans-Serif", "Arial")
+font_weight = 800
+
+[sub_resource type="SystemFont" id="SystemFont_btn"]
+font_names = PackedStringArray("Liberation Sans", "DejaVu Sans", "Sans-Serif", "Arial")
+font_weight = 700
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jogar_normal"]
+bg_color = Color(0.196078, 0.0784314, 0.313726, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.921569, 0.752941, 0.219608, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jogar_hover"]
+bg_color = Color(0.282353, 0.121569, 0.443137, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.882353, 0.352941, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jogar_pressed"]
+bg_color = Color(0.137255, 0.0509804, 0.219608, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.882353, 0.705882, 0.196078, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dark_normal"]
+bg_color = Color(0.0627451, 0.0392157, 0.0980392, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.921569, 0.752941, 0.219608, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dark_hover"]
+bg_color = Color(0.141176, 0.0901961, 0.219608, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.882353, 0.352941, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dark_pressed"]
+bg_color = Color(0.0313726, 0.0196078, 0.0588235, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.882353, 0.705882, 0.196078, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dev_normal"]
+bg_color = Color(0.317647, 0.0784314, 0.0784314, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.921569, 0.752941, 0.219608, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dev_hover"]
+bg_color = Color(0.443137, 0.117647, 0.117647, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.882353, 0.352941, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dev_pressed"]
+bg_color = Color(0.203922, 0.0392157, 0.0392157, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.882353, 0.705882, 0.196078, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="Menu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="TitleContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+offset_left = 70.0
+offset_top = 50.0
+offset_right = 650.0
+offset_bottom = 250.0
+theme_override_constants/separation = 2
+
+[node name="LblCercoContra" type="Label" parent="TitleContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.921569, 0.619608, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 10
+theme_override_fonts/font = SubResource("SystemFont_title")
+theme_override_font_sizes/font_size = 68
+text = "Cerco contra"
+
+[node name="LblIsectum" type="Label" parent="TitleContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.482353, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 14
+theme_override_fonts/font = SubResource("SystemFont_title")
+theme_override_font_sizes/font_size = 92
+text = "Isectum"
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="GridButtons" type="GridContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = 35.0
+offset_right = 300.0
+offset_bottom = 235.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/h_separation = 36
+theme_override_constants/v_separation = 16
+columns = 2
+
+[node name="BtnJogarCerco" type="Button" parent="UI/GridButtons"]
+custom_minimum_size = Vector2(280, 52)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 0.941176, 0.745098, 1)
+theme_override_fonts/font = SubResource("SystemFont_btn")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_jogar_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_jogar_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_jogar_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "JOGAR CERCO"
+
+[node name="BtnNovaCampanha" type="Button" parent="UI/GridButtons"]
+custom_minimum_size = Vector2(280, 52)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 0.941176, 0.745098, 1)
+theme_override_fonts/font = SubResource("SystemFont_btn")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_dark_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dark_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_dark_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "NOVA CAMPANHA"
+
+[node name="BtnContinuar" type="Button" parent="UI/GridButtons"]
+custom_minimum_size = Vector2(280, 52)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 0.941176, 0.745098, 1)
+theme_override_fonts/font = SubResource("SystemFont_btn")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_dark_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dark_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_dark_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "CONTINUAR"
+
+[node name="BtnOpcoes" type="Button" parent="UI/GridButtons"]
+custom_minimum_size = Vector2(280, 52)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 0.941176, 0.745098, 1)
+theme_override_fonts/font = SubResource("SystemFont_btn")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_dark_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dark_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_dark_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "OPÇÕES"
+
+[node name="BtnDevTools" type="Button" parent="UI/GridButtons"]
+custom_minimum_size = Vector2(280, 52)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 0.941176, 0.745098, 1)
+theme_override_fonts/font = SubResource("SystemFont_btn")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_dev_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dev_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_dev_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "DEV TOOLS"
+
+[node name="BtnSair" type="Button" parent="UI/GridButtons"]
+custom_minimum_size = Vector2(280, 52)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 0.941176, 0.745098, 1)
+theme_override_fonts/font = SubResource("SystemFont_btn")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_dark_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dark_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_dark_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "SAIR"

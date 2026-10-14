@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0egt21xxlxjt"
-valid=false
+uid="uid://baig1u0rswtwu"
+path="res://.godot/imported/terreno_dificil.png-28d5044ef3086999acbe9ea76cd4cad9.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_dificil.png"
+dest_files=["res://.godot/imported/terreno_dificil.png-28d5044ef3086999acbe9ea76cd4cad9.ctex"]
 
 [params]
 

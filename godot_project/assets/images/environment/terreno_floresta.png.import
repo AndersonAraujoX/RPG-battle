@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://4pjd5wolma3a"
-valid=false
+uid="uid://drwxwdou2knb2"
+path="res://.godot/imported/terreno_floresta.png-d9d41f08f596f6a91c2877f1447f5ca5.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/environment/terreno_floresta.png"
+dest_files=["res://.godot/imported/terreno_floresta.png-d9d41f08f596f6a91c2877f1447f5ca5.ctex"]
 
 [params]
 

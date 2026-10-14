@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://huin1hlrx67w"
-valid=false
+uid="uid://dlbbj6btr55rp"
+path="res://.godot/imported/intro_heroes.png-ab85d218ad10ca740b8f693be3a8c94d.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/ui/intro_heroes.png"
+dest_files=["res://.godot/imported/intro_heroes.png-ab85d218ad10ca740b8f693be3a8c94d.ctex"]
 
 [params]
 
