@@ -1,0 +1,236 @@
+--- a/godot_project/scripts/run/relics/RelicManager.gd
++++ b/godot_project/scripts/run/relics/RelicManager.gd
+@@ -90,19 +90,36 @@
+ func sync_from_run_state() -> void:
+ 	if run_state == null:
+ 		return
++	# 1. Prune active relics that are no longer present in RunState
++	var active_keys: Array = _active_relics.keys()
++	for act_key in active_keys:
++		var found: bool = false
++		for r_id in run_state.relics:
++			if normalize_id(r_id) == act_key or r_id == act_key:
++				found = true
++				break
++		if not found:
++			var relic: RelicData = _active_relics[act_key]
++			relic.on_unregistered(run_state)
++			_active_relics.erase(act_key)
++	# 2. Add new relics from RunState
+ 	for r_id in run_state.relics:
+-		if not _active_relics.has(r_id):
+-			var relic: RelicData = create_relic(r_id)
++		var norm_id: String = normalize_id(r_id)
++		if not _active_relics.has(norm_id):
++			var relic: RelicData = create_relic(norm_id)
+ 			if relic != null:
+-				_active_relics[r_id] = relic
++				_active_relics[norm_id] = relic
+ 				relic.on_registered(run_state)
+ 
+ ## Registers a new relic by ID. Adds to RunState if not present.
+ func register_relic(relic_id: String) -> bool:
+-	if relic_id.is_empty() or _active_relics.has(relic_id):
++	var norm_id: String = normalize_id(relic_id)
++	if norm_id.is_empty() or _active_relics.has(norm_id):
+ 		return false
+ 	
+-	var relic: RelicData = create_relic(relic_id)
++	var relic: RelicData = create_relic(norm_id)
+ 	if relic == null:
+ 		push_warning("[RelicManager] Relíquia desconhecida: '%s'" % relic_id)
+ 		return false
+@@ -110,12 +127,12 @@
+-	_active_relics[relic_id] = relic
++	_active_relics[norm_id] = relic
+ 	if run_state != null:
+-		if not run_state.has_relic(relic_id):
+-			run_state.add_relic(relic_id)
++		if not run_state.has_relic(norm_id):
++			run_state.add_relic(norm_id)
+ 		relic.on_registered(run_state)
+ 	
+ 	return true
+ 
+ ## Unregisters and removes a relic
+ func unregister_relic(relic_id: String) -> bool:
+-	if not _active_relics.has(relic_id):
++	var norm_id: String = normalize_id(relic_id)
++	var target_key: String = norm_id if _active_relics.has(norm_id) else (relic_id if _active_relics.has(relic_id) else "")
++	if target_key.is_empty():
+ 		return false
+-	var relic: RelicData = _active_relics[relic_id]
++	var relic: RelicData = _active_relics[target_key]
+ 	if run_state != null:
+ 		relic.on_unregistered(run_state)
+-		var idx: int = run_state.relics.find(relic_id)
+-		if idx >= 0:
+-			run_state.relics.remove_at(idx)
+-	_active_relics.erase(relic_id)
++		run_state.remove_relic(target_key)
++		if target_key != norm_id:
++			run_state.remove_relic(norm_id)
++		if target_key != relic_id:
++			run_state.remove_relic(relic_id)
++	_active_relics.erase(target_key)
+ 	return true
+ 
+ func get_relic(relic_id: String) -> RelicData:
+-	return _active_relics.get(relic_id, null)
++	var norm_id: String = normalize_id(relic_id)
++	if _active_relics.has(norm_id):
++		return _active_relics[norm_id]
++	return _active_relics.get(relic_id, null)
+ 
+ func has_relic(relic_id: String) -> bool:
+-	return _active_relics.has(relic_id)
++	var norm_id: String = normalize_id(relic_id)
++	return _active_relics.has(norm_id) or _active_relics.has(relic_id)
+@@ -302,11 +323,24 @@
++## Normalizes relic identifiers: removes leading "reliquia_", handles aliases/typos, and trims whitespace.
++static func normalize_id(relic_id: String) -> String:
++	var clean: String = relic_id.strip_edges().to_lower()
++	if clean.begins_with("reliquia_"):
++		clean = clean.substr(9)
++	match clean:
++		"coroa_de_quitina":
++			return "coroa_quitina"
++		"pingente_ambar":
++			return "amuleto_ambar"
++		_:
++			return clean
++
+ func register_catalog_entry(relic_id: String, factory_callable: Callable) -> void:
+ 	_catalog[relic_id] = factory_callable
+ 
+ func create_relic(relic_id: String) -> RelicData:
++	var norm: String = normalize_id(relic_id)
++	if _catalog.has(norm):
++		return _catalog[norm].call()
+ 	if _catalog.has(relic_id):
+ 		return _catalog[relic_id].call()
+-	var stripped: String = relic_id.replace("reliquia_", "")
+-	if _catalog.has(stripped):
+-		return _catalog[stripped].call()
+ 	return null
+--- a/godot_project/scripts/run/ui/RewardModal.gd
++++ b/godot_project/scripts/run/ui/RewardModal.gd
+@@ -60,15 +60,15 @@
+ const ELITE_RELICS: Array[String] = [
+-	"reliquia_pedra_afiar",
+-	"reliquia_armadura_carapaca",
+-	"reliquia_moeda_da_sorte",
+-	"reliquia_balsamo_cogumelo",
+-	"reliquia_tocha_eterna"
++	"escudo_ancestral",
++	"bolsa_do_mercador",
++	"tocha_eterna",
++	"oleo_alquimico",
++	"frasco_feromonio"
+ ]
+ 
+ const BOSS_RELICS: Array[String] = [
+-	"reliquia_pingente_ambar",
+-	"reliquia_martelo_runico",
+-	"reliquia_foco_arcano",
+-	"reliquia_cinzas_da_forja",
+-	"reliquia_coroa_de_quitina"
++	"martelo_runico",
++	"amuleto_ambar",
++	"dente_da_viuva",
++	"coroa_quitina",
++	"relogio_da_forja"
+ ]
+@@ -125,7 +125,7 @@
+ 	# 2. Determinar Relíquia (Garantida em Elite e Boss)
+ 	if p_options.has("relic_id"):
+-		offered_relic_id = String(p_options["relic_id"])
++		offered_relic_id = RelicManager.normalize_id(String(p_options["relic_id"]))
+ 	elif ntype == RunNode.NodeType.BOSS:
+ 		offered_relic_id = _select_available_relic(BOSS_RELICS)
+ 	elif ntype == RunNode.NodeType.ELITE:
+@@ -238,3 +238,6 @@
+ 	if lbl_relic_info != null:
+ 		if not offered_relic_id.is_empty():
+-			lbl_relic_info.text = "💎 Relíquia: %s" % offered_relic_id.replace("reliquia_", "").capitalize()
++			var display_name: String = offered_relic_id.capitalize()
++			if ForgeScreen.CANONICAL_RELICS.has(offered_relic_id):
++				display_name = String(ForgeScreen.CANONICAL_RELICS[offered_relic_id]["name"])
++			lbl_relic_info.text = "💎 Relíquia: %s" % display_name
+ 			lbl_relic_info.visible = true
+@@ -308,3 +311,4 @@
+ 		if not offered_relic_id.is_empty():
+-			var added: bool = state.add_relic(offered_relic_id)
++			var norm_id: String = RelicManager.normalize_id(offered_relic_id)
++			var added: bool = state.add_relic(norm_id)
+ 			if added:
+-				relic_collected.emit(offered_relic_id)
++				relic_collected.emit(norm_id)
+@@ -382,3 +386,4 @@
+ 	for r in relic_list:
+-		if state == null or not state.has_relic(r):
+-			pool.append(r)
++		var norm_r: String = RelicManager.normalize_id(r)
++		if state == null or not state.has_relic(norm_r):
++			pool.append(norm_r)
+--- a/godot_project/scripts/run/ui/ForgeScreen.gd
++++ b/godot_project/scripts/run/ui/ForgeScreen.gd
+@@ -176,6 +176,14 @@
+-	var owned_relics: Array[String] = state.relics if state != null else []
+ 	var available_relic_ids: Array[String] = []
+ 	for rid in CANONICAL_RELICS.keys():
+-		if not owned_relics.has(rid):
++		var norm_rid: String = RelicManager.normalize_id(rid)
++		var already_owned: bool = false
++		if state != null:
++			for owned in state.relics:
++				if RelicManager.normalize_id(owned) == norm_rid:
++					already_owned = true
++					break
++		if not already_owned:
+ 			available_relic_ids.append(rid)
+@@ -267,4 +275,5 @@
++	var norm_relic_id: String = RelicManager.normalize_id(slot["id"])
+ 	state.spend_gold(cost)
+-	state.add_relic(slot["id"])
++	state.add_relic(norm_relic_id)
+ 	if relic_manager != null and relic_manager.has_method("register_relic"):
+-		relic_manager.register_relic(slot["id"])
++		relic_manager.register_relic(norm_relic_id)
+--- a/godot_project/scripts/run/RunState.gd
++++ b/godot_project/scripts/run/RunState.gd
+@@ -214,14 +214,24 @@
+ func add_relic(relic_id: String) -> bool:
+-	if relic_id.is_empty() or relics.has(relic_id):
++	if relic_id.is_empty() or has_relic(relic_id):
+ 		return false
+-	relics.append(relic_id)
++	var norm: String = RelicManager.normalize_id(relic_id)
++	relics.append(norm)
+ 	return true
+ 
+ func has_relic(relic_id: String) -> bool:
+-	return relics.has(relic_id)
++	if relics.has(relic_id):
++		return true
++	var norm: String = RelicManager.normalize_id(relic_id)
++	for r in relics:
++		if RelicManager.normalize_id(r) == norm:
++			return true
++	return false
+ 
+ func remove_relic(relic_id: String) -> bool:
+ 	var idx: int = relics.find(relic_id)
+-	if idx < 0:
+-		return false
+-	relics.remove_at(idx)
+-	return true
++	if idx >= 0:
++		relics.remove_at(idx)
++		return true
++	var norm: String = RelicManager.normalize_id(relic_id)
++	for i in range(relics.size()):
++		if RelicManager.normalize_id(relics[i]) == norm:
++			relics.remove_at(i)
++			return true
++	return false

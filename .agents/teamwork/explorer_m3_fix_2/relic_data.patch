@@ -1,0 +1,37 @@
+--- godot_project/scripts/run/relics/RelicData.gd	2026-10-15 22:30:23.550768172 -0300
++++ .agents/teamwork/explorer_m3_fix_2/proposed_RelicData.gd	2026-10-15 23:02:05.850551839 -0300
+@@ -40,8 +40,10 @@
+ 	pass
+ 
+ ## Called when the relic is removed from RelicManager / expedition.
++## Guarantees relic deactivation and ephemeral counter reset.
+ func on_unregistered(_run_state: RunState) -> void:
+-	pass
++	is_active = false
++	counter = 0
+ 
+ ## Called when the party moves into a new map node.
+ func on_node_entered(_node: RunNode, _run_state: RunState) -> void:
+@@ -117,6 +119,7 @@
+ 	return base_heal_pct
+ 
+ ## Modifies post-combat victory rewards (e.g. rewards["gold"] += 10).
++## Pure functional calculation: does NOT mutate RunState directly.
+ func on_combat_victory(rewards: Dictionary, _run_state: RunState) -> Dictionary:
+ 	return rewards
+ 
+@@ -143,10 +146,10 @@
+ 	}
+ 
+ func from_dict(data: Dictionary) -> void:
+-	id = data.get("id", id)
+-	relic_name = data.get("relic_name", relic_name)
+-	description = data.get("description", description)
+-	rarity = data.get("rarity", rarity)
++	id = String(data.get("id", id))
++	relic_name = String(data.get("relic_name", relic_name))
++	description = String(data.get("description", description))
++	rarity = String(data.get("rarity", rarity))
+ 	cost_gold = int(data.get("cost_gold", cost_gold))
+ 	counter = int(data.get("counter", 0))
+ 	counter_max = int(data.get("counter_max", 0))

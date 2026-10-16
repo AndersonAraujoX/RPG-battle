@@ -1,0 +1,126 @@
+[gd_scene load_steps=2 format=3 uid="uid://cforgescreenrpg"]
+
+[ext_resource type="Script" path="res://scripts/run/ui/ForgeScreen.gd" id="1_forge"]
+
+[node name="ForgeScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_forge")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.06, 0.05, 0.07, 0.98)
+
+[node name="Header" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 54.0
+grow_horizontal = 2
+
+[node name="LblTitle" type="Label" parent="Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
+theme_override_font_sizes/font_size = 18
+text = "⚒️ FORJA ANÃ DE KUAR-TOR"
+
+[node name="LblDeck" type="Label" parent="Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "🃏 Deck: 10 cartas"
+
+[node name="LblGold" type="Label" parent="Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.84, 0, 1)
+theme_override_font_sizes/font_size = 15
+text = "🪙 50 Ouro"
+
+[node name="Body" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 70.0
+offset_right = -24.0
+offset_bottom = -70.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="CardsSection" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+
+[node name="CardsHBox" type="HBoxContainer" parent="Body/CardsSection"]
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="RelicsSection" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+
+[node name="RelicsHBox" type="HBoxContainer" parent="Body/RelicsSection"]
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PurgeSection" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+
+[node name="PurgePanel" type="PanelContainer" parent="Body/PurgeSection"]
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+
+[node name="DeckDrawer" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -120.0
+offset_right = 250.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Footer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -54.0
+offset_right = -24.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="LblFeedback" type="Label" parent="Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "Bem-vindo à Forja de Karak-Dur."
+
+[node name="BtnClose" type="Button" parent="Footer"]
+custom_minimum_size = Vector2(180, 40)
+layout_mode = 2
+text = "Voltar ao Caminho  ➔"

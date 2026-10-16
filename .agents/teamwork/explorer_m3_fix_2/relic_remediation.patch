@@ -1,0 +1,273 @@
+--- godot_project/scripts/run/relics/RelicData.gd	2026-10-15 22:30:23.550768172 -0300
++++ .agents/teamwork/explorer_m3_fix_2/proposed_RelicData.gd	2026-10-15 23:02:05.850551839 -0300
+@@ -40,8 +40,10 @@
+ 	pass
+ 
+ ## Called when the relic is removed from RelicManager / expedition.
++## Guarantees relic deactivation and ephemeral counter reset.
+ func on_unregistered(_run_state: RunState) -> void:
+-	pass
++	is_active = false
++	counter = 0
+ 
+ ## Called when the party moves into a new map node.
+ func on_node_entered(_node: RunNode, _run_state: RunState) -> void:
+@@ -117,6 +119,7 @@
+ 	return base_heal_pct
+ 
+ ## Modifies post-combat victory rewards (e.g. rewards["gold"] += 10).
++## Pure functional calculation: does NOT mutate RunState directly.
+ func on_combat_victory(rewards: Dictionary, _run_state: RunState) -> Dictionary:
+ 	return rewards
+ 
+@@ -143,10 +146,10 @@
+ 	}
+ 
+ func from_dict(data: Dictionary) -> void:
+-	id = data.get("id", id)
+-	relic_name = data.get("relic_name", relic_name)
+-	description = data.get("description", description)
+-	rarity = data.get("rarity", rarity)
++	id = String(data.get("id", id))
++	relic_name = String(data.get("relic_name", relic_name))
++	description = String(data.get("description", description))
++	rarity = String(data.get("rarity", rarity))
+ 	cost_gold = int(data.get("cost_gold", cost_gold))
+ 	counter = int(data.get("counter", 0))
+ 	counter_max = int(data.get("counter_max", 0))
+--- godot_project/scripts/run/relics/RelicManager.gd	2026-10-15 22:32:47.743659054 -0300
++++ .agents/teamwork/explorer_m3_fix_2/proposed_RelicManager.gd	2026-10-15 23:02:44.816092334 -0300
+@@ -9,7 +9,7 @@
+ var run_state: RunState = null
+ var event_bus: Node = null
+ 
+-## Active instantiated relics: { relic_id: RelicData }
++## Active instantiated relics: { canonical_relic_id: RelicData }
+ var _active_relics: Dictionary = {}
+ 
+ ## Catalog factory registry: { relic_id: Callable -> RelicData }
+@@ -22,8 +22,15 @@
+ 	if p_run_state != null:
+ 		setup(p_run_state, p_event_bus)
+ 
++## Normalizes relic identifiers by stripping the legacy 'reliquia_' prefix.
++static func get_canonical_id(p_id: String) -> String:
++	return p_id.trim_prefix("reliquia_").strip_edges()
++
+ ## Initializes with dependencies and synchronizes existing RunState.relics
+ func setup(p_run_state: RunState, p_event_bus: Node = null) -> void:
++	if _connected:
++		disconnect_event_bus()
++	
+ 	run_state = p_run_state
+ 	event_bus = p_event_bus
+ 	if event_bus == null and Engine.has_singleton("EventBus"):
+@@ -86,62 +93,111 @@
+ 
+ # ── Relic Management ────────────────────────────────────────────────────────
+ 
+-## Synchronizes active relics with IDs present in RunState.relics
++## Synchronizes active relics with IDs present in RunState.relics.
++## Performs two-way synchronization: prunes purged relics and registers newly acquired relics.
+ func sync_from_run_state() -> void:
+ 	if run_state == null:
+ 		return
++	
++	# 1. Build set of desired canonical IDs from run_state.relics
++	var desired_canonical_ids: Dictionary = {}
+ 	for r_id in run_state.relics:
+-		if not _active_relics.has(r_id):
+-			var relic: RelicData = create_relic(r_id)
++		var cid: String = get_canonical_id(r_id)
++		if not cid.is_empty():
++			desired_canonical_ids[cid] = r_id
++	
++	# 2. Prune any active relics that are no longer in run_state.relics
++	var to_remove: Array[String] = []
++	for active_key in _active_relics.keys():
++		var active_cid: String = get_canonical_id(active_key)
++		if not desired_canonical_ids.has(active_cid):
++			to_remove.append(active_key)
++	
++	for remove_key in to_remove:
++		var relic: RelicData = _active_relics[remove_key]
++		if relic != null:
++			relic.is_active = false
++			relic.on_unregistered(run_state)
++		_active_relics.erase(remove_key)
++	
++	# 3. Register newly added relics
++	for cid in desired_canonical_ids.keys():
++		if not _active_relics.has(cid):
++			var relic: RelicData = create_relic(cid)
+ 			if relic != null:
+-				_active_relics[r_id] = relic
++				_active_relics[cid] = relic
+ 				relic.on_registered(run_state)
+ 
+ ## Registers a new relic by ID. Adds to RunState if not present.
++## Normalizes input to canonical ID to prevent duplicate stacking via aliases.
+ func register_relic(relic_id: String) -> bool:
+-	if relic_id.is_empty() or _active_relics.has(relic_id):
++	if relic_id.is_empty():
++		return false
++	
++	var cid: String = get_canonical_id(relic_id)
++	if cid.is_empty() or has_relic(cid):
+ 		return false
+ 	
+-	var relic: RelicData = create_relic(relic_id)
++	var relic: RelicData = create_relic(cid)
+ 	if relic == null:
+ 		push_warning("[RelicManager] Relíquia desconhecida: '%s'" % relic_id)
+ 		return false
+ 	
+-	_active_relics[relic_id] = relic
++	_active_relics[cid] = relic
+ 	if run_state != null:
+-		if not run_state.has_relic(relic_id):
+-			run_state.add_relic(relic_id)
++		if not run_state.has_relic(cid) and not run_state.has_relic(relic_id):
++			run_state.add_relic(cid)
+ 		relic.on_registered(run_state)
+ 	
+ 	return true
+ 
+-## Unregisters and removes a relic
++## Unregisters and removes a relic.
++## Disconnects lifecycle hooks, deactivates instance, and synchronizes removal with RunState.
+ func unregister_relic(relic_id: String) -> bool:
+-	if not _active_relics.has(relic_id):
++	var cid: String = get_canonical_id(relic_id)
++	var active_key: String = ""
++	if _active_relics.has(cid):
++		active_key = cid
++	elif _active_relics.has(relic_id):
++		active_key = relic_id
++	
++	if active_key.is_empty():
+ 		return false
+-	var relic: RelicData = _active_relics[relic_id]
+-	if run_state != null:
+-		relic.on_unregistered(run_state)
+-		var idx: int = run_state.relics.find(relic_id)
+-		if idx >= 0:
+-			run_state.relics.remove_at(idx)
+-	_active_relics.erase(relic_id)
++	
++	var relic: RelicData = _active_relics[active_key]
++	if relic != null:
++		relic.is_active = false
++		if run_state != null:
++			relic.on_unregistered(run_state)
++			run_state.remove_relic(relic_id)
++			run_state.remove_relic(cid)
++			run_state.remove_relic("reliquia_" + cid)
++			if not relic.id.is_empty():
++				run_state.remove_relic(relic.id)
++	
++	_active_relics.erase(active_key)
+ 	return true
+ 
+-## Cleans up all relics and disconnects signals (prevents memory leaks)
++## Cleans up all relics and disconnects signals (prevents memory leaks).
+ func unregister_all() -> void:
+ 	for r_id in _active_relics.keys():
+ 		var relic: RelicData = _active_relics[r_id]
+-		if run_state != null:
+-			relic.on_unregistered(run_state)
++		if relic != null:
++			relic.is_active = false
++			if run_state != null:
++				relic.on_unregistered(run_state)
+ 	_active_relics.clear()
+ 	disconnect_event_bus()
+ 
+ func get_relic(relic_id: String) -> RelicData:
++	var cid: String = get_canonical_id(relic_id)
++	if _active_relics.has(cid):
++		return _active_relics[cid]
+ 	return _active_relics.get(relic_id, null)
+ 
+ func has_relic(relic_id: String) -> bool:
+-	return _active_relics.has(relic_id)
++	var cid: String = get_canonical_id(relic_id)
++	return _active_relics.has(cid) or _active_relics.has(relic_id)
+ 
+ func get_all_relics() -> Array[RelicData]:
+ 	var list: Array[RelicData] = []
+@@ -227,7 +283,8 @@
+ 			current_pct = relic.on_campfire_rest(current_pct, run_state)
+ 	return current_pct
+ 
+-## Calculates post-combat victory rewards with relic bonuses
++## Calculates post-combat victory rewards with relic bonuses.
++## Functional calculation: returns mutated dictionary, does NOT modify RunState directly.
+ func modify_combat_victory_rewards(rewards: Dictionary) -> Dictionary:
+ 	var mod_rewards: Dictionary = rewards.duplicate(true)
+ 	for relic in _active_relics.values():
+@@ -303,11 +360,14 @@
+ 	_catalog[relic_id] = factory_callable
+ 
+ func create_relic(relic_id: String) -> RelicData:
++	var cid: String = get_canonical_id(relic_id)
++	if _catalog.has(cid):
++		return _catalog[cid].call()
+ 	if _catalog.has(relic_id):
+ 		return _catalog[relic_id].call()
+-	var stripped: String = relic_id.replace("reliquia_", "")
+-	if _catalog.has(stripped):
+-		return _catalog[stripped].call()
++	# Backward compatibility for 'coroa_de_quitina' naming
++	if cid == "coroa_de_quitina" and _catalog.has("coroa_quitina"):
++		return _catalog["coroa_quitina"].call()
+ 	return null
+ 
+ func get_catalog_ids() -> Array[String]:
+@@ -326,6 +386,7 @@
+ 	register_catalog_entry("oleo_alquimico", func(): return RelicOleoAlquimico.new())
+ 	register_catalog_entry("frasco_feromonio", func(): return RelicFrascoFeromonio.new())
+ 	register_catalog_entry("coroa_quitina", func(): return RelicCoroaQuitina.new())
++	register_catalog_entry("coroa_de_quitina", func(): return RelicCoroaQuitina.new())
+ 	register_catalog_entry("relogio_da_forja", func(): return RelicRelogioDaForja.new())
+ 
+ # ── Canonical 10 Relic Concrete Implementations ──────────────────────────────
+@@ -355,10 +416,8 @@
+ 	func _init() -> void:
+ 		super("bolsa_do_mercador", "Bolsa de Moedas da Guilda", "Vitórias em combate concedem +10 de ouro adicional.", RARITY_COMUM, 45)
+ 
+-	func on_combat_victory(rewards: Dictionary, p_run_state: RunState) -> Dictionary:
++	func on_combat_victory(rewards: Dictionary, _p_run_state: RunState) -> Dictionary:
+ 		rewards["gold"] = int(rewards.get("gold", 0)) + 10
+-		if p_run_state != null:
+-			p_run_state.add_gold(10)
+ 		return rewards
+ 
+ class RelicAmuletoAmbar extends RelicData:
+@@ -398,12 +457,24 @@
+ 		return {}
+ 
+ class RelicFrascoFeromonio extends RelicData:
++	const CANCELABLE_CONDITIONS: Array[String] = [
++		"poisoned", "envenenado", "veneno",
++		"stunned", "atordoado", "atordoamento",
++		"frightened", "amedrontado", "medo",
++		"restrained", "imobilizado",
++		"burning", "queimando", "fogo",
++		"paralyzed", "paralisado", "paralisia"
++	]
++
+ 	func _init() -> void:
+ 		super("frasco_feromonio", "Frasco de Feromônio Neutralizador", "Anula a primeira condição negativa recebida pelos heróis em cada combate.", RARITY_RARO, 80)
+ 		counter_max = 1
+ 
+-	func on_status_applied(_unit_id: String, status_id: String, _duration: int, _run_state: RunState) -> Dictionary:
+-		if counter == 0 and status_id in ["poisoned", "stunned", "frightened", "burning", "restrained"]:
++	func on_status_applied(unit_id: String, status_id: String, _duration: int, p_run_state: RunState) -> Dictionary:
++		if p_run_state == null or not p_run_state.heroes.has(unit_id):
++			return {}
++		var cond_lower: String = status_id.strip_edges().to_lower()
++		if counter == 0 and cond_lower in CANCELABLE_CONDITIONS:
+ 			counter = 1
+ 			return {"cancel_status": true}
+ 		return {}

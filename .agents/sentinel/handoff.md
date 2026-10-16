@@ -1,32 +1,29 @@
-# Handoff Report — Sentinel Final Project Completion & Victory Confirmation
+# Handoff Report — Sentinel Initialization & Dispatch
 
 ## Observation
-- Orchestrator Gen 3 (`f20fc092-e007-463e-91bf-9caf443e006b`) completed all requested deliverables:
-  * Milestone 6: WebSocket Multiplayer Co-op Client (`WebSocketClient.gd`, 47 unit tests, 37 adversarial/stress tests).
-  * Entities Scene: `Character.tscn` & `Character.gd` (CharacterBody2D, retro HP bar, highlight, status condition badges, multi-tier texture loading, 47 unit/stress tests).
-  * Milestone 7: Final Automated GUT Suite Pass & Hardening (510/510 tests passing across 17 suites, 0 ObjectDB memory leaks, `Character.gd` tree safety hardening).
-- Orchestrator Gen 3 submitted final victory claim.
-- In accordance with Sentinel Rule 4, Sentinel dispatched independent Post-Victory Auditor (`teamwork_preview_victory_auditor`, ID: `3db8ffa5-f92a-4238-ab6a-4faa61034db6`) with `ORIGINAL_REQUEST.md`.
-- Post-Victory Auditor conducted a zero-context 3-phase audit and returned:
-  `VERDICT: VICTORY CONFIRMED`
-  * Phase A (Timeline): PASS
-  * Phase B (Integrity & Facade Check): PASS (0 stubs, 0 bypasses, 0 tautologies, 10/10 deliverables verified)
-  * Phase C (Independent Test Execution): PASS (17 test scripts, 510 tests run, 510 passed, 0 failed, 5,600 assertions passed, exit code 0, strictly 0 ObjectDB leaks at exit)
-- Mandatory Sentinel cleanup executed:
-  * Cancelled Cron 1 (Task 861) and Cron 2 (Task 863) via `manage_task(Action="kill")`.
-  * Killed all subagents via `manage_subagents(Action="kill_all")`.
+- Received user request to implement Milestones M3 to M8 of the Tactical Roguelike Campaign in Godot 4 per `CAMPANHA_ROGUELIKE.md`.
+- Request encompasses Post-Combat Rewards, Forge, Relic system, Map node tactical integration, Act II Living Tunnels, 3 Hive Hearts, 3-Phase King Isectum Final Boss, and Meta-Progression/Ascension.
+- Existing base project in `godot_project/` has 729 GUT tests passing.
 
 ## Logic Chain
-1. All requirements from `ORIGINAL_REQUEST.md` (and user pivot to Cerco da Fortaleza contra Isectum) are fully implemented in Godot Engine 4 (Compatibility renderer, 1280x720).
-2. Codebase integrity was independently verified line-by-line without shared context.
-3. Clean-room test execution confirmed 100% test pass rate (510/510) and 0 ObjectDB memory leaks.
-4. Sentinel cleanup ensures zero dangling background tasks or subagents.
+- Evaluated Routing Decision Table: large multi-milestone SWE task spanning architecture, rules, UI, boss fight, and persistence.
+- Routed to General path: `teamwork_preview_orchestrator`.
+- Pre-flight audit is not required for General path.
+- Recorded request verbatim to `.agents/teamwork/ORIGINAL_REQUEST.md` and legacy request files.
+- Dispatched Project Orchestrator (`aa7d5d2d-ef0f-482c-be6b-93c1793915c2`) with workspace `/home/anderson/Documents/projeto/RPG-battle/.agents/teamwork/orchestrator_1`.
+- Initialized Sentinel monitoring with two recurring crons:
+  * Cron 1 (Progress reporting every 8 minutes: `task-32`)
+  * Cron 2 (Liveness check every 10 minutes: `task-34`)
 
 ## Caveats
-- Tests were executed headlessly. Full graphical rendering and audio playback outside headless CI utilize Godot's display and audio servers.
+- Orchestrator execution is asynchronous.
+- Completion claim from the orchestrator must not be taken at face value: mandatory post-victory audit via `teamwork_preview_victory_auditor` will be triggered prior to declaring project completion.
 
 ## Conclusion
-- The migration of RPG-battle to Godot Engine 4 is 100% complete, fully verified, and certified **VICTORY CONFIRMED**.
+- Orchestration has commenced under `teamwork_preview_orchestrator`.
+- Sentinel is actively monitoring progress and liveness.
 
 ## Verification Method
-- Independent reproduction via `./godot_project/run_gut_tests.sh` and `./godot_project/bin/godot --headless --verbose --path ./godot_project -s addons/gut/gut_cmdln.gd -gexit`.
+- Cron 1 will poll and report progress.
+- Cron 2 will enforce liveness and trigger nudges or recovery if needed.
+- Post-victory auditor will perform 3-phase independent verification before final reporting.

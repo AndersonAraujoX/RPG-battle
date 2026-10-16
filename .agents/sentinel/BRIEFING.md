@@ -1,37 +1,37 @@
-# BRIEFING — 2026-10-01T05:41:00Z
+# BRIEFING — 2026-10-16T01:06:00Z
 
 ## Mission
-Coordinate and monitor the complete Godot Engine 4 implementation of "CERCO DA FORTALEZA CONTRA ISECTUM" (tactical fortress board game, deckbuilding, 17 zones, D6 custom combat, 24 insect castes, co-op sync, WebSocket client, Character entity scene, and 100% headless GUT tests).
+Coordinate and monitor the implementation of Milestones M3 to M8 of the Tactical Roguelike Campaign in Godot 4 per CAMPANHA_ROGUELIKE.md.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: /home/anderson/Documents/projeto/RPG-battle/.agents/sentinel
-- Orchestrator: f20fc092-e007-463e-91bf-9caf443e006b
-- Victory Auditor: 3db8ffa5-f92a-4238-ab6a-4faa61034db6
+- Orchestrator: aa7d5d2d-ef0f-482c-be6b-93c1793915c2
+- Victory Auditor: to be spawned on victory claim
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
 - Audit requires VICTORY CONFIRMED verdict from teamwork_preview_victory_auditor
 - Keep context ultra-light
+- Clean up subagents and crons upon completion
 
 ## User Context
-- **Last user request**: Quota refreshed. Spawn Generation 3 Orchestrator to execute remaining deliverables: Milestone 6 (Multiplayer WebSocket Co-op Client), Character Entity scene (Character.tscn), and Milestone 7 (Full Headless GUT suite pass & hardening).
+- **Last user request**: Implement milestones M3 to M8 of the Tactical Roguelike Campaign in Godot 4 (Rewards, Forge, Relics, Map node tactical integration, Act II mechanics, 3 Hive Hearts & King Isectum 3-phase fight, Meta-Progression & Ascension).
 - **Pending clarifications**: none
-- **Delivered results**: Milestones 1 to 5 fully implemented and verified with 379 tests passing and 0 ObjectDB leaks!
+- **Delivered results**: Previous milestones (M1-M2, core systems, 729 GUT tests passing).
 
 ## Project Status
-- **Phase**: complete (All milestones M1–M7 and Entities Scene implemented, tested, and certified)
-- **Active Orchestrator**: none (cleaned up)
-- **Crons Active**: none (cancelled)
+- **Phase**: in progress
+- **Active Orchestrator**: aa7d5d2d-ef0f-482c-be6b-93c1793915c2
+- **Crons Active**: task-32 (Progress Reporting, */8), task-34 (Liveness Check, */10)
 
 ## Victory Audit Status
-- **Triggered**: yes
-- **Verdict**: VICTORY CONFIRMED
+- **Triggered**: no
+- **Verdict**: pending
 - **Retry count**: 0
 
 ## Artifact Index
-- /home/anderson/Documents/projeto/RPG-battle/.agents/ORIGINAL_REQUEST.md — Verbatim user request record & follow-ups
-- /home/anderson/Documents/projeto/RPG-battle/PROJECT.md — Master Cerco da Fortaleza Specification
-- /home/anderson/Documents/projeto/RPG-battle/TEST_INFRA.md — E2E Testing Framework & Thresholds
-- /home/anderson/Documents/projeto/RPG-battle/.agents/orchestrator_3/ — Active Orchestrator working directory
+- /home/anderson/Documents/projeto/RPG-battle/.agents/teamwork/ORIGINAL_REQUEST.md — Verbatim user request record
+- /home/anderson/Documents/projeto/RPG-battle/CAMPANHA_ROGUELIKE.md — Master Roguelike Campaign Specification
+- /home/anderson/Documents/projeto/RPG-battle/.agents/teamwork/orchestrator_1/ — Active Orchestrator working directory

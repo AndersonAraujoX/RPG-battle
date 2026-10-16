@@ -82,15 +82,18 @@ func _on_btn_jogar_cerco_pressed() -> void:
 
 func _on_btn_nova_campanha_pressed() -> void:
 	_play_click_sound()
+	RunSession.start_new(int(Time.get_unix_time_from_system()))
 	var tree: SceneTree = get_tree()
 	if tree != null:
-		tree.change_scene_to_file("res://scenes/cerco/CercoSetup.tscn")
+		tree.change_scene_to_file("res://scenes/run/RunMapScreen.tscn")
 
 func _on_btn_continuar_pressed() -> void:
 	_play_click_sound()
+	if not RunSession.has_active_run():
+		RunSession.start_new(int(Time.get_unix_time_from_system()))
 	var tree: SceneTree = get_tree()
 	if tree != null:
-		tree.change_scene_to_file("res://scenes/cerco/CercoSetup.tscn")
+		tree.change_scene_to_file("res://scenes/run/RunMapScreen.tscn")
 
 var _options_modal: OptionsMenu = null
 

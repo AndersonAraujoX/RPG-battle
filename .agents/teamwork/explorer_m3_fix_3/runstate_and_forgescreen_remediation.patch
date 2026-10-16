@@ -1,0 +1,44 @@
+--- a/godot_project/scripts/run/RunState.gd
++++ b/godot_project/scripts/run/RunState.gd
+@@ -42,6 +42,7 @@ var current_node_id: int = -1
+ var map: RunMap = null
+ var floors_cleared: int = 0
+ var bosses_defeated: int = 0
+ var enemies_killed: int = 0
++var card_purges_count: int = 0
+ 
+ var _generator: RunMapGenerator
+ var _rng: RandomNumberGenerator
+@@ -256,6 +257,7 @@ func to_dict() -> Dictionary:
+ 		"floors_cleared": floors_cleared,
+ 		"bosses_defeated": bosses_defeated,
+ 		"enemies_killed": enemies_killed,
++		"card_purges_count": card_purges_count,
+ 	}
+ 
+ ## Restaura de um dicionário; retorna false (sem alterar o estado) se os dados forem inválidos.
+@@ -285,6 +287,7 @@ func from_dict(data: Dictionary) -> bool:
+ 	floors_cleared = int(data.get("floors_cleared", 0))
+ 	bosses_defeated = int(data.get("bosses_defeated", 0))
+ 	enemies_killed = int(data.get("enemies_killed", 0))
++	card_purges_count = int(data.get("card_purges_count", 0))
+ 	map = restored_map
+ 	return true
+ 
+@@ -303,4 +306,5 @@ func _reset() -> void:
+ 	floors_cleared = 0
+ 	bosses_defeated = 0
+ 	enemies_killed = 0
++	card_purges_count = 0
+--- a/godot_project/scripts/run/ui/ForgeScreen.gd
++++ b/godot_project/scripts/run/ui/ForgeScreen.gd
+@@ -173,7 +173,8 @@ func generate_inventory() -> void:
+ 		})
+ 	
+ 	# 2. Gerar 2 Relíquias (excluindo relíquias já possuídas pelo jogador)
+-	var owned_relics: Array[String] = state.relics if state != null else []
++	var empty_relics: Array[String] = []
++	var owned_relics: Array[String] = state.relics if state != null else empty_relics
+ 	var available_relic_ids: Array[String] = []
+ 	for rid in CANONICAL_RELICS.keys():
+ 		if not owned_relics.has(rid):
