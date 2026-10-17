@@ -61,6 +61,12 @@ var shake_timer: float = 0.0
 var shake_offset: Vector2 = Vector2.ZERO
 var _combat_particles: Array[Dictionary] = [] # { "pos": Vector2, "vel": Vector2, "color": Color, "timer": float, "duration": float, "size": float, "gravity": float }
 
+# ── Performance Optimization & Render Caching ────────────────────────────────
+var _cached_cells_to_draw: Array[Dictionary] = []
+var _cached_cells_rot: int = -1
+var _ambient_redraw_timer: float = 0.0
+const AMBIENT_REDRAW_INTERVAL: float = 0.05 # 20 FPS throttle para tochas/miasma quando em repouso
+
 # ── Sprites & Texture Cache ──────────────────────────────────────────────────
 var _unit_texture_cache: Dictionary = {}
 
@@ -202,7 +208,14 @@ func _process(delta: float) -> void:
 			cam_pan = _clamp_pan(cam_pan)
 			needs_redraw = true
 
-	# Redraw contínuo para animações (itens, auras, seleção, panning, VFX, partículas, tochas)
+	# 6. Throttle ambient redraws (tochas/miasma) to 20 FPS when idle, saving 75% CPU/GPU churn
+	_ambient_redraw_timer += delta
+	var ambient_tick: bool = false
+	if _ambient_redraw_timer >= AMBIENT_REDRAW_INTERVAL:
+		_ambient_redraw_timer = 0.0
+		ambient_tick = true
+
+	# Redraw contínuo apenas quando há animações ativas ou no tick ambient throttled
 	if is_visible_in_tree() and (
 		needs_redraw
 		or _is_panning
@@ -210,10 +223,9 @@ func _process(delta: float) -> void:
 		or not _combat_particles.is_empty()
 		or not _unit_visual_positions.is_empty()
 		or not _unit_anim_offsets.is_empty()
-		or not selected_unit_id.is_empty()
-		or not reachable_cells.is_empty()
-		or (_bound_board != null and _bound_board.has_method("get_all_items") and not _bound_board.get_all_items().is_empty())
-		or true # Tochas dinâmicas piscando a cada frame
+		or not _active_projectiles.is_empty()
+		or not _floating_combat_texts.is_empty()
+		or ambient_tick # Tochas e miasma rodam a 20 FPS estáveis sem travar a CPU
 	):
 		queue_redraw()
 
@@ -686,12 +698,12 @@ func select_unit(unit_id: String) -> void:
 		return
 	selected_unit_id = unit_id
 	var pos: Vector2i = _bound_board.get_unit_position(unit_id)
-	var move_range: int = int(u_data.get("move_range", 3))
+	var remaining_pm: int = int(u_data.get("remaining_pm", u_data.get("move_range", 3)))
 	var atk_range: int = int(u_data.get("attack_range", 1))
 	var team: String = str(u_data.get("team", "A"))
 
-	if _bound_board.has_method("get_reachable_cells"):
-		reachable_cells = _bound_board.get_reachable_cells(pos, move_range)
+	if _bound_board.has_method("get_reachable_cells") and remaining_pm > 0:
+		reachable_cells = _bound_board.get_reachable_cells(pos, remaining_pm)
 	else:
 		reachable_cells.clear()
 
@@ -726,8 +738,35 @@ func move_selected_unit_to(dest_pos: Vector2i) -> bool:
 		return false
 	if not _bound_board.has_method("move_unit"):
 		return false
+
+	var from_pos: Vector2i = _bound_board.get_unit_position(selected_unit_id)
+	if from_pos == dest_pos:
+		return true
+
+	var u_data: Dictionary = _bound_board.get_unit_data(selected_unit_id)
+	var cur_pm: int = int(u_data.get("remaining_pm", u_data.get("move_range", 3)))
+
+	# Calcula os passos necessários para alcançar dest_pos
+	var steps: int = 1
+	if _bound_board.has_method("find_path"):
+		var p: Array[Vector2i] = _bound_board.find_path(from_pos, dest_pos)
+		if not p.is_empty():
+			steps = p.size()
+		else:
+			steps = maxi(absi(dest_pos.x - from_pos.x), absi(dest_pos.y - from_pos.y))
+	else:
+		steps = maxi(absi(dest_pos.x - from_pos.x), absi(dest_pos.y - from_pos.y))
+
+	# Prevenção de movimento infinito: movimento bloqueado caso não possua PM suficiente
+	if cur_pm < steps:
+		return false
+
 	var ok: bool = _bound_board.move_unit(selected_unit_id, dest_pos)
 	if ok:
+		var new_pm: int = maxi(0, cur_pm - steps)
+		u_data["remaining_pm"] = new_pm
+		_bound_board.set_unit_data(selected_unit_id, u_data)
+
 		unit_moved_to_cell.emit(selected_unit_id, dest_pos)
 		if _bound_board.has_method("has_item_at") and _bound_board.has_item_at(dest_pos):
 			var item: Dictionary = _bound_board.collect_item(selected_unit_id, dest_pos)
@@ -954,60 +993,63 @@ func _draw() -> void:
 		focus_rot_depth = f_rot.x + f_rot.y
 		focus_rot_x = f_rot.x - f_rot.y
 
-	var cells_to_draw: Array[Dictionary] = []
-	
-	for gy in range(RENDER_MIN, RENDER_MAX + 1):
-		for gx in range(RENDER_MIN, RENDER_MAX + 1):
-			var el: int = 0
-			var zone_k: String = "_exterior"
-			
-			if gx >= 0 and gx < GRID_SIZE and gy >= 0 and gy < GRID_SIZE:
-				var z_id: String = get_zone_at(Vector2i(gx, gy))
-				zone_k = z_id
+	if _cached_cells_to_draw.is_empty() or _cached_cells_rot != camera_angle_idx:
+		_cached_cells_to_draw.clear()
+		for gy in range(RENDER_MIN, RENDER_MAX + 1):
+			for gx in range(RENDER_MIN, RENDER_MAX + 1):
+				var el: int = 0
+				var zone_k: String = "_exterior"
 				
-				# Elevações canônicas de Kuar-Tor
-				if z_id.find("TORRE") != -1:
-					el = 6
-				elif z_id.find("MURALHA") != -1:
-					el = 4
-				elif z_id == "CAMARA_CENTRAL":
-					el = 3
-				elif z_id in ["CARPINTARIA", "CURTUME", "FUNDICAO", "PATIO_CENTRAL"]:
-					el = 2
-				elif gx >= 4 and gx <= 15 and gy >= 4 and gy <= 15:
-					el = 1
-					zone_k = "_corredor"
+				if gx >= 0 and gx < GRID_SIZE and gy >= 0 and gy < GRID_SIZE:
+					var z_id: String = get_zone_at(Vector2i(gx, gy))
+					zone_k = z_id
+					
+					# Elevações canônicas de Kuar-Tor
+					if z_id.find("TORRE") != -1:
+						el = 6
+					elif z_id.find("MURALHA") != -1:
+						el = 4
+					elif z_id == "CAMARA_CENTRAL":
+						el = 3
+					elif z_id in ["CARPINTARIA", "CURTUME", "FUNDICAO", "PATIO_CENTRAL"]:
+						el = 2
+					elif gx >= 4 and gx <= 15 and gy >= 4 and gy <= 15:
+						el = 1
+						zone_k = "_corredor"
+					else:
+						el = 0
+						zone_k = "_patio_baixo"
+				elif gx >= -1 and gx <= 20 and gy >= -1 and gy <= 20:
+					el = 0
+					zone_k = "_campo"
 				else:
 					el = 0
-					zone_k = "_patio_baixo"
-			elif gx >= -1 and gx <= 20 and gy >= -1 and gy <= 20:
-				el = 0
-				zone_k = "_campo"
-			else:
-				el = 0
-				zone_k = "_exterior"
-			
-			var base_dx: float = float(gx) - 9.5
-			var base_dy: float = float(gy) - 9.5
-			var rot_d: Vector2 = get_rotated_dx_dy(base_dx, base_dy)
-			var dx: float = rot_d.x
-			var dy: float = rot_d.y
-			var ground_depth: float = dx + dy
-			
-			cells_to_draw.append({
-				"gx": gx,
-				"gy": gy,
-				"el": el,
-				"zone": zone_k,
-				"depth": ground_depth,
-				"dx": dx,
-				"dy": dy
-			})
-	
-	# Ordena pelo depth rotacionado de trás para frente (Y-Sort canônico isométrico)
-	cells_to_draw.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a["depth"] < b["depth"]
-	)
+					zone_k = "_exterior"
+				
+				var base_dx: float = float(gx) - 9.5
+				var base_dy: float = float(gy) - 9.5
+				var rot_d: Vector2 = get_rotated_dx_dy(base_dx, base_dy)
+				var dx: float = rot_d.x
+				var dy: float = rot_d.y
+				var ground_depth: float = dx + dy
+				
+				_cached_cells_to_draw.append({
+					"gx": gx,
+					"gy": gy,
+					"el": el,
+					"zone": zone_k,
+					"depth": ground_depth,
+					"dx": dx,
+					"dy": dy
+				})
+
+		# Ordena pelo depth rotacionado de trás para frente (Y-Sort canônico isométrico)
+		_cached_cells_to_draw.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return a["depth"] < b["depth"]
+		)
+		_cached_cells_rot = camera_angle_idx
+
+	var cells_to_draw: Array[Dictionary] = _cached_cells_to_draw
 	
 	# Cores base por zona
 	var color_map: Dictionary = {
@@ -1930,6 +1972,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			reset_camera()
 			accept_event()
 			return
+		elif event.keycode == KEY_K:
+			# Comando de desenvolvedor desativado: sem movimento infinito
+			accept_event()
+			return
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -1943,6 +1989,10 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		elif event.keycode == KEY_R:
 			reset_camera()
+			accept_event()
+			return
+		elif event.keycode == KEY_K:
+			# Comando de desenvolvedor desativado: sem movimento infinito
 			accept_event()
 			return
 
@@ -2017,13 +2067,18 @@ func _gui_input(event: InputEvent) -> void:
 							accept_event()
 							return
 
-				# 2. Se um herói estiver selecionado e o jogador clicar em um tile azul de movimento
-				if not selected_unit_id.is_empty() and grid_pos in reachable_cells:
-					move_selected_unit_to(grid_pos)
-					accept_event()
-					return
+				# 2. Se um herói estiver selecionado e o jogador clicar no grid
+				if not selected_unit_id.is_empty():
+					if grid_pos in reachable_cells:
+						move_selected_unit_to(grid_pos)
+						accept_event()
+						return
+					elif not reachable_cells.is_empty():
+						# Clicou fora do alcance com herói ativo: mantém seleção e evita desarmar o modo de movimento
+						accept_event()
+						return
 
-				# 3. Clique em uma zona do tabuleiro (fallback ou foco de zona)
+				# 3. Clique em uma zona do tabuleiro (apenas quando nenhum herói estiver selecionado)
 				var zid: String = get_zone_at(grid_pos)
 				if not zid.is_empty():
 					select_zone(zid)

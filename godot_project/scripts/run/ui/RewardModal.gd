@@ -58,19 +58,19 @@ const FALLBACK_CARDS: Array[Dictionary] = [
 ]
 
 const ELITE_RELICS: Array[String] = [
-	"reliquia_pedra_afiar",
-	"reliquia_armadura_carapaca",
-	"reliquia_moeda_da_sorte",
-	"reliquia_balsamo_cogumelo",
-	"reliquia_tocha_eterna"
+	"escudo_ancestral",
+	"bolsa_do_mercador",
+	"tocha_eterna",
+	"oleo_alquimico",
+	"frasco_feromonio"
 ]
 
 const BOSS_RELICS: Array[String] = [
-	"reliquia_pingente_ambar",
-	"reliquia_martelo_runico",
-	"reliquia_foco_arcano",
-	"reliquia_cinzas_da_forja",
-	"reliquia_coroa_de_quitina"
+	"martelo_runico",
+	"amuleto_ambar",
+	"dente_da_viuva",
+	"coroa_quitina",
+	"relogio_da_forja"
 ]
 
 # ── Propriedades de Estado da Recompensa ──────────────────────────────────────
@@ -123,7 +123,7 @@ func setup(p_state: RunState, p_node: RunNode, p_rng: RandomNumberGenerator = nu
 
 	# 2. Determinar Relíquia (Garantida em Elite e Boss)
 	if p_options.has("relic_id"):
-		offered_relic_id = String(p_options["relic_id"])
+		offered_relic_id = RelicManager.normalize_id(String(p_options["relic_id"]))
 	elif ntype == RunNode.NodeType.BOSS:
 		offered_relic_id = _select_available_relic(BOSS_RELICS)
 	elif ntype == RunNode.NodeType.ELITE:
@@ -236,7 +236,10 @@ func refresh_display() -> void:
 	
 	if lbl_relic_info != null:
 		if not offered_relic_id.is_empty():
-			lbl_relic_info.text = "💎 Relíquia: %s" % offered_relic_id.replace("reliquia_", "").capitalize()
+			var display_name: String = offered_relic_id.capitalize()
+			if ForgeScreen.CANONICAL_RELICS.has(offered_relic_id):
+				display_name = String(ForgeScreen.CANONICAL_RELICS[offered_relic_id]["name"])
+			lbl_relic_info.text = "💎 Relíquia: %s" % display_name
 			lbl_relic_info.visible = true
 		else:
 			lbl_relic_info.text = ""
@@ -306,9 +309,10 @@ func _apply_gold_and_relic() -> void:
 			gold_collected.emit(offered_gold)
 
 		if not offered_relic_id.is_empty():
-			var added: bool = state.add_relic(offered_relic_id)
+			var norm_id: String = RelicManager.normalize_id(offered_relic_id)
+			var added: bool = state.add_relic(norm_id)
 			if added:
-				relic_collected.emit(offered_relic_id)
+				relic_collected.emit(norm_id)
 			else:
 				# Se já possuía a relíquia, compensa com bônus monetário
 				state.add_gold(50)
@@ -381,8 +385,9 @@ func _create_card_from_dict(d: Dictionary) -> CardData:
 func _select_available_relic(relic_list: Array[String]) -> String:
 	var pool: Array[String] = []
 	for r in relic_list:
-		if state == null or not state.has_relic(r):
-			pool.append(r)
+		var norm_r: String = RelicManager.normalize_id(r)
+		if state == null or not state.has_relic(norm_r):
+			pool.append(norm_r)
 
 	if pool.is_empty():
 		return ""

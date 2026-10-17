@@ -10,6 +10,7 @@ signal card_played(player_id: String, card_id: String, target_zone: String)
 signal card_selected(card: CardData, index: int)
 signal sync_round_requested()
 signal sound_played(sound_name: String)
+signal autoplay_toggled(active: bool)
 
 # ── Child Component References ───────────────────────────────────────────────
 @export var scoreboard_path: NodePath
@@ -27,6 +28,7 @@ var market_panel: CercoMarketPanel = null
 var btn_menu: Button = null
 var btn_options: Button = null
 var btn_autoplay: Button = null
+var autoplay_active: bool = false
 var btn_move: Button = null
 var btn_work: Button = null
 var btn_excavate: Button = null
@@ -166,6 +168,9 @@ func _wire_subcomponents() -> void:
 		btn_menu.pressed.connect(_on_btn_menu_pressed)
 	if btn_options != null and not btn_options.pressed.is_connected(_open_options_modal):
 		btn_options.pressed.connect(_open_options_modal)
+	if btn_autoplay != null and not btn_autoplay.pressed.is_connected(_on_btn_autoplay_pressed):
+		btn_autoplay.pressed.connect(_on_btn_autoplay_pressed)
+	_setup_autoplay_button_style()
 	
 	if btn_move != null and not btn_move.pressed.is_connected(_on_btn_move_pressed):
 		btn_move.pressed.connect(_on_btn_move_pressed)
@@ -459,8 +464,25 @@ func update_active_hero(hero_data: Dictionary) -> void:
 		var max_hp: int = int(hero_data.get("max_hp", hero_data.get("hp_max", 48)))
 		var atk: int = int(hero_data.get("attack_bonus", hero_data.get("ataque", 3)))
 		var def: int = int(hero_data.get("ac", hero_data.get("defesa", 17)))
-		var pm: int = int(hero_data.get("move_range", hero_data.get("pm", 3)))
+		var pm: int = int(hero_data.get("remaining_pm", hero_data.get("move_range", hero_data.get("pm", 3))))
 		hero_stats.text = "%s   %d/%d   [ATK] +%d   [DEF] %d   [PM] %d" % [h_name, cur_hp, max_hp, atk, def, pm]
+	_update_action_buttons_state(hero_data)
+
+func _update_action_buttons_state(hero_data: Dictionary) -> void:
+	var pm: int = int(hero_data.get("remaining_pm", hero_data.get("move_range", 3)))
+	if btn_move != null:
+		btn_move.text = "Mover [%d PM]" % pm
+		if pm > 0:
+			btn_move.add_theme_color_override("font_color", Color(0.45, 0.95, 1.0))
+			btn_move.tooltip_text = "Mover [M]: Clique em uma célula azul no tabuleiro para mover o herói (%d PM restantes)." % pm
+		else:
+			btn_move.add_theme_color_override("font_color", Color(0.65, 0.65, 0.65))
+			btn_move.tooltip_text = "Mover [M]: Sem PM nesta rodada. Jogue uma carta de Marcha para mover-se mais."
+
+	if btn_attack != null:
+		var atk_bonus: int = int(hero_data.get("attack_bonus", 3))
+		btn_attack.text = "Atacar [+%d]" % atk_bonus
+		btn_attack.tooltip_text = "Atacar [A]: Ataque um inimigo em alcance corpo a corpo (células vermelhas no tabuleiro)."
 
 func _on_market_end_turn_requested() -> void:
 	trigger_sync_round()
@@ -475,9 +497,44 @@ func _on_btn_menu_pressed() -> void:
 
 func _on_btn_move_pressed() -> void:
 	play_sfx("button_click", 0.8, 1.0)
+	# 1. Se uma carta da mão estiver selecionada, joga a carta
 	if card_fan != null and card_fan.selected_index >= 0:
 		card_fan.play_selected_card()
-	elif card_fan != null:
+		return
+
+	# 2. Se houver um herói ativo/selecionado, ativa o modo de movimento tático
+	var target_hero: String = ""
+	if board_view != null and not board_view.selected_unit_id.is_empty():
+		target_hero = board_view.selected_unit_id
+	elif _bound_board != null:
+		var allies: Array[String] = _bound_board.get_units_by_team("A")
+		if not allies.is_empty():
+			target_hero = allies[0]
+			if board_view != null:
+				board_view.select_unit(target_hero)
+
+	if not target_hero.is_empty() and _bound_board != null:
+		var udata: Dictionary = _bound_board.get_unit_data(target_hero)
+		var pm: int = int(udata.get("remaining_pm", udata.get("move_range", 3)))
+		var hname: String = str(udata.get("name", target_hero))
+		if board_view != null:
+			board_view.select_unit(target_hero)
+		if pm > 0:
+			if combat_log != null:
+				combat_log.append_entry("MOVIMENTO", "🚶 %s selecionado! Clique em uma célula azul no tabuleiro para mover (%d PM)." % [hname, pm])
+			return
+		else:
+			# Sem PM direto: tenta jogar carta de Marcha se houver
+			if card_fan != null:
+				var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_MARCHA)
+				if played != null:
+					return
+			if combat_log != null:
+				combat_log.append_entry("AVISO", "⚠️ %s não possui mais PM nesta rodada! Jogue uma carta de Marcha para mover-se." % hname)
+			return
+
+	# 3. Fallback: tentar carta de marcha na mão
+	if card_fan != null:
 		var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_MARCHA)
 		if played == null and combat_log != null:
 			combat_log.append_entry("AVISO", "Nenhuma carta de Marcha disponível na mão!")
@@ -486,7 +543,30 @@ func _on_btn_work_pressed() -> void:
 	play_sfx("button_click", 0.8, 1.0)
 	if card_fan != null and card_fan.selected_index >= 0:
 		card_fan.play_selected_card("CARPINTARIA")
-	elif card_fan != null:
+		return
+
+	# Verifica se o herói está em uma oficina válida
+	var current_zone: String = ""
+	if board_view != null and not board_view.selected_unit_id.is_empty() and _bound_board != null:
+		current_zone = _bound_board.get_unit_zone(board_view.selected_unit_id)
+	if current_zone in [FortressBoard.ZONE_CARPINTARIA, FortressBoard.ZONE_FUNDICAO, FortressBoard.ZONE_CURTUME]:
+		if card_fan != null:
+			var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_TRABALHO, current_zone)
+			if played != null:
+				return
+		if _bound_economy != null:
+			if current_zone == FortressBoard.ZONE_CARPINTARIA:
+				_bound_economy.add_resource("wood", 2)
+				if combat_log != null: combat_log.append_entry("TRABALHO", "🪓 Trabalho na Carpintaria! (+2 Madeira)")
+			elif current_zone == FortressBoard.ZONE_FUNDICAO:
+				_bound_economy.add_resource("metal", 2)
+				if combat_log != null: combat_log.append_entry("TRABALHO", "⚒️ Trabalho na Fundição! (+2 Metal)")
+			elif current_zone == FortressBoard.ZONE_CURTUME:
+				_bound_economy.add_resource("leather", 2)
+				if combat_log != null: combat_log.append_entry("TRABALHO", "🛡️ Trabalho no Curtume! (+2 Couro)")
+			return
+
+	if card_fan != null:
 		var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_TRABALHO, "CARPINTARIA")
 		if played == null and combat_log != null:
 			combat_log.append_entry("AVISO", "Nenhuma carta de Trabalho disponível na mão!")
@@ -495,7 +575,22 @@ func _on_btn_excavate_pressed() -> void:
 	play_sfx("button_click", 0.8, 1.0)
 	if card_fan != null and card_fan.selected_index >= 0:
 		card_fan.play_selected_card("PATIO_CENTRAL")
-	elif card_fan != null:
+		return
+
+	var current_zone: String = ""
+	if board_view != null and not board_view.selected_unit_id.is_empty() and _bound_board != null:
+		current_zone = _bound_board.get_unit_zone(board_view.selected_unit_id)
+	if current_zone in [FortressBoard.ZONE_PATIO_CENTRAL, FortressBoard.ZONE_CAMARA_CENTRAL]:
+		if card_fan != null:
+			var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_ESCAVACAO, current_zone)
+			if played != null:
+				return
+		if _bound_economy != null:
+			_bound_economy.add_resource("crystal", 1)
+			if combat_log != null: combat_log.append_entry("ESCAVAÇÃO", "⛏️ Escavação bem-sucedida no Pátio! (+1 Cristal)")
+			return
+
+	if card_fan != null:
 		var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_ESCAVACAO, "PATIO_CENTRAL")
 		if played == null and combat_log != null:
 			combat_log.append_entry("AVISO", "Nenhuma carta de Escavação disponível na mão!")
@@ -504,7 +599,37 @@ func _on_btn_attack_pressed() -> void:
 	play_sfx("button_click", 0.8, 1.0)
 	if card_fan != null and card_fan.selected_index >= 0:
 		card_fan.play_selected_card()
-	elif card_fan != null:
+		return
+
+	var target_hero: String = ""
+	if board_view != null and not board_view.selected_unit_id.is_empty():
+		target_hero = board_view.selected_unit_id
+	elif _bound_board != null:
+		var allies: Array[String] = _bound_board.get_units_by_team("A")
+		if not allies.is_empty():
+			target_hero = allies[0]
+			if board_view != null:
+				board_view.select_unit(target_hero)
+
+	if not target_hero.is_empty() and _bound_board != null:
+		var udata: Dictionary = _bound_board.get_unit_data(target_hero)
+		var hname: String = str(udata.get("name", target_hero))
+		if board_view != null:
+			board_view.select_unit(target_hero)
+			if not board_view.attackable_cells.is_empty():
+				if combat_log != null:
+					combat_log.append_entry("ATAQUE", "⚔️ %s em posição de ataque! Clique em um inimigo dentro das células vermelhas." % hname)
+				return
+			else:
+				if card_fan != null:
+					var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_COMBATE)
+					if played != null:
+						return
+				if combat_log != null:
+					combat_log.append_entry("AVISO", "⚠️ Nenhum inimigo no alcance de ataque de %s! Mova-se mais perto primeiro." % hname)
+				return
+
+	if card_fan != null:
 		var played: CardData = card_fan.play_card_by_badge(CardData.BADGE_COMBATE)
 		if played == null and combat_log != null:
 			combat_log.append_entry("AVISO", "Nenhuma carta de Combate disponível na mão!")
@@ -579,6 +704,63 @@ func _unhandled_input(event: InputEvent) -> void:
 					board_view.reset_camera()
 			KEY_O:
 				_open_options_modal()
+			KEY_F5:
+				_on_btn_autoplay_pressed()
+			KEY_K:
+				# Comando de desenvolvedor desativado: sem movimento infinito
+				if combat_log != null:
+					combat_log.append_entry("AVISO", "🛡️ Comando de desenvolvedor 'k' desativado. Movimentação consome PM normalmente.")
+
+func _on_btn_autoplay_pressed() -> void:
+	play_sfx("button_click", 0.8, 1.1)
+	autoplay_active = not autoplay_active
+	set_autoplay_active(autoplay_active)
+	autoplay_toggled.emit(autoplay_active)
+
+func _create_fantasy_stylebox(bg: Color, border: Color, border_w: int = 2, radius: int = 4) -> StyleBoxFlat:
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.border_width_left = border_w
+	sb.border_width_top = border_w
+	sb.border_width_right = border_w
+	sb.border_width_bottom = border_w
+	sb.corner_radius_top_left = radius
+	sb.corner_radius_top_right = radius
+	sb.corner_radius_bottom_right = radius
+	sb.corner_radius_bottom_left = radius
+	sb.shadow_color = Color(0, 0, 0, 0.45)
+	sb.shadow_size = 3
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	return sb
+
+func _setup_autoplay_button_style() -> void:
+	if btn_autoplay != null:
+		btn_autoplay.custom_minimum_size = Vector2(130, 32)
+		btn_autoplay.tooltip_text = "Auto-Play [F5]: A IA joga cartas, ataca e movimenta seus heróis automaticamente no combate."
+		set_autoplay_active(autoplay_active)
+
+func set_autoplay_active(active: bool) -> void:
+	autoplay_active = active
+	if btn_autoplay == null:
+		return
+	if active:
+		btn_autoplay.text = "⏸ AUTO [ON]"
+		btn_autoplay.add_theme_color_override("font_color", Color(1.0, 0.88, 0.25))
+		btn_autoplay.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 0.60))
+		btn_autoplay.add_theme_stylebox_override("normal", _create_fantasy_stylebox(Color(0.14, 0.12, 0.04, 0.95), Color(1.0, 0.84, 0.20, 1.0), 2, 4))
+		btn_autoplay.add_theme_stylebox_override("hover", _create_fantasy_stylebox(Color(0.22, 0.18, 0.06, 0.98), Color(1.0, 0.94, 0.45, 1.0), 2, 4))
+		btn_autoplay.add_theme_stylebox_override("pressed", _create_fantasy_stylebox(Color(0.09, 0.07, 0.02, 1.0), Color(0.85, 0.70, 0.15, 1.0), 2, 4))
+	else:
+		btn_autoplay.text = "AutoPlay [F5]"
+		btn_autoplay.add_theme_color_override("font_color", Color(0.70, 0.95, 0.70))
+		btn_autoplay.add_theme_color_override("font_hover_color", Color(0.85, 1.0, 0.85))
+		btn_autoplay.add_theme_stylebox_override("normal", _create_fantasy_stylebox(Color(0.10, 0.09, 0.14, 0.95), Color(0.85, 0.70, 0.25, 0.9), 2, 4))
+		btn_autoplay.add_theme_stylebox_override("hover", _create_fantasy_stylebox(Color(0.18, 0.14, 0.24, 0.98), Color(1.0, 0.88, 0.35, 1.0), 2, 4))
+		btn_autoplay.add_theme_stylebox_override("pressed", _create_fantasy_stylebox(Color(0.06, 0.05, 0.09, 1.0), Color(0.75, 0.60, 0.20, 1.0), 2, 4))
 
 func _open_options_modal() -> void:
 	play_sfx("button_click", 0.8, 1.0)

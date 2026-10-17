@@ -1,29 +1,30 @@
-# Handoff Report — Sentinel Initialization & Dispatch
+# Handoff Report — Sentinel State & Milestones M3-M4 Completion
 
 ## Observation
-- Received user request to implement Milestones M3 to M8 of the Tactical Roguelike Campaign in Godot 4 per `CAMPANHA_ROGUELIKE.md`.
-- Request encompasses Post-Combat Rewards, Forge, Relic system, Map node tactical integration, Act II Living Tunnels, 3 Hive Hearts, 3-Phase King Isectum Final Boss, and Meta-Progression/Ascension.
-- Existing base project in `godot_project/` has 729 GUT tests passing.
+- The execution of user request for Milestones M3 through M8 of `CAMPANHA_ROGUELIKE.md` achieved major milestones:
+  * **Milestone M3 (Post-Combat Rewards, Forge & Relics)**: 100% IMPLEMENTED, VERIFIED, AND CERTIFIED CLEAN by forensic auditor `auditor_m3_1` (808 GUT tests passing, 0 failures, exit code 0).
+  * **Milestone M4 (Tactical Combat Node Integration, Persistent HP & Permadeath)**: 100% IMPLEMENTED, VERIFIED, AND CERTIFIED CLEAN by forensic auditor `auditor_m4_1` (836 GUT tests passing, 8343 assertions, 0 failures, exit code 0).
+  * **All test suites pass via command line**: `bash godot_project/run_gut_tests.sh` with 0 failures and 0 memory leaks.
+- At `03:26:59Z`, the subagent Project Orchestrator encountered platform individual quota exhaustion (`RESOURCE_EXHAUSTED code 429`, reset window in ~1h21m).
 
 ## Logic Chain
-- Evaluated Routing Decision Table: large multi-milestone SWE task spanning architecture, rules, UI, boss fight, and persistence.
-- Routed to General path: `teamwork_preview_orchestrator`.
-- Pre-flight audit is not required for General path.
-- Recorded request verbatim to `.agents/teamwork/ORIGINAL_REQUEST.md` and legacy request files.
-- Dispatched Project Orchestrator (`aa7d5d2d-ef0f-482c-be6b-93c1793915c2`) with workspace `/home/anderson/Documents/projeto/RPG-battle/.agents/teamwork/orchestrator_1`.
-- Initialized Sentinel monitoring with two recurring crons:
-  * Cron 1 (Progress reporting every 8 minutes: `task-32`)
-  * Cron 2 (Liveness check every 10 minutes: `task-34`)
+- Both Milestones M3 and M4 are fully persistent on disk, backwards compatible with standalone Cerco game modes, and covered by comprehensive unit tests following the AAA pattern.
+- The platform individual quota prevents spawning further LLM subagents until the quota window resets.
+- All code changes, patches, test suites, architecture contracts in `PROJECT.md`, and handoffs are preserved in `.agents/teamwork/`.
+- Once quota refreshes or upon user instruction, a Generation 3 Orchestrator can be dispatched to immediately start Milestone M5 (Act II: Living Tunnels, Torch Lighting, Chitin Cocoons/Eggs, and Swarm Queen Boss), followed by M6, M7, and M8.
 
 ## Caveats
-- Orchestrator execution is asynchronous.
-- Completion claim from the orchestrator must not be taken at face value: mandatory post-victory audit via `teamwork_preview_victory_auditor` will be triggered prior to declaring project completion.
+- Subagent spawning is blocked by platform 429 quota until reset (~1h20m).
+- Crons can continue monitoring or remain standby.
 
 ## Conclusion
-- Orchestration has commenced under `teamwork_preview_orchestrator`.
-- Sentinel is actively monitoring progress and liveness.
+- Milestones M3 and M4 are delivered with forensic audit certification (CLEAN) and 100% green GUT tests (836 tests).
+- System is in a clean, stable, non-corrupted state, ready for resumption at Milestone M5.
 
 ## Verification Method
-- Cron 1 will poll and report progress.
-- Cron 2 will enforce liveness and trigger nudges or recovery if needed.
-- Post-victory auditor will perform 3-phase independent verification before final reporting.
+- Run GUT tests directly in the terminal:
+  ```bash
+  cd /home/anderson/Documents/projeto/RPG-battle
+  bash godot_project/run_gut_tests.sh
+  ```
+  Expected: 38 test suites, 836 tests passed, 0 failures, exit code 0.

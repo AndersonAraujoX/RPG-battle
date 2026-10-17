@@ -29,8 +29,9 @@ func test_cerco_setup_hero_defs_structure_and_portraits() -> void:
 	var defs: Array[Dictionary] = CercoSetup.HERO_DEFS
 
 	# Assert
-	assert_eq(defs.size(), 8, "There must be exactly 8 heroes in CercoSetup")
+	assert_eq(defs.size(), 7, "There must be exactly 7 public heroes in CercoSetup (Aquele is secret)")
 	for hero in defs:
+		assert_ne(str(hero.get("id")), "Aquele", "Aquele must not be in public HERO_DEFS")
 		var sprite_path: String = hero.get("sprite", "")
 		assert_ne(sprite_path, "", "Hero sprite path must not be empty for: %s" % str(hero.get("id")))
 		assert_true(ResourceLoader.exists(sprite_path), "Hero sprite must exist: %s" % sprite_path)
@@ -46,8 +47,8 @@ func test_cerco_setup_instantiation_and_cards() -> void:
 
 	# Assert
 	assert_not_null(grid, "HeroesGrid must exist in CercoSetup")
-	assert_eq(grid.get_child_count(), 8, "HeroesGrid must have 8 child cards")
-	assert_eq(grid.columns, 4, "HeroesGrid must have 4 columns for clean 4x2 layout")
+	assert_eq(grid.get_child_count(), 7, "HeroesGrid must have 7 child cards (Aquele is secret)")
+	assert_eq(grid.columns, 4, "HeroesGrid must have 4 columns for clean layout")
 
 func test_card_ui_btn_play_exists_and_requests_play() -> void:
 	# Arrange
@@ -94,8 +95,8 @@ func test_marcha_card_increases_hero_pm_and_updates_hud() -> void:
 	var controller: Node = autofree(main_scene.instantiate())
 
 	var board: FortressBoard = controller.board
-	var udata_before: Dictionary = board.get_unit_data("aquele")
-	var pm_before: int = int(udata_before.get("move_range", 4))
+	var udata_before: Dictionary = board.get_unit_data("stark")
+	var pm_before: int = int(udata_before.get("move_range", 3))
 
 	var marcha_card: CardData = CardData.new()
 	marcha_card.id = "marcha_test"
@@ -105,12 +106,12 @@ func test_marcha_card_increases_hero_pm_and_updates_hud() -> void:
 
 	# Act
 	controller._apply_card_effects(marcha_card, "")
-	var udata_after: Dictionary = board.get_unit_data("aquele")
-	var pm_after: int = int(udata_after.get("move_range", 4))
+	var udata_after: Dictionary = board.get_unit_data("stark")
+	var pm_after: int = int(udata_after.get("move_range", 3))
 
 	# Assert
-	assert_gt(pm_after, pm_before, "Aquele PM must increase after playing Marcha card")
-	assert_eq(pm_after, pm_before + 3, "Aquele PM must gain +3 from Marcha card")
+	assert_gt(pm_after, pm_before, "Stark PM must increase after playing Marcha card")
+	assert_eq(pm_after, pm_before + 3, "Stark PM must gain +3 from Marcha card")
 
 func test_cerco_game_starts_clean_without_enemies() -> void:
 	# Arrange
@@ -125,8 +126,8 @@ func test_cerco_game_starts_clean_without_enemies() -> void:
 	# Assert
 	assert_eq(team_b.size(), 0, "No enemies should be placed at the beginning of the game")
 	assert_gte(team_a.size(), 3, "All 3 defender heroes must be initialized")
-	assert_has(team_a, "aquele", "Hero Aquele must be on board")
 	assert_has(team_a, "stark", "Hero Stark must be on board")
+	assert_has(team_a, "elden", "Hero Elden must be on board")
 	assert_has(team_a, "lysander", "Commander Lysander must be on board")
 
 func test_cerco_spawn_enemy_wave_places_units_in_spawn_zones() -> void:

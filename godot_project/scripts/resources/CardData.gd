@@ -96,6 +96,9 @@ func get_cost_dict() -> Dictionary:
 			result[norm_k] = v
 	return result
 
+func can_play(economy: Variant) -> bool:
+	return can_afford(economy)
+
 ## Verifies if the provided fortress economy has enough resources to play/buy this card.
 func can_afford(economy: Variant) -> bool:
 	if economy == null:

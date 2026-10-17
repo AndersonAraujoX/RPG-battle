@@ -6,12 +6,14 @@ extends RefCounted
 
 var act: int = 1
 var floor_count: int = 0
+var column_count: int = 3
 var nodes: Array[RunNode] = []
 var _index: Dictionary = {}
 
-func _init(p_act: int = 1, p_floor_count: int = 0) -> void:
+func _init(p_act: int = 1, p_floor_count: int = 0, p_column_count: int = 3) -> void:
 	act = p_act
 	floor_count = p_floor_count
+	column_count = p_column_count
 
 func add_node(node: RunNode) -> bool:
 	if node == null or _index.has(node.id):
@@ -79,12 +81,12 @@ func to_dict() -> Dictionary:
 	var arr: Array = []
 	for n in nodes:
 		arr.append(n.to_dict())
-	return {"act": act, "floor_count": floor_count, "nodes": arr}
+	return {"act": act, "floor_count": floor_count, "column_count": column_count, "nodes": arr}
 
 static func from_dict(data: Dictionary) -> RunMap:
 	if not data.has("nodes") or not (data["nodes"] is Array):
 		return null
-	var map: RunMap = RunMap.new(int(data.get("act", 1)), int(data.get("floor_count", 0)))
+	var map: RunMap = RunMap.new(int(data.get("act", 1)), int(data.get("floor_count", 0)), int(data.get("column_count", 3)))
 	for nd in data["nodes"]:
 		if not (nd is Dictionary):
 			return null

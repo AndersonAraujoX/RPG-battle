@@ -12,12 +12,16 @@ extends Control
 @onready var btn_opcoes: Button = get_node_or_null("UI/GridButtons/BtnOpcoes")
 @onready var btn_dev_tools: Button = get_node_or_null("UI/GridButtons/BtnDevTools")
 @onready var btn_sair: Button = get_node_or_null("UI/GridButtons/BtnSair")
+@onready var btn_quartel: Button = get_node_or_null("UI/GridButtons/BtnQuartel")
+@onready var lbl_meta_status: Label = get_node_or_null("UI/MetaBanner/LblMetaStatus")
+@onready var lbl_campanha_sub: Label = get_node_or_null("TitleContainer/LblCampanhaSub")
 
 # Compatibilidade para referências legadas
 @onready var btn_play: Button = btn_jogar_cerco
 @onready var btn_castes: Button = btn_nova_campanha
 @onready var btn_multiplayer: Button = btn_opcoes
 @onready var btn_quit: Button = btn_sair
+@onready var btn_barracks: Button = btn_quartel
 
 func _ready() -> void:
 	if btn_jogar_cerco == null:
@@ -32,12 +36,20 @@ func _ready() -> void:
 		btn_dev_tools = get_node_or_null("UI/GridButtons/BtnDevTools")
 	if btn_sair == null:
 		btn_sair = get_node_or_null("UI/GridButtons/BtnSair")
+	if btn_quartel == null:
+		btn_quartel = get_node_or_null("UI/GridButtons/BtnQuartel")
+	if lbl_meta_status == null:
+		lbl_meta_status = get_node_or_null("UI/MetaBanner/LblMetaStatus")
+	if lbl_campanha_sub == null:
+		lbl_campanha_sub = get_node_or_null("TitleContainer/LblCampanhaSub")
 
 	btn_play = btn_jogar_cerco
 	btn_castes = btn_nova_campanha
 	btn_multiplayer = btn_opcoes
 	btn_quit = btn_sair
+	btn_barracks = btn_quartel
 	_wire_buttons()
+	_update_meta_status()
 	_play_menu_music()
 
 func _wire_buttons() -> void:
@@ -64,6 +76,10 @@ func _wire_buttons() -> void:
 	if btn_sair != null and not btn_sair.pressed.is_connected(_on_btn_sair_pressed):
 		btn_sair.pressed.connect(_on_btn_sair_pressed)
 		btn_sair.mouse_entered.connect(_play_hover_sound)
+
+	if btn_quartel != null and not btn_quartel.pressed.is_connected(_on_btn_quartel_pressed):
+		btn_quartel.pressed.connect(_on_btn_quartel_pressed)
+		btn_quartel.mouse_entered.connect(_play_hover_sound)
 
 func _play_menu_music() -> void:
 	if not is_inside_tree():
@@ -123,6 +139,41 @@ func _on_btn_sair_pressed() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null:
 		tree.quit()
+
+var _barracks_modal: BarracksScreen = null
+
+func _on_btn_quartel_pressed() -> void:
+	_play_click_sound()
+	_open_barracks_modal()
+
+func _open_barracks_modal() -> void:
+	if not is_inside_tree():
+		return
+	if _barracks_modal == null:
+		var scene = load("res://scenes/run/meta/BarracksScreen.tscn")
+		if scene != null:
+			_barracks_modal = scene.instantiate() as BarracksScreen
+		else:
+			_barracks_modal = BarracksScreen.new()
+		if _barracks_modal != null:
+			add_child(_barracks_modal)
+			if not _barracks_modal.back_requested.is_connected(_on_barracks_back):
+				_barracks_modal.back_requested.connect(_on_barracks_back)
+	if _barracks_modal != null:
+		_barracks_modal.visible = true
+		_barracks_modal.refresh_ui()
+
+func _on_barracks_back() -> void:
+	if _barracks_modal != null:
+		_barracks_modal.visible = false
+	_update_meta_status()
+
+func _update_meta_status() -> void:
+	if lbl_meta_status == null:
+		return
+	var meta: MetaProgression = MetaProgression.get_instance()
+	if meta != null:
+		lbl_meta_status.text = "Ambar Real: %d  |  Ascensao: Nivel %d" % [meta.amber_balance, meta.current_ascension]
 
 # Handlers legados para compatibilidade
 func _on_btn_play_pressed() -> void:

@@ -1,0 +1,147 @@
+[gd_scene load_steps=6 format=3 uid="uid://barracks_screen_meta_01"]
+
+[ext_resource type="Script" path="res://scripts/run/meta/BarracksScreen.gd" id="1_barracks"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal_bg"]
+bg_color = Color(0.08, 0.06, 0.1, 0.96)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.85, 0.7, 0.25, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="SystemFont" id="SystemFont_title"]
+font_names = PackedStringArray("Liberation Sans", "DejaVu Sans", "Sans-Serif", "Arial")
+font_weight = 800
+
+[sub_resource type="SystemFont" id="SystemFont_body"]
+font_names = PackedStringArray("Liberation Sans", "DejaVu Sans", "Sans-Serif", "Arial")
+font_weight = 600
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
+bg_color = Color(0.2, 0.15, 0.05, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85, 0.7, 0.25, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="BarracksScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_barracks")
+
+[node name="DimOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.75)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -280.0
+offset_right = 380.0
+offset_bottom = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_bg")
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Panel/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.85, 0.25, 1)
+theme_override_fonts/font = SubResource("SystemFont_title")
+theme_override_font_sizes/font_size = 26
+text = "QUARTEL DOS HEROIS"
+
+[node name="AmberLabel" type="Label" parent="Panel/Margin/VBox/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.9, 0.5, 1)
+theme_override_fonts/font = SubResource("SystemFont_body")
+theme_override_font_sizes/font_size = 20
+text = "Ambar Real: 0"
+
+[node name="HSeparator" type="HSeparator" parent="Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HeroesContainer" type="VBoxContainer" parent="Panel/Margin/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="AscensionBox" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="AscensionLabel" type="Label" parent="Panel/Margin/VBox/AscensionBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.8, 0.4, 1)
+theme_override_fonts/font = SubResource("SystemFont_body")
+theme_override_font_sizes/font_size = 18
+text = "Ascensao: Nivel 0"
+
+[node name="BtnDown" type="Button" parent="Panel/Margin/VBox/AscensionBox"]
+custom_minimum_size = Vector2(40, 36)
+layout_mode = 2
+theme_override_fonts/font = SubResource("SystemFont_body")
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+text = "<"
+
+[node name="BtnUp" type="Button" parent="Panel/Margin/VBox/AscensionBox"]
+custom_minimum_size = Vector2(40, 36)
+layout_mode = 2
+theme_override_fonts/font = SubResource("SystemFont_body")
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+text = ">"
+
+[node name="Footer" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="BtnBack" type="Button" parent="Panel/Margin/VBox/Footer"]
+custom_minimum_size = Vector2(160, 44)
+layout_mode = 2
+theme_override_fonts/font = SubResource("SystemFont_body")
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+text = "VOLTAR"

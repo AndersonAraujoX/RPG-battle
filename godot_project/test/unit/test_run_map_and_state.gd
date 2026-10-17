@@ -348,6 +348,7 @@ func test_run_state_serialization_roundtrip() -> void:
 	_state.damage_hero("aquele", 5)
 	_state.add_gold(40)
 	_state.add_relic("amuleto_ferro")
+	_state.card_purges_count = 3
 	var start_id: int = _state.get_available_nodes()[0].id
 	_state.move_to(start_id)
 
@@ -363,6 +364,7 @@ func test_run_state_serialization_roundtrip() -> void:
 	assert_eq(restored.gold, 90)
 	assert_eq(restored.hero_hp["aquele"], 25)
 	assert_true(restored.has_relic("amuleto_ferro"))
+	assert_eq(restored.card_purges_count, 3, "card_purges_count deve ser deserializado")
 	assert_eq(restored.current_node_id, start_id)
 	assert_not_null(restored.map)
 

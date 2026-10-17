@@ -173,10 +173,18 @@ func generate_inventory() -> void:
 		})
 	
 	# 2. Gerar 2 Relíquias (excluindo relíquias já possuídas pelo jogador)
-	var owned_relics: Array[String] = state.relics if state != null else []
+	var empty_relics: Array[String] = []
+	var owned_relics: Array[String] = state.relics if state != null else empty_relics
 	var available_relic_ids: Array[String] = []
 	for rid in CANONICAL_RELICS.keys():
-		if not owned_relics.has(rid):
+		var norm_rid: String = RelicManager.normalize_id(rid)
+		var already_owned: bool = false
+		if state != null:
+			for owned in state.relics:
+				if RelicManager.normalize_id(owned) == norm_rid:
+					already_owned = true
+					break
+		if not already_owned:
 			available_relic_ids.append(rid)
 	
 	# Embaralha com RNG determinístico
@@ -264,10 +272,11 @@ func buy_relic(slot_index: int) -> bool:
 		return false
 	
 	# Executa transação
+	var norm_relic_id: String = RelicManager.normalize_id(slot["id"])
 	state.spend_gold(cost)
-	state.add_relic(slot["id"])
+	state.add_relic(norm_relic_id)
 	if relic_manager != null and relic_manager.has_method("register_relic"):
-		relic_manager.register_relic(slot["id"])
+		relic_manager.register_relic(norm_relic_id)
 	slot["sold"] = true
 	
 	_set_feedback("Relíquia '%s' obtida!" % slot["name"])

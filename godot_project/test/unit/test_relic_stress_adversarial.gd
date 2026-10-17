@@ -87,16 +87,8 @@ func test_stress_duplicate_registration_with_reliquia_prefix() -> void:
 	var dup_attempt: bool = _manager.register_relic("reliquia_martelo_runico")
 	
 	# Assert: In a robust system, registering an alias of an already active relic should be rejected
-	if dup_attempt:
-		# If it succeeded, both martelo_runico and reliquia_martelo_runico are active
-		var count: int = _manager.get_relic_count()
-		print("[FINDING] RelicManager permits duplicate relic registration via 'reliquia_' alias! Active count: %d" % count)
-		# Check if bonus damage stacks twice
-		var att: Dictionary = _manager.modify_attack_damage("aquele", "inimigo", true, 6, "contundente", false)
-		print("[FINDING] Attack damage with double registration: bonus=%d, final=%d" % [att["bonus_damage"], att["final_damage"]])
-	
-	# Record whether duplication occurred
-	assert_true(true, "Empirical check completed")
+	assert_false(dup_attempt, "Registro de alias de relíquia já ativa deve ser estritamente rejeitado")
+	assert_eq(_manager.get_relic_count(), 1, "Exatamente uma instância de martelo_runico ativa")
 
 # ==============================================================================
 # 3. RewardModal Relic IDs vs RelicManager Catalog Consistency
@@ -121,8 +113,7 @@ func test_stress_reward_modal_relic_ids_vs_relic_manager_catalog() -> void:
 			unresolvable_relics.append(rid)
 	
 	# Assert / Report findings
-	print("[FINDING] RewardModal relics that fail to resolve in RelicManager: %s" % str(unresolvable_relics))
-	assert_true(true, "Catalog cross-check executed")
+	assert_eq(unresolvable_relics.size(), 0, "Todas as relíquias de RewardModal devem ser resolúveis em RelicManager: %s" % str(unresolvable_relics))
 
 # ==============================================================================
 # 4. Specific Typo: "reliquia_coroa_de_quitina" in RewardModal
@@ -138,9 +129,7 @@ func test_stress_coroa_de_quitina_typo_in_reward_modal() -> void:
 	var relic: RelicData = _manager.create_relic(modal_id)
 	
 	# Assert
-	if relic == null:
-		print("[FINDING] CRITICAL: 'reliquia_coroa_de_quitina' from RewardModal.BOSS_RELICS cannot be instantiated! (Catalog entry is 'coroa_quitina')")
-	assert_true(true, "Coroa de quitina alias check completed")
+	assert_not_null(relic, "'reliquia_coroa_de_quitina' de RewardModal.BOSS_RELICS deve ser instanciada com sucesso")
 
 # ==============================================================================
 # 5. Pipeline Boundary: Zero / Negative Incoming Damage Clamping
@@ -176,9 +165,7 @@ func test_stress_relic_manager_sync_after_run_state_removal() -> void:
 	
 	# Assert: Does RelicManager purge the relic no longer in RunState?
 	var still_in_manager: bool = _manager.has_relic("martelo_runico")
-	if still_in_manager:
-		print("[FINDING] RelicManager.sync_from_run_state() does not remove relics purged from RunState!")
-	assert_true(true, "Sync orphan check completed")
+	assert_false(still_in_manager, "RelicManager.sync_from_run_state() deve desregistrar relíquias removidas do RunState")
 
 # ==============================================================================
 # 7. EventBus Rapid Fire 1,000 Signals Stress
@@ -299,9 +286,7 @@ func test_stress_forge_shop_duplicate_offering_with_prefix_alias() -> void:
 	
 	forge.free()
 	
-	if offered_martelo:
-		print("[FINDING] ForgeScreen offered 'martelo_runico' for sale even though RunState already holds 'reliquia_martelo_runico'!")
-	assert_true(true, "Forge prefix cross-contamination check completed")
+	assert_false(offered_martelo, "ForgeScreen não deve ofertar 'martelo_runico' para venda se o jogador já possui 'reliquia_martelo_runico'")
 
 # ==============================================================================
 # 12. RelicData Serialization Stress
@@ -332,8 +317,15 @@ func test_stress_relic_data_serialization_roundtrip_edge_cases() -> void:
 	assert_eq(dict["cost_gold"], 999)
 	assert_false(dict["is_active"])
 	
-	# Act 4: Non-string type vulnerability check (demonstrates missing String() cast)
-	# If id is passed as int, GDScript statically typed field throws script error
-	# We test with safe string conversion expectations
-	print("[FINDING] RelicData.from_dict expects strictly typed fields without String() coercion on 'id', 'relic_name', etc.")
-	assert_true(true, "Serialization edge cases executed")
+	# Act 4: Non-string type safety check
+	var relic2: RelicData = RelicData.new()
+	relic2.from_dict({
+		"id": 12345,
+		"relic_name": 67890,
+		"description": 11111,
+		"rarity": 22222
+	})
+	assert_eq(relic2.id, "12345", "id convertido para String com segurança")
+	assert_eq(relic2.relic_name, "67890", "relic_name convertido para String com segurança")
+	assert_eq(relic2.description, "11111", "description convertida para String com segurança")
+	assert_eq(relic2.rarity, "22222", "rarity convertida para String com segurança")

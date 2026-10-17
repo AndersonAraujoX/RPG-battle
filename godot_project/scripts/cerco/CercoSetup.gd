@@ -8,14 +8,17 @@ extends Control
 signal cerco_iniciado(config: Dictionary)
 
 const HERO_DEFS: Array[Dictionary] = [
-	{"id": "Aquele", "nome": "?????", "classe": "Guerreiro", "sprite": "res://assets/images/characters/portraits/aquele_portrait.png", "padrao": true},
-	{"id": "Stark", "nome": "Stark", "classe": "Paladino", "sprite": "res://assets/images/characters/portraits/stark_portrait.png", "padrao": false},
+	{"id": "Stark", "nome": "Stark", "classe": "Paladino", "sprite": "res://assets/images/characters/portraits/stark_portrait.png", "padrao": true},
 	{"id": "Elden", "nome": "Elden", "classe": "Mago", "sprite": "res://assets/images/characters/portraits/elden_portrait.png", "padrao": false},
 	{"id": "Doom", "nome": "Doom", "classe": "Ladino", "sprite": "res://assets/images/characters/portraits/doom_portrait.png", "padrao": false},
 	{"id": "Gruu", "nome": "Gruu", "classe": "Barbaro", "sprite": "res://assets/images/characters/portraits/gruu_portrait.png", "padrao": false},
 	{"id": "Kuro", "nome": "Kuro", "classe": "Ladino", "sprite": "res://assets/images/characters/portraits/kuro_portrait.png", "padrao": false},
 	{"id": "Darwin", "nome": "Darwin", "classe": "Druida", "sprite": "res://assets/images/characters/portraits/darwin_portrait.png", "padrao": false},
 	{"id": "Lysander", "nome": "Pr. Lysander", "classe": "Filho do Imperador", "sprite": "res://assets/images/characters/portraits/lysander_portrait.png", "padrao": false, "auto": true}
+]
+
+const SECRET_HEROES: Array[Dictionary] = [
+	{"id": "Aquele", "nome": "?????", "classe": "Guerreiro", "sprite": "res://assets/images/characters/portraits/aquele_portrait.png", "padrao": false, "secreto": true}
 ]
 
 const DIFFICULTIES: Array[Dictionary] = [

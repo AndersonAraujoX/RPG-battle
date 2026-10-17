@@ -503,6 +503,13 @@ func get_units_at_cell(pos: Vector2i) -> Array[String]:
 		return copy_arr
 	return []
 
+func get_unit_at(pos: Vector2i) -> String:
+	if _cell_units.has(pos):
+		var arr: Array[String] = _cell_units[pos]
+		if not arr.is_empty():
+			return arr[0]
+	return ""
+
 func get_unit_position(unit_id: String) -> Vector2i:
 	return _unit_positions.get(unit_id, Vector2i(-1, -1))
 
@@ -527,6 +534,10 @@ func clear_all_units() -> void:
 	for u in all_u:
 		remove_unit(u)
 	_unit_data.clear()
+
+func clear_all() -> void:
+	clear_all_units()
+	_initialize_items()
 
 # ── Item Management System ───────────────────────────────────────────────────
 func place_item(pos: Vector2i, item_type: String, data: Dictionary = {}) -> bool:
@@ -661,6 +672,8 @@ func register_unit(unit_id: String, data: Dictionary) -> void:
 		u_dict["ac"] = 10
 	if not u_dict.has("move_range"):
 		u_dict["move_range"] = 3
+	if not u_dict.has("remaining_pm"):
+		u_dict["remaining_pm"] = int(u_dict["move_range"])
 	if not u_dict.has("attack_range"):
 		u_dict["attack_range"] = 1
 	if not u_dict.has("attack_bonus"):
@@ -668,6 +681,27 @@ func register_unit(unit_id: String, data: Dictionary) -> void:
 	u_dict["is_alive"] = int(u_dict["hp"]) > 0
 	_unit_data[unit_id] = u_dict
 	unit_stats_changed.emit(unit_id, u_dict)
+
+func get_unit_remaining_pm(unit_id: String) -> int:
+	if not _unit_data.has(unit_id):
+		return 0
+	return int(_unit_data[unit_id].get("remaining_pm", _unit_data[unit_id].get("move_range", 3)))
+
+func consume_unit_pm(unit_id: String, amount: int) -> int:
+	if not _unit_data.has(unit_id):
+		return 0
+	var cur_pm: int = get_unit_remaining_pm(unit_id)
+	var new_pm: int = maxi(0, cur_pm - amount)
+	_unit_data[unit_id]["remaining_pm"] = new_pm
+	unit_stats_changed.emit(unit_id, _unit_data[unit_id].duplicate(true))
+	return new_pm
+
+func restore_units_pm(team: String = "A") -> void:
+	for u_id in get_units_by_team(team):
+		if is_unit_alive(u_id):
+			var max_pm: int = int(_unit_data[u_id].get("move_range", 3))
+			_unit_data[u_id]["remaining_pm"] = max_pm
+			unit_stats_changed.emit(u_id, _unit_data[u_id].duplicate(true))
 
 func get_unit_data(unit_id: String) -> Dictionary:
 	return _unit_data.get(unit_id, {}).duplicate(true)

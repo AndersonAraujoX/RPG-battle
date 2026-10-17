@@ -5,7 +5,7 @@ extends RefCounted
 ## Contêiner estático da run em andamento, compartilhado entre cenas
 ## (evita adicionar um novo Autoload ao projeto).
 
-const DEFAULT_PARTY: Dictionary = {"aquele": 30, "stark": 34, "elden": 26}
+const DEFAULT_PARTY: Dictionary = {"stark": 34, "elden": 26, "novak": 45}
 const DEFAULT_DECK: Array[String] = [
 	"movimento", "movimento", "movimento",
 	"trabalho", "trabalho",

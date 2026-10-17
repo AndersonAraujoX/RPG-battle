@@ -498,6 +498,7 @@ func test_deck_minimum_holds_across_multiple_forge_visits() -> void:
 	# Visita 1 na Forja
 	var forge1: ForgeScreen = autofree(ForgeScreen.new())
 	forge1.setup(_state, _manager, _rng)
+	assert_eq(forge1.get_current_purge_cost(), 50, "Custo inicial de expurgo deve ser 50g")
 	assert_true(forge1.purge_card("c7"), "Expurgo 1 bem-sucedido")
 	assert_eq(_state.deck.size(), 6)
 	forge1.close_forge()
@@ -505,6 +506,7 @@ func test_deck_minimum_holds_across_multiple_forge_visits() -> void:
 	# Visita 2 na Forja (novo nó)
 	var forge2: ForgeScreen = autofree(ForgeScreen.new())
 	forge2.setup(_state, _manager, _rng)
+	assert_eq(forge2.get_current_purge_cost(), 75, "Custo escalonado para 75g na 2ª visita")
 	assert_true(forge2.purge_card("c6"), "Expurgo 2 bem-sucedido")
 	assert_eq(_state.deck.size(), 5, "Deck reduzido a exatamente 5 cartas")
 	forge2.close_forge()
@@ -512,6 +514,7 @@ func test_deck_minimum_holds_across_multiple_forge_visits() -> void:
 	# Visita 3 na Forja (novo nó)
 	var forge3: ForgeScreen = autofree(ForgeScreen.new())
 	forge3.setup(_state, _manager, _rng)
+	assert_eq(forge3.get_current_purge_cost(), 100, "Custo escalonado para 100g na 3ª visita")
 	var check3: Dictionary = forge3.can_purge_card()
 	assert_false(check3["can"], "Expurgo 3 estritamente bloqueado (deck em 5)")
 	assert_false(forge3.purge_card("c5"), "Tentativa de expurgo rejeitada")

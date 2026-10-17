@@ -22,12 +22,36 @@ func _init(p_run_state: RunState = null, p_event_bus: Node = null) -> void:
 	if p_run_state != null:
 		setup(p_run_state, p_event_bus)
 
+## Normalizes relic identifiers: removes leading "reliquia_", handles aliases/typos, and trims whitespace.
+static func normalize_id(relic_id: String) -> String:
+	var clean: String = relic_id.strip_edges().to_lower()
+	if clean.begins_with("reliquia_"):
+		clean = clean.substr(9)
+	match clean:
+		"coroa_de_quitina":
+			return "coroa_quitina"
+		"pingente_ambar":
+			return "amuleto_ambar"
+		_:
+			return clean
+
+## Alias for normalize_id to support legacy callers
+static func get_canonical_id(p_id: String) -> String:
+	return normalize_id(p_id)
+
 ## Initializes with dependencies and synchronizes existing RunState.relics
 func setup(p_run_state: RunState, p_event_bus: Node = null) -> void:
+	if _connected:
+		disconnect_event_bus()
 	run_state = p_run_state
 	event_bus = p_event_bus
-	if event_bus == null and Engine.has_singleton("EventBus"):
-		event_bus = Engine.get_singleton("EventBus")
+	if event_bus == null:
+		if Engine.has_singleton("EventBus"):
+			event_bus = Engine.get_singleton("EventBus")
+		else:
+			var main_loop: MainLoop = Engine.get_main_loop()
+			if main_loop is SceneTree and (main_loop as SceneTree).root != null:
+				event_bus = (main_loop as SceneTree).root.get_node_or_null("EventBus")
 	
 	connect_event_bus()
 	sync_from_run_state()
@@ -87,61 +111,107 @@ func disconnect_event_bus() -> void:
 # ── Relic Management ────────────────────────────────────────────────────────
 
 ## Synchronizes active relics with IDs present in RunState.relics
+## Prunes relics removed from RunState and registers newly acquired relics.
 func sync_from_run_state() -> void:
 	if run_state == null:
 		return
+	
+	# 1. Prune active relics that are no longer in RunState
+	var desired_canonical: Dictionary = {}
 	for r_id in run_state.relics:
-		if not _active_relics.has(r_id):
-			var relic: RelicData = create_relic(r_id)
+		var cid: String = normalize_id(r_id)
+		if not cid.is_empty():
+			desired_canonical[cid] = true
+	
+	var to_prune: Array[String] = []
+	for act_key in _active_relics.keys():
+		var act_cid: String = normalize_id(act_key)
+		if not desired_canonical.has(act_cid) and not desired_canonical.has(act_key):
+			to_prune.append(act_key)
+	
+	for key in to_prune:
+		var relic: RelicData = _active_relics[key]
+		if relic != null:
+			relic.is_active = false
+			relic.on_unregistered(run_state)
+		_active_relics.erase(key)
+	
+	# 2. Add new relics from RunState
+	for r_id in run_state.relics:
+		var norm_id: String = normalize_id(r_id)
+		if not _active_relics.has(norm_id):
+			var relic: RelicData = create_relic(norm_id)
 			if relic != null:
-				_active_relics[r_id] = relic
+				_active_relics[norm_id] = relic
 				relic.on_registered(run_state)
 
 ## Registers a new relic by ID. Adds to RunState if not present.
 func register_relic(relic_id: String) -> bool:
-	if relic_id.is_empty() or _active_relics.has(relic_id):
+	var norm_id: String = normalize_id(relic_id)
+	if norm_id.is_empty() or has_relic(norm_id):
 		return false
 	
-	var relic: RelicData = create_relic(relic_id)
+	var relic: RelicData = create_relic(norm_id)
 	if relic == null:
 		push_warning("[RelicManager] Relíquia desconhecida: '%s'" % relic_id)
 		return false
 	
-	_active_relics[relic_id] = relic
+	_active_relics[norm_id] = relic
 	if run_state != null:
-		if not run_state.has_relic(relic_id):
-			run_state.add_relic(relic_id)
+		if not run_state.has_relic(norm_id) and not run_state.has_relic(relic_id):
+			run_state.add_relic(norm_id)
 		relic.on_registered(run_state)
 	
 	return true
 
 ## Unregisters and removes a relic
 func unregister_relic(relic_id: String) -> bool:
-	if not _active_relics.has(relic_id):
+	var norm_id: String = normalize_id(relic_id)
+	var target_key: String = ""
+	if _active_relics.has(norm_id):
+		target_key = norm_id
+	elif _active_relics.has(relic_id):
+		target_key = relic_id
+	
+	if target_key.is_empty():
 		return false
-	var relic: RelicData = _active_relics[relic_id]
-	if run_state != null:
-		relic.on_unregistered(run_state)
-		var idx: int = run_state.relics.find(relic_id)
-		if idx >= 0:
-			run_state.relics.remove_at(idx)
-	_active_relics.erase(relic_id)
+	
+	var relic: RelicData = _active_relics[target_key]
+	if relic != null:
+		relic.is_active = false
+		if run_state != null:
+			relic.on_unregistered(run_state)
+			run_state.remove_relic(target_key)
+			if target_key != norm_id:
+				run_state.remove_relic(norm_id)
+			if target_key != relic_id:
+				run_state.remove_relic(relic_id)
+			if not relic.id.is_empty():
+				run_state.remove_relic(relic.id)
+	
+	_active_relics.erase(target_key)
 	return true
 
 ## Cleans up all relics and disconnects signals (prevents memory leaks)
 func unregister_all() -> void:
 	for r_id in _active_relics.keys():
 		var relic: RelicData = _active_relics[r_id]
-		if run_state != null:
-			relic.on_unregistered(run_state)
+		if relic != null:
+			relic.is_active = false
+			if run_state != null:
+				relic.on_unregistered(run_state)
 	_active_relics.clear()
 	disconnect_event_bus()
 
 func get_relic(relic_id: String) -> RelicData:
+	var norm_id: String = normalize_id(relic_id)
+	if _active_relics.has(norm_id):
+		return _active_relics[norm_id]
 	return _active_relics.get(relic_id, null)
 
 func has_relic(relic_id: String) -> bool:
-	return _active_relics.has(relic_id)
+	var norm_id: String = normalize_id(relic_id)
+	return _active_relics.has(norm_id) or _active_relics.has(relic_id)
 
 func get_all_relics() -> Array[RelicData]:
 	var list: Array[RelicData] = []
@@ -303,11 +373,11 @@ func register_catalog_entry(relic_id: String, factory_callable: Callable) -> voi
 	_catalog[relic_id] = factory_callable
 
 func create_relic(relic_id: String) -> RelicData:
+	var norm: String = normalize_id(relic_id)
+	if _catalog.has(norm):
+		return _catalog[norm].call()
 	if _catalog.has(relic_id):
 		return _catalog[relic_id].call()
-	var stripped: String = relic_id.replace("reliquia_", "")
-	if _catalog.has(stripped):
-		return _catalog[stripped].call()
 	return null
 
 func get_catalog_ids() -> Array[String]:
@@ -355,10 +425,8 @@ class RelicBolsaDoMercador extends RelicData:
 	func _init() -> void:
 		super("bolsa_do_mercador", "Bolsa de Moedas da Guilda", "Vitórias em combate concedem +10 de ouro adicional.", RARITY_COMUM, 45)
 
-	func on_combat_victory(rewards: Dictionary, p_run_state: RunState) -> Dictionary:
+	func on_combat_victory(rewards: Dictionary, _p_run_state: RunState) -> Dictionary:
 		rewards["gold"] = int(rewards.get("gold", 0)) + 10
-		if p_run_state != null:
-			p_run_state.add_gold(10)
 		return rewards
 
 class RelicAmuletoAmbar extends RelicData:
@@ -398,12 +466,24 @@ class RelicOleoAlquimico extends RelicData:
 		return {}
 
 class RelicFrascoFeromonio extends RelicData:
+	const CANCELABLE_CONDITIONS: Array[String] = [
+		"poisoned", "envenenado", "veneno",
+		"stunned", "atordoado", "atordoamento",
+		"frightened", "amedrontado", "medo",
+		"restrained", "imobilizado",
+		"burning", "queimando", "fogo",
+		"paralyzed", "paralisado", "paralisia"
+	]
+
 	func _init() -> void:
 		super("frasco_feromonio", "Frasco de Feromônio Neutralizador", "Anula a primeira condição negativa recebida pelos heróis em cada combate.", RARITY_RARO, 80)
 		counter_max = 1
 
-	func on_status_applied(_unit_id: String, status_id: String, _duration: int, _run_state: RunState) -> Dictionary:
-		if counter == 0 and status_id in ["poisoned", "stunned", "frightened", "burning", "restrained"]:
+	func on_status_applied(unit_id: String, status_id: String, _duration: int, p_run_state: RunState) -> Dictionary:
+		if p_run_state == null or not p_run_state.heroes.has(unit_id):
+			return {}
+		var cond_lower: String = status_id.strip_edges().to_lower()
+		if counter == 0 and cond_lower in CANCELABLE_CONDITIONS:
 			counter = 1
 			return {"cancel_status": true}
 		return {}

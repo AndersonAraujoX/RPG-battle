@@ -10,11 +10,11 @@ extends RefCounted
 ##  - Elites só a partir de MIN_ELITE_FLOOR.
 ##  - Caminhos nunca se cruzam visualmente.
 
-const DEFAULT_FLOORS: int = 12
-const DEFAULT_COLUMNS: int = 4
+const DEFAULT_FLOORS: int = 7
+const DEFAULT_COLUMNS: int = 3
 const DEFAULT_PATHS: int = 3
 const MIN_FLOORS: int = 3
-const MIN_ELITE_FLOOR: int = 4
+const MIN_ELITE_FLOOR: int = 3
 
 const TYPE_WEIGHTS: Dictionary = {
 	RunNode.NodeType.COMBAT: 45,
@@ -45,7 +45,7 @@ func generate(act: int, rng: RandomNumberGenerator) -> RunMap:
 		push_error("[RunMapGenerator] Ato inválido: %d" % act)
 		return null
 
-	var map: RunMap = RunMap.new(act, floor_count)
+	var map: RunMap = RunMap.new(act, floor_count, column_count)
 	var grid: Dictionary = {} # Vector2i(floor, col) -> RunNode
 	var last_nodes: Array[RunNode] = []
 	var last_floor: int = floor_count - 2

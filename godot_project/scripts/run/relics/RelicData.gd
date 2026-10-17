@@ -40,8 +40,10 @@ func on_registered(_run_state: RunState) -> void:
 	pass
 
 ## Called when the relic is removed from RelicManager / expedition.
+## Guarantees relic deactivation and ephemeral counter reset.
 func on_unregistered(_run_state: RunState) -> void:
-	pass
+	is_active = false
+	counter = 0
 
 ## Called when the party moves into a new map node.
 func on_node_entered(_node: RunNode, _run_state: RunState) -> void:
@@ -143,10 +145,10 @@ func to_dict() -> Dictionary:
 	}
 
 func from_dict(data: Dictionary) -> void:
-	id = data.get("id", id)
-	relic_name = data.get("relic_name", relic_name)
-	description = data.get("description", description)
-	rarity = data.get("rarity", rarity)
+	id = str(data.get("id", id))
+	relic_name = str(data.get("relic_name", relic_name))
+	description = str(data.get("description", description))
+	rarity = str(data.get("rarity", rarity))
 	cost_gold = int(data.get("cost_gold", cost_gold))
 	counter = int(data.get("counter", 0))
 	counter_max = int(data.get("counter_max", 0))

@@ -101,3 +101,72 @@ func test_screen_hero_damage_and_fallen_indicator() -> void:
 	var vbox = card_aquele.get_child(0)
 	var lbl_name: Label = vbox.get_child(0) as Label
 	assert_true(lbl_name.text.contains("💀"), "Herói caído deve exibir indicador de morte")
+
+func test_screen_apply_background_texture_lifecycle_and_idempotency() -> void:
+	# Arrange
+	_screen.setup(_state, RunNodeResolver.new(), _rng)
+	_screen._ready()
+	var bg: Node = _screen.get_node_or_null("Background")
+	assert_not_null(bg, "Nó Background deve existir na cena")
+
+	# Act
+	_screen._apply_background_texture()
+	_screen._apply_background_texture() # Idempotência
+
+	# Assert
+	var textures_count: int = 0
+	for child in bg.get_children():
+		if child.name == "MapTexture":
+			textures_count += 1
+	assert_lte(textures_count, 1, "Não deve duplicar instâncias de MapTexture na chamada repetida")
+
+func test_screen_apply_background_texture_bare_node_without_background_safe() -> void:
+	# Arrange
+	var bare: RunMapScreen = autofree(RunMapScreen.new())
+
+	# Act & Assert (não deve lançar exceção ou falhar quando Background for nulo)
+	bare._apply_background_texture()
+	assert_null(bare.get_node_or_null("Background"), "Bare node não tem nó Background mas executa com segurança")
+
+func test_screen_spacing_and_medallion_sizing() -> void:
+	# Arrange
+	_screen.setup(_state, RunNodeResolver.new(), _rng)
+	_screen._ready()
+
+	# Act & Assert - Tamanho dos botões
+	var boss_node: RunNode = _state.map.get_boss_node()
+	assert_not_null(boss_node)
+	var boss_btn: Button = _screen.node_buttons[boss_node.id]
+	assert_eq(boss_btn.custom_minimum_size, Vector2(58, 58), "Botão do chefe deve ter tamanho de destaque (58x58)")
+
+	for node in _state.map.nodes:
+		if not node.is_boss():
+			var btn: Button = _screen.node_buttons[node.id]
+			assert_eq(btn.custom_minimum_size, Vector2(42, 42), "Botões regulares devem ter tamanho compacto despoluído (42x42)")
+
+	# Assert - Ausência de sobreposição vertical entre andares consecutivos
+	for floor_idx in range(_state.map.floor_count - 1):
+		var nodes_current = _state.map.get_nodes_on_floor(floor_idx)
+		var nodes_next = _state.map.get_nodes_on_floor(floor_idx + 1)
+		for nc in nodes_current:
+			var btn_c: Button = _screen.node_buttons[nc.id]
+			for nn in nodes_next:
+				# Apenas checa se estiverem na mesma coluna ou conectados
+				if nc.next_ids.has(nn.id) or nc.column == nn.column:
+					var btn_n: Button = _screen.node_buttons[nn.id]
+					var vertical_dist: float = absf(btn_c.position.y - btn_n.position.y)
+					assert_gte(vertical_dist, 42.0, "Distância vertical entre andares (%f) deve ser >= ao tamanho do botão (42.0)" % vertical_dist)
+
+func test_screen_dynamic_canvas_height_scaling() -> void:
+	# Arrange: Gerar mapa com 12 andares (modo estendido)
+	var extended_gen: RunMapGenerator = RunMapGenerator.new(12, 4, 3)
+	var extended_state: RunState = RunState.new(extended_gen, _rng)
+	extended_state.start_run({"aquele": 30, "stark": 34, "elden": 26}, ["ataque"], 42)
+
+	# Act
+	_screen.setup(extended_state, RunNodeResolver.new(), _rng)
+	_screen.refresh_ui()
+
+	# Assert: Canvas deve expandir para manter respiro vertical
+	assert_gt(_screen.map_canvas.custom_minimum_size.y, 540.0, "Mapa com 12 andares deve expandir a altura do canvas dinamicamente")
+	assert_gte(_screen.map_canvas.custom_minimum_size.y, 12 * 75.0, "Canvas deve garantir pelo menos 75px por andar")

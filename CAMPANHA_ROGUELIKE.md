@@ -186,9 +186,9 @@ Os **Marcos M1 (Estrutura da Run)** e **M2 (Gerador de Mapa Procedural + Tela de
 
 - [x] **M1 — Estado da Run (`RunState`, `RunSession`)**: Vida persistente, permadeath, ouro, deck, transição de Atos e cálculo de Âmbar.
 - [x] **M2 — Mapa Procedural (`RunMapGenerator`, `RunMapScreen`)**: Grafo ramificado determinístico estilo *Slay the Spire* integrado ao Menu Principal.
-- [ ] **M3 — Tela de Recompensas, Forja & Relíquias**: Modal de "Escolha 1 de 3 Cartas" pós-combate e catálogo de relíquias passivas conectadas ao `EventBus`.
-- [ ] **M4 — Integração Completa do Combate Tático no Mapa (Ato I)**: Ao clicar em um nó `COMBAT`/`ELITE`/`BOSS`, carregar o grid tático com a formação inimiga do Ato I e retornar ao mapa mantendo o PV restante dos heróis.
-- [ ] **M5 — Conteúdo do Ato II (Túneis Vivos & Rainha do Enxame)**: Eventos narrativos interativos, mecânica de casulos e luta contra a `rainha_do_enxame`.
-- [ ] **M6 — Conteúdo do Ato III (Os 3 Corações & O Rei dos Isectum)**: Batalha final de 3 fases contra o Boss `3×3` `rei_isectum`.
-- [ ] **M7 — Meta-Progressão Permanente**: Salvar Âmbar Real em disco, tela de desbloqueio de novos heróis e modos de Ascensão.
-- [ ] **M8 — Polimento Final & Epílogo**: Cutscenes de abertura/final e balanceamento das 10 Ascensões.
+- [x] **M3 — Tela de Recompensas, Forja & Relíquias**: Modal de "Escolha 1 de 3 Cartas" pós-combate e catálogo de relíquias passivas conectadas ao `EventBus`.
+- [x] **M4 — Integração Completa do Combate Tático no Mapa (Ato I)**: Ao clicar em um nó `COMBAT`/`ELITE`/`BOSS`, carregar o grid tático com a formação inimiga do Ato I e retornar ao mapa mantendo o PV restante dos heróis.
+- [x] **M5 — Conteúdo do Ato II (Túneis Vivos & Rainha do Enxame)**: Eventos narrativos interativos, mecânica de casulos e luta contra a `rainha_do_enxame`.
+- [x] **M6 — Conteúdo do Ato III (Os 3 Corações & O Rei dos Isectum)**: Batalha final de 3 fases contra o Boss `3×3` `rei_isectum`.
+- [x] **M7 — Meta-Progressão Permanente**: Salvar Âmbar Real em disco, tela de desbloqueio de novos heróis e modos de Ascensão.
+- [x] **M8 — Polimento Final & Epílogo**: Telas de vitória/derrota épica com estatísticas e balanceamento das 10 Ascensões.

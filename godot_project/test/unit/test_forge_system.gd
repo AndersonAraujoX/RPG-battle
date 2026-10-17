@@ -229,3 +229,51 @@ func test_close_forge_completes_current_node() -> void:
 	# Assert
 	assert_eq(signal_emitted.size(), 1, "Sinal forge_closed deve ser emitido")
 	assert_true(forge_node.visited, "Nó FORGE deve ser marcado como concluído ao sair")
+
+func test_purge_cost_persists_across_separate_forge_instances() -> void:
+	# Arrange: 10 cartas e ouro suficiente
+	assert_eq(_state.card_purges_count, 0)
+	assert_eq(_forge.get_current_purge_cost(), 50)
+	
+	# Act 1: 1º expurgo na 1ª instância da Forja
+	var p1: bool = _forge.purge_card("movimento")
+	assert_true(p1, "1º expurgo deve ser bem-sucedido")
+	assert_eq(_state.card_purges_count, 1, "RunState.card_purges_count deve ser incrementado para 1")
+	_forge.close_forge()
+	
+	# Act 2: Instanciar uma 2ª Forja vinculada ao mesmo RunState
+	var forge2: ForgeScreen = autofree(ForgeScreen.new())
+	forge2.setup(_state, null, _rng)
+	
+	# Assert 2: Custo deve iniciar em 75g (50 + 1 * 25)
+	assert_eq(forge2.purges_performed, 1, "2ª forja deve sincronizar 1 expurgo realizado")
+	assert_eq(forge2.get_current_purge_cost(), 75, "2ª forja deve cobrar 75g devido ao expurgo prévio")
+	
+	# Act 3: 2º expurgo na 2ª forja
+	var p2: bool = forge2.purge_card("trabalho")
+	assert_true(p2, "2º expurgo deve ser bem-sucedido")
+	assert_eq(_state.card_purges_count, 2, "RunState.card_purges_count deve ser incrementado para 2")
+	forge2.close_forge()
+	
+	# Act 4: Instanciar uma 3ª Forja
+	var forge3: ForgeScreen = autofree(ForgeScreen.new())
+	forge3.setup(_state, null, _rng)
+	assert_eq(forge3.purges_performed, 2)
+	assert_eq(forge3.get_current_purge_cost(), 100, "3ª forja deve cobrar 100g (50 + 2 * 25)")
+
+func test_card_purges_count_persists_through_run_state_save_roundtrip() -> void:
+	# Arrange
+	_state.card_purges_count = 2
+	
+	# Act
+	var dict: Dictionary = _state.to_dict()
+	var restored: RunState = RunState.new()
+	var ok: bool = restored.from_dict(dict)
+	
+	# Assert
+	assert_true(ok, "Restauração de RunState com card_purges_count deve suceder")
+	assert_eq(restored.card_purges_count, 2, "card_purges_count deve ser 2 após restauração")
+	
+	var forge_restored: ForgeScreen = autofree(ForgeScreen.new())
+	forge_restored.setup(restored, null, _rng)
+	assert_eq(forge_restored.get_current_purge_cost(), 100, "Forja restaurada deve iniciar com custo de 100g")

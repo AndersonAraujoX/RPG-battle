@@ -10,6 +10,7 @@ signal node_entered(node: RunNode)
 signal hero_died(hero_id: String)
 signal act_advanced(new_act: int)
 signal run_ended(victory: bool)
+signal heart_destroyed(heart_id: String)
 
 enum Status { NOT_STARTED, ACTIVE, VICTORY, DEFEAT }
 
@@ -20,6 +21,12 @@ const ACT_TRANSITION_HEAL_PCT: float = 0.25
 const AMBER_PER_FLOOR: int = 1
 const AMBER_PER_BOSS: int = 10
 const AMBER_VICTORY_BONUS: int = 25
+
+const CANONICAL_HEART_IDS: Array[String] = [
+	"coracao_da_mente",
+	"coracao_da_carapaca",
+	"coracao_da_ninhada",
+]
 
 const ACT_BOSSES: Dictionary = {
 	1: "viuva_canibal",
@@ -42,6 +49,8 @@ var map: RunMap = null
 var floors_cleared: int = 0
 var bosses_defeated: int = 0
 var enemies_killed: int = 0
+var card_purges_count: int = 0
+var destroyed_hearts: Array[String] = []
 
 var _generator: RunMapGenerator
 var _rng: RandomNumberGenerator
@@ -124,9 +133,28 @@ func complete_current_node() -> bool:
 		return false
 	node.visited = true
 	floors_cleared += 1
+	if act == 3 and node.type == RunNode.NodeType.ELITE:
+		for hid in CANONICAL_HEART_IDS:
+			if not destroyed_hearts.has(hid):
+				destroy_heart(hid)
+				break
 	if node.is_boss():
 		_on_boss_defeated()
 	return true
+
+## Destrói permanentemente um dos Corações da Colmeia (Ato 3).
+func destroy_heart(heart_id: String) -> bool:
+	if heart_id.is_empty() or destroyed_hearts.has(heart_id):
+		return false
+	destroyed_hearts.append(heart_id)
+	heart_destroyed.emit(heart_id)
+	return true
+
+func has_destroyed_heart(heart_id: String) -> bool:
+	return destroyed_hearts.has(heart_id)
+
+func get_destroyed_hearts() -> Array[String]:
+	return destroyed_hearts.duplicate()
 
 func _on_boss_defeated() -> void:
 	bosses_defeated += 1
@@ -212,20 +240,32 @@ func remove_card(card_id: String) -> bool:
 	return true
 
 func add_relic(relic_id: String) -> bool:
-	if relic_id.is_empty() or relics.has(relic_id):
+	if relic_id.is_empty() or has_relic(relic_id):
 		return false
-	relics.append(relic_id)
+	var norm: String = RelicManager.normalize_id(relic_id)
+	relics.append(norm)
 	return true
 
 func has_relic(relic_id: String) -> bool:
-	return relics.has(relic_id)
+	if relics.has(relic_id):
+		return true
+	var norm: String = RelicManager.normalize_id(relic_id)
+	for r in relics:
+		if RelicManager.normalize_id(r) == norm:
+			return true
+	return false
 
 func remove_relic(relic_id: String) -> bool:
 	var idx: int = relics.find(relic_id)
-	if idx < 0:
-		return false
-	relics.remove_at(idx)
-	return true
+	if idx >= 0:
+		relics.remove_at(idx)
+		return true
+	var norm: String = RelicManager.normalize_id(relic_id)
+	for i in range(relics.size()):
+		if RelicManager.normalize_id(relics[i]) == norm:
+			relics.remove_at(i)
+			return true
+	return false
 
 func register_kills(count: int) -> void:
 	enemies_killed += maxi(count, 0)
@@ -235,6 +275,9 @@ func calculate_amber() -> int:
 	var amber: int = floors_cleared * AMBER_PER_FLOOR + bosses_defeated * AMBER_PER_BOSS
 	if status == Status.VICTORY:
 		amber += AMBER_VICTORY_BONUS
+		# Bônus supremo: enfrentar o Rei com força total poupando todos os 3 Corações dobra o Âmbar Real!
+		if destroyed_hearts.is_empty():
+			amber *= 2
 	return amber
 
 # ── Persistência ────────────────────────────────────────────────────────────
@@ -256,6 +299,8 @@ func to_dict() -> Dictionary:
 		"floors_cleared": floors_cleared,
 		"bosses_defeated": bosses_defeated,
 		"enemies_killed": enemies_killed,
+		"card_purges_count": card_purges_count,
+		"destroyed_hearts": destroyed_hearts.duplicate(),
 	}
 
 ## Restaura de um dicionário; retorna false (sem alterar o estado) se os dados forem inválidos.
@@ -278,6 +323,8 @@ func from_dict(data: Dictionary) -> bool:
 		deck.append(String(c))
 	for r in data.get("relics", []):
 		relics.append(String(r))
+	for h in data.get("destroyed_hearts", []):
+		destroyed_hearts.append(String(h))
 	hero_hp = (data["hero_hp"] as Dictionary).duplicate()
 	hero_max_hp = (data["hero_max_hp"] as Dictionary).duplicate()
 	gold = int(data.get("gold", 0))
@@ -285,6 +332,7 @@ func from_dict(data: Dictionary) -> bool:
 	floors_cleared = int(data.get("floors_cleared", 0))
 	bosses_defeated = int(data.get("bosses_defeated", 0))
 	enemies_killed = int(data.get("enemies_killed", 0))
+	card_purges_count = int(data.get("card_purges_count", 0))
 	map = restored_map
 	return true
 
@@ -297,9 +345,11 @@ func _reset() -> void:
 	fallen_heroes.clear()
 	deck.clear()
 	relics.clear()
+	destroyed_hearts.clear()
 	gold = 0
 	current_node_id = -1
 	map = null
 	floors_cleared = 0
 	bosses_defeated = 0
 	enemies_killed = 0
+	card_purges_count = 0

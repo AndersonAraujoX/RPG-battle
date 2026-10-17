@@ -35,16 +35,14 @@ func _draw() -> void:
 			var is_visited_path: bool = node.visited and screen.state.map.get_node_by_id(nid).visited
 			var is_active_branch: bool = (node.visited or (current_node != null and current_node.id == node.id)) and available_ids.has(nid)
 
-			var color: Color
-			var width: float
 			if is_active_branch:
-				color = Color(1.0, 0.82, 0.25, 0.9)
-				width = 3.0
+				# Camada 1: Brilho incandescente suave
+				draw_line(from_center, to_center, Color(1.0, 0.70, 0.20, 0.40), 7.0, true)
+				# Camada 2: Trilha pontilhada dourada brilhante
+				draw_dashed_line(from_center, to_center, Color(1.0, 0.92, 0.38, 0.95), 3.0, 6.0, true)
 			elif is_visited_path:
-				color = Color(0.45, 0.5, 0.55, 0.6)
-				width = 2.0
+				# Trilha percorrida
+				draw_dashed_line(from_center, to_center, Color(0.60, 0.65, 0.70, 0.70), 2.5, 6.0, true)
 			else:
-				color = Color(0.2, 0.22, 0.28, 0.5)
-				width = 1.5
-
-			draw_line(from_center, to_center, color, width, true)
+				# Trilha futura sutil
+				draw_dashed_line(from_center, to_center, Color(0.40, 0.42, 0.48, 0.45), 2.0, 5.0, true)

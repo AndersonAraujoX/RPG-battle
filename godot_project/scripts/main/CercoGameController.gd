@@ -22,6 +22,15 @@ var max_rounds: int = 10
 var is_game_over: bool = false
 var enemies_defeated_count: int = 0
 var game_over_modal_instance: Control = null
+var autoplay_enabled: bool = false
+
+# ── Modo Campanha Roguelike (Marco M4) ────────────────────────────────────────
+var is_run_mode: bool = false
+var run_state_ref: RunState = null
+var current_node_ref: RunNode = null
+var encounter_config: Dictionary = {}
+var has_spawned_encounter: bool = false
+var relic_manager: RelicManager = null
 
 func _ready() -> void:
 	_initialize_models()
@@ -37,19 +46,33 @@ func _initialize_models() -> void:
 	# Espalha cristais de mana, baús, poções e materiais pelo mapa da fortaleza
 	board.spawn_default_map_items()
 
-	# Inicializa heróis canônicos no pátio e câmara central com espaçamento amplo
-	board.place_unit("aquele", Vector2i(9, 10))
-	board.register_unit("aquele", {
-		"name": "Aquele", "class": "Guerreiro", "team": "A",
-		"hp": 48, "max_hp": 48, "ac": 17, "move_range": 4,
-		"attack_range": 1, "attack_bonus": 4
-	})
+	if _should_setup_from_run_session():
+		_setup_from_run_session()
+	else:
+		_setup_standalone_cerco()
 
-	board.place_unit("stark", Vector2i(10, 9))
+func _should_setup_from_run_session() -> bool:
+	if not RunSession.has_active_run():
+		return false
+	if RunCombatBridge.has_active_encounter():
+		return true
+	var cur_node: RunNode = RunSession.current.get_current_node()
+	return cur_node != null and cur_node.is_combat_type()
+
+func _setup_standalone_cerco() -> void:
+	# Inicializa heróis canônicos no pátio e câmara central com espaçamento amplo
+	board.place_unit("stark", Vector2i(9, 10))
 	board.register_unit("stark", {
 		"name": "Stark", "class": "Paladino", "team": "A",
 		"hp": 52, "max_hp": 52, "ac": 18, "move_range": 3,
-		"attack_range": 1, "attack_bonus": 3
+		"attack_range": 1, "attack_bonus": 4
+	})
+
+	board.place_unit("elden", Vector2i(10, 9))
+	board.register_unit("elden", {
+		"name": "Elden", "class": "Mago", "team": "A",
+		"hp": 32, "max_hp": 32, "ac": 12, "move_range": 3,
+		"attack_range": 6, "attack_bonus": 4
 	})
 
 	board.place_unit("lysander", Vector2i(10, 11))
@@ -86,6 +109,77 @@ func _initialize_models() -> void:
 				_:
 					max_rounds = 10
 
+func _setup_from_run_session() -> void:
+	is_run_mode = true
+	run_state_ref = RunSession.current
+	current_node_ref = run_state_ref.get_current_node()
+
+	if RunCombatBridge.has_active_encounter():
+		encounter_config = RunCombatBridge.get_current_encounter()
+	else:
+		encounter_config = RunCombatBridge.setup_combat(run_state_ref, current_node_ref)
+
+	# 1. Spawna apenas heróis SOBREVIVENTES (Permadeath)
+	var party_list: Array = encounter_config.get("party", [])
+	for h_info in party_list:
+		var hid: String = str(h_info.get("id", ""))
+		var pos: Vector2i = h_info.get("spawn_pos", Vector2i(9, 10))
+		board.place_unit(hid, pos)
+		board.register_unit(hid, h_info)
+
+	# 2. Economia
+	economy = WorkshopEconomy.new()
+	economy.set_resources(15, 12, 10, 5, 4)
+
+	# 3. Baralho ingerido do RunState.deck
+	deck = CercoDeck.new()
+	var deck_ids: Array[String] = []
+	for cid in encounter_config.get("deck_ids", []):
+		deck_ids.append(String(cid))
+	var cards: Array[CardData] = RunCombatBridge.convert_deck(deck_ids)
+	deck.draw_pile.append_array(cards)
+	deck.draw_pile.shuffle()
+	deck.populate_default_market()
+	deck.draw_cards(5)
+
+	judge = CercoCombatJudge.new()
+	sync_round = CercoSyncRound.new()
+	threat_deck = ThreatDeck.new()
+
+	# 4. Rodadas e ondas de ameaça
+	max_rounds = int(encounter_config.get("max_rounds", 3))
+	if encounter_config.has("forced_waves"):
+		var f_waves: Array[Dictionary] = []
+		for w in encounter_config["forced_waves"]:
+			f_waves.append(Dictionary(w))
+		threat_deck.set_forced_waves(f_waves)
+
+	# 5. Spawna os inimigos do combate no tabuleiro
+	var squad: Array = encounter_config.get("squad", encounter_config.get("enemies", []))
+	for enemy in squad:
+		var e_id: String = str(enemy.get("id", "enemy_%d" % (board.get_all_units().size() + 1)))
+		var e_pos: Vector2i = enemy.get("spawn_pos", Vector2i(10, 1))
+		board.place_unit(e_id, e_pos)
+		board.register_unit(e_id, enemy)
+	if not squad.is_empty():
+		has_spawned_encounter = true
+
+	# 6. Perigos ambientais (teias)
+	var hazards: Array = encounter_config.get("hazards", [])
+	for h in hazards:
+		var h_pos: Vector2i = h.get("pos", Vector2i(-1, -1))
+		var h_type: String = str(h.get("type", "WEB"))
+		if h_pos != Vector2i(-1, -1):
+			board.place_item(h_pos, h_type, h)
+
+	# 7. Sincroniza Relíquias ativas com o EventBus
+	var eb: Node = get_node_or_null("/root/EventBus") if is_inside_tree() else null
+	if eb == null:
+		var main_loop: MainLoop = Engine.get_main_loop()
+		if main_loop is SceneTree and (main_loop as SceneTree).root != null:
+			eb = (main_loop as SceneTree).root.get_node_or_null("EventBus")
+	relic_manager = RelicManager.new(run_state_ref, eb)
+
 func _setup_hud() -> void:
 	# Procura por HUD existente ou instancia o HUD completo
 	hud_instance = find_child("HUD", true, false) as HUD
@@ -105,6 +199,8 @@ func _setup_hud() -> void:
 		hud_instance.card_played.connect(_on_hud_card_played)
 	if not hud_instance.sync_round_requested.is_connected(_on_hud_sync_round_requested):
 		hud_instance.sync_round_requested.connect(_on_hud_sync_round_requested)
+	if hud_instance.has_signal("autoplay_toggled") and not hud_instance.autoplay_toggled.is_connected(toggle_autoplay):
+		hud_instance.autoplay_toggled.connect(toggle_autoplay)
 	if hud_instance.market_panel != null and not hud_instance.market_panel.upgrade_purchased.is_connected(_on_market_upgrade_purchased):
 		hud_instance.market_panel.upgrade_purchased.connect(_on_market_upgrade_purchased)
 	
@@ -120,8 +216,13 @@ func _setup_hud() -> void:
 			hud_instance.board_view.unit_attack_requested.connect(_on_board_view_unit_attack)
 
 		# Seleciona o primeiro herói inicialmente no estilo FFT
-		hud_instance.board_view.select_unit("aquele")
-		hud_instance.update_active_hero(board.get_unit_data("aquele"))
+		var sel_hero: String = "stark"
+		if board != null:
+			var allies: Array[String] = board.get_units_by_team("A")
+			if not allies.is_empty():
+				sel_hero = allies[0]
+		hud_instance.board_view.select_unit(sel_hero)
+		hud_instance.update_active_hero(board.get_unit_data(sel_hero))
 
 	# Log inicial explicativo no HUD
 	if hud_instance.combat_log != null:
@@ -134,7 +235,7 @@ func _on_board_view_unit_selected(_unit_id: String, unit_data: Dictionary) -> vo
 		hud_instance.update_active_hero(unit_data)
 		if hud_instance.combat_log != null:
 			var uname: String = str(unit_data.get("name", _unit_id))
-			var pm: int = int(unit_data.get("move_range", 3))
+			var pm: int = int(unit_data.get("remaining_pm", unit_data.get("move_range", 3)))
 			var hp: int = int(unit_data.get("hp", 10))
 			var max_hp: int = int(unit_data.get("max_hp", 10))
 			hud_instance.combat_log.append_entry("SELEÇÃO", "🎯 %s selecionado! (PM: %d, HP: %d/%d)" % [uname, pm, hp, max_hp])
@@ -143,10 +244,13 @@ func _on_board_view_unit_moved(unit_id: String, to_pos: Vector2i) -> void:
 	if hud_instance != null and hud_instance.board_view != null:
 		var wpos: Vector2 = hud_instance.board_view.get_cell_screen_coords(to_pos.x, to_pos.y)
 		hud_instance.board_view.spawn_impact_particles(wpos, "dust", 4)
-	if hud_instance != null and hud_instance.combat_log != null:
+	if hud_instance != null:
 		var udata: Dictionary = board.get_unit_data(unit_id) if board != null else {}
-		var uname: String = str(udata.get("name", unit_id))
-		hud_instance.combat_log.append_entry("MOVIMENTO", "🚶 %s avançou para (%d, %d)." % [uname, to_pos.x, to_pos.y])
+		hud_instance.update_active_hero(udata)
+		if hud_instance.combat_log != null:
+			var uname: String = str(udata.get("name", unit_id))
+			var rem_pm: int = int(udata.get("remaining_pm", 0))
+			hud_instance.combat_log.append_entry("MOVIMENTO", "🚶 %s avançou para (%d, %d). (PM restantes: %d)" % [uname, to_pos.x, to_pos.y, rem_pm])
 
 func _on_board_view_item_pickup(unit_id: String, _pos: Vector2i, item_data: Dictionary) -> void:
 	var itype: String = str(item_data.get("type", "CRISTAL")).to_upper()
@@ -431,10 +535,13 @@ func _apply_card_effects(card: CardData, target_zone: String) -> void:
 		match cid:
 			"runa_haste":
 				if board != null:
-					for hero_id in ["aquele", "stark", "lysander"]:
+					for hero_id in board.get_units_by_team("A"):
 						var udata: Dictionary = board.get_unit_data(hero_id)
 						if not udata.is_empty():
-							udata["move_range"] = int(udata.get("move_range", 3)) + 5
+							var cur_pm: int = int(udata.get("move_range", 3))
+							var cur_rem: int = int(udata.get("remaining_pm", cur_pm))
+							udata["move_range"] = cur_pm + 5
+							udata["remaining_pm"] = cur_rem + 5
 							board.set_unit_data(hero_id, udata)
 				if economy != null:
 					economy.add_resource("ap", 2)
@@ -484,7 +591,7 @@ func _apply_card_effects(card: CardData, target_zone: String) -> void:
 					board.repair_wall(FortressBoard.ZONE_MURALHA_NORTE, 15)
 			"antidoto_alquimico":
 				if board != null:
-					for hid in ["aquele", "stark", "lysander"]:
+					for hid in board.get_units_by_team("A"):
 						board.heal_unit(hid, 15)
 			"amuleto_resistencia":
 				if economy != null:
@@ -548,31 +655,168 @@ func _apply_card_effects(card: CardData, target_zone: String) -> void:
 	if cbadge == CardData.BADGE_MARCHA or card.movement > 0:
 		var bonus_pm: int = maxi(1, floori(float(card.movement) / 5.0)) if card.movement > 0 else 3
 		if board != null:
-			for hero_id in ["aquele", "stark", "lysander"]:
+			for hero_id in board.get_units_by_team("A"):
 				var udata: Dictionary = board.get_unit_data(hero_id)
 				if not udata.is_empty():
 					var cur_pm: int = int(udata.get("move_range", 3))
+					var cur_rem: int = int(udata.get("remaining_pm", cur_pm))
 					udata["move_range"] = cur_pm + bonus_pm
+					udata["remaining_pm"] = cur_rem + bonus_pm
 					board.set_unit_data(hero_id, udata)
 			
 			if hud_instance != null and hud_instance.board_view != null:
 				var sel_uid: String = hud_instance.board_view.get_selected_unit()
 				if sel_uid.is_empty():
-					sel_uid = "aquele"
+					var allies_a: Array[String] = board.get_units_by_team("A")
+					sel_uid = allies_a[0] if not allies_a.is_empty() else "stark"
 				hud_instance.board_view.select_unit(sel_uid)
 				hud_instance.update_active_hero(board.get_unit_data(sel_uid))
 		if hud_instance != null and hud_instance.combat_log != null:
 			hud_instance.combat_log.append_entry("MARCHA", "⚡ Heróis marcharam: +%d Pontos de Movimento (Alcance Tático ampliado)!" % bonus_pm)
 
-	# 4.4. Combate / Força Anã
-	if cbadge == CardData.BADGE_COMBATE:
-		if judge != null:
-			var rolls: Array = judge.roll_cerco_dice(maxi(2, card.work))
-			var impacts: int = judge.count_face(rolls, CercoCombatJudge.D6Face.IMPACTO)
-			var crits: int = judge.count_face(rolls, CercoCombatJudge.D6Face.CRITICO)
-			var total_dmg: int = impacts * 5 + crits * 10
+	# 4.4. Combate / Cartas de Dano Tático Direto
+	if cbadge == CardData.BADGE_COMBATE or cid.begins_with("ataque") or cid in ["golpe_pesado", "tiro_balista", "lamina_ignea", "martelo_do_trovao", "fogo_alquimico", "furor_ancestral", "forca_ana"]:
+		_apply_combat_card_damage(card, target_zone)
+
+## Aplica os efeitos diretos de cartas de combate/dano no tabuleiro tático,
+## selecionando alvos (selecionados manualmente, mais próximos ou em área),
+## aplicando dano a invasores, disparando VFX/SFX e tratando baixas e drops.
+func _apply_combat_card_damage(card: CardData, target_zone: String) -> Dictionary:
+	var result: Dictionary = {
+		"targets_hit": [],
+		"total_damage": 0,
+		"enemies_defeated": 0
+	}
+	if board == null:
+		return result
+
+	var cid: String = card.id.to_lower().strip_edges()
+	var cname: String = card.card_name if not card.card_name.is_empty() else "Ataque Tático"
+	var living_enemies: Array[String] = []
+	for uid in board.get_units_by_team("B"):
+		if board.is_unit_alive(uid):
+			living_enemies.append(uid)
+
+	# Se houver juiz com dados de cerco e work > 0, rola para o log (legado cerco)
+	if judge != null and card.work > 0:
+		var rolls: Array = judge.roll_cerco_dice(maxi(2, card.work))
+		var impacts: int = judge.count_face(rolls, CercoCombatJudge.D6Face.IMPACTO)
+		var crits: int = judge.count_face(rolls, CercoCombatJudge.D6Face.CRITICO)
+		var cerco_roll_dmg: int = impacts * 5 + crits * 10
+		if hud_instance != null and hud_instance.combat_log != null:
+			hud_instance.combat_log.append_entry("COMBATE", "🎲 %s: D6 de Cerco rolados (+%d impacto)!" % [cname, cerco_roll_dmg])
+
+	if living_enemies.is_empty():
+		if hud_instance != null and hud_instance.combat_log != null:
+			hud_instance.combat_log.append_entry("COMBATE", "⚔️ %s preparado, mas não há inimigos no alcance!" % cname)
+		return result
+
+	var is_aoe: bool = (cid == "martelo_do_trovao" or card.badge == "AOE")
+	var target_ids: Array[String] = []
+
+	# 1. Alvo selecionado manualmente pelo jogador no tabuleiro
+	var selected_uid: String = ""
+	if hud_instance != null and hud_instance.board_view != null:
+		selected_uid = hud_instance.board_view.get_selected_unit()
+
+	if not selected_uid.is_empty() and living_enemies.has(selected_uid):
+		target_ids.append(selected_uid)
+
+	# 2. Se for área, adiciona outros inimigos vivos até 3 alvos
+	if is_aoe:
+		for e_id in living_enemies:
+			if not target_ids.has(e_id):
+				target_ids.append(e_id)
+			if target_ids.size() >= 3:
+				break
+	elif target_ids.is_empty():
+		# 3. Busca o inimigo vivo mais próximo de qualquer herói vivo
+		var living_heroes: Array[String] = []
+		for hid in board.get_units_by_team("A"):
+			if board.is_unit_alive(hid):
+				living_heroes.append(hid)
+
+		var best_enemy: String = living_enemies[0]
+		var shortest_dist: int = 9999
+		for e_id in living_enemies:
+			var e_pos: Vector2i = board.get_unit_position(e_id)
+			if e_pos == Vector2i(-1, -1):
+				continue
+			for hid in living_heroes:
+				var h_pos: Vector2i = board.get_unit_position(hid)
+				if h_pos != Vector2i(-1, -1):
+					var d: int = maxi(absi(e_pos.x - h_pos.x), absi(e_pos.y - h_pos.y))
+					if d < shortest_dist:
+						shortest_dist = d
+						best_enemy = e_id
+		target_ids.append(best_enemy)
+
+	# Aplica o ataque e dano a cada alvo
+	for t_id in target_ids:
+		var t_data: Dictionary = board.get_unit_data(t_id)
+		var t_name: String = str(t_data.get("name", t_id))
+		var t_pos: Vector2i = board.get_unit_position(t_id)
+		var t_caste: String = str(t_data.get("caste_id", t_data.get("class", t_id))).to_lower()
+
+		var dmg: int = 0
+		match cid:
+			"ataque", "forca_ana":
+				dmg = randi_range(8, 12)
+			"golpe_pesado":
+				dmg = randi_range(14, 18)
+			"tiro_balista":
+				dmg = randi_range(12, 18)
+			"lamina_ignea":
+				dmg = randi_range(12, 18)
+				if t_caste.contains("besouro") or t_caste.contains("tatuzinho") or t_caste.contains("escaravelho") or t_caste.contains("rei") or t_caste.contains("muralha"):
+					dmg *= 2
+			"martelo_do_trovao":
+				dmg = randi_range(10, 14)
+			"fogo_alquimico":
+				dmg = randi_range(25, 35)
+			"furor_ancestral":
+				dmg = randi_range(20, 28)
+			_:
+				dmg = maxi(8, card.effect_value if card.effect_value > 0 else randi_range(8, 12))
+
+		var rem_hp: int = board.damage_unit(t_id, dmg)
+		result["targets_hit"].append(t_id)
+		result["total_damage"] += dmg
+
+		# Feedback visual e sonoro
+		if hud_instance != null and hud_instance.board_view != null:
+			var flash_col: Color = Color(1.0, 0.2, 0.2, 0.9)
+			var particle_type: String = "blood"
+			if cid == "lamina_ignea" or cid == "fogo_alquimico":
+				flash_col = Color(1.0, 0.55, 0.1, 0.9)
+				particle_type = "spark"
+			elif cid == "martelo_do_trovao":
+				flash_col = Color(0.4, 0.75, 1.0, 0.9)
+				hud_instance.board_view.trigger_screen_shake(8.0, 0.35)
+
+			hud_instance.board_view.trigger_unit_damage_flash(t_id, flash_col, 0.25)
+			hud_instance.board_view.spawn_floating_combat_text("-%d ⚔️" % dmg, t_pos, flash_col, dmg >= 16)
+			var t_coords: Vector2 = hud_instance.board_view.get_cell_screen_coords(t_pos.x, t_pos.y)
+			hud_instance.board_view.spawn_impact_particles(t_coords, particle_type, 8)
+
+		if hud_instance != null and hud_instance.combat_log != null:
+			hud_instance.combat_log.append_entry("COMBATE", "⚔️ %s desferido contra %s! Causa %d de dano! (HP restante: %d)" % [cname, t_name, dmg, rem_hp])
+
+		# Trata eliminação
+		if rem_hp <= 0:
+			result["enemies_defeated"] += 1
+			enemies_defeated_count += 1
+			board.remove_unit(t_id)
+			board.place_item(t_pos, FortressBoard.ITEM_CRISTAL, {"name": "Espólios de %s" % t_name, "amount": 2})
 			if hud_instance != null and hud_instance.combat_log != null:
-				hud_instance.combat_log.append_entry("COMBATE", "⚔️ Força Anã disparada! Dano concentrado contra o cerco: %d de dano!" % total_dmg)
+				hud_instance.combat_log.append_entry("VITÓRIA", "💀 %s foi derrotado pela carta %s!" % [t_name, cname])
+
+	# Checa fim de jogo / vitória caso todos os inimigos tenham sido repelidos
+	var go_check: Dictionary = check_game_over_conditions()
+	if bool(go_check.get("game_over", false)):
+		trigger_game_over(bool(go_check.get("victory", false)), str(go_check.get("reason", "")))
+
+	return result
 
 ## AI Turn: Moves all active enemy units ("team B") toward the nearest heroes or central fortress,
 ## attacking adjacent heroes or damaging perimeter walls along their path.
@@ -882,6 +1126,22 @@ func _on_hud_sync_round_requested() -> void:
 				if hud_instance.combat_log != null and not drawn_cards.is_empty():
 					hud_instance.combat_log.append_entry("COMPRA", "🃏 Rodada %d: Você comprou %d nova(s) carta(s) para a mão!" % [current_round, drawn_cards.size()])
 
+		# Restaura os Pontos de Movimento (PM) de todos os heróis defensores para a nova rodada
+		if board != null:
+			if board.has_method("restore_units_pm"):
+				board.restore_units_pm("A")
+			else:
+				for hid in board.get_units_by_team("A"):
+					if board.is_unit_alive(hid):
+						var udata: Dictionary = board.get_unit_data(hid)
+						udata["remaining_pm"] = int(udata.get("move_range", 3))
+						board.set_unit_data(hid, udata)
+			if hud_instance != null and hud_instance.board_view != null:
+				var sel_uid: String = hud_instance.board_view.get_selected_unit()
+				if not sel_uid.is_empty():
+					hud_instance.board_view.select_unit(sel_uid)
+					hud_instance.update_active_hero(board.get_unit_data(sel_uid))
+
 		if hud_instance != null:
 			hud_instance.update_banner_orders(0, "Aguardando ordens")
 
@@ -937,7 +1197,20 @@ func check_game_over_conditions() -> Dictionary:
 			"reason": "O Enxame Isectum invadiu a Câmara Central! O coração da fortaleza caiu."
 		}
 
-	# 3. VITÓRIA: Sobreviveu a todas as rodadas máximas e eliminou os invasores restantes
+	# 3. VITÓRIA EM MODO RUN: todos os invasores do combate foram eliminados
+	if is_run_mode and has_spawned_encounter:
+		var living_enemies: Array[String] = []
+		for uid in board.get_units_by_team("B"):
+			if board.is_unit_alive(uid):
+				living_enemies.append(uid)
+		if living_enemies.is_empty():
+			return {
+				"game_over": true,
+				"victory": true,
+				"reason": "Todos os invasores Isectum do combate foram derrotados! Vitória tática!"
+			}
+
+	# 4. VITÓRIA STANDALONE / LIMITE DE RODADAS: Sobreviveu a todas as rodadas máximas e eliminou os invasores restantes
 	if current_round > max_rounds:
 		var living_enemies: Array[String] = []
 		for uid in board.get_units_by_team("B"):
@@ -974,13 +1247,70 @@ func trigger_game_over(victory: bool, reason: String) -> void:
 		var log_msg: String = "🏆 %s" % reason if victory else "💀 %s" % reason
 		hud_instance.combat_log.append_entry(tag, log_msg)
 
-	# Toca SFX temático
+	# Toca SFX temático e transiciona BGM
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root.has_node("AudioManager"):
 		var am: Node = tree.root.get_node("AudioManager")
 		if am.has_method("play_sfx"):
 			am.play_sfx("level_up" if victory else "damage", 1.0, 1.0)
+		if am.has_method("play_bgm"):
+			am.play_bgm("vitoria" if victory else "derrota", 1.2)
 
+	# Coleta PV final dos heróis no tabuleiro
+	var final_hero_hp: Dictionary = {}
+	if board != null:
+		for hid in board.get_units_by_team("A"):
+			var udata: Dictionary = board.get_unit_data(hid)
+			final_hero_hp[hid] = int(udata.get("hp", 0))
+
+	var combat_result: Dictionary = {
+		"victory": victory,
+		"reason": reason,
+		"hero_hp": final_hero_hp,
+		"surviving_heroes_hp": final_hero_hp,
+		"enemies_killed": enemies_defeated_count,
+		"rounds_survived": rounds_survived,
+		"gold_collected": economy.crystal if economy != null else 0,
+		"gold_earned": economy.crystal if economy != null else 0
+	}
+
+	if is_run_mode and run_state_ref != null:
+		RunCombatBridge.sync_combat_result(run_state_ref, combat_result)
+		RunCombatBridge.clear_encounter()
+		_handle_run_game_over(victory, reason, combat_result, stats)
+	else:
+		_handle_standalone_game_over(victory, reason, stats)
+
+func _handle_run_game_over(victory: bool, reason: String, _result: Dictionary, stats: Dictionary) -> void:
+	if not victory:
+		_show_game_over_modal(false, reason, stats)
+		return
+
+	# Vitória: Apresenta o RewardModal do Marco M3
+	var reward_scene: PackedScene = load("res://scenes/run/RewardModal.tscn")
+	var reward_modal: RewardModal = null
+	if reward_scene != null:
+		reward_modal = reward_scene.instantiate() as RewardModal
+	else:
+		reward_modal = RewardModal.new()
+
+	reward_modal.setup(run_state_ref, current_node_ref)
+	reward_modal.reward_completed.connect(func(_summary):
+		var tree: SceneTree = get_tree()
+		if tree != null:
+			if run_state_ref.status == RunState.Status.VICTORY:
+				tree.change_scene_to_file("res://scenes/main/GameOver.tscn")
+			else:
+				tree.change_scene_to_file("res://scenes/run/RunMapScreen.tscn")
+	)
+
+	if hud_instance != null:
+		hud_instance.add_child(reward_modal)
+	else:
+		add_child(reward_modal)
+
+func _handle_standalone_game_over(victory: bool, reason: String, stats: Dictionary) -> void:
+	var tree: SceneTree = get_tree()
 	# Atualiza o GameManager singleton caso conectado
 	if tree != null and tree.root.has_node("GameManager"):
 		var gm: Node = tree.root.get_node("GameManager")
@@ -991,6 +1321,9 @@ func trigger_game_over(victory: bool, reason: String) -> void:
 				"stats": stats
 			}
 
+	_show_game_over_modal(victory, reason, stats)
+
+func _show_game_over_modal(victory: bool, reason: String, stats: Dictionary) -> void:
 	# Instancia e apresenta o modal GameOverModal
 	if game_over_modal_instance == null:
 		game_over_modal_instance = GAME_OVER_MODAL_SCENE.instantiate() as Control
@@ -1031,3 +1364,250 @@ func _unhandled_input(event: InputEvent) -> void:
 				var gm: Node = tree.root.get_node("GameManager")
 				if gm.has_method("change_state_and_scene"):
 					gm.change_state_and_scene(0) # GameState.MENU
+		elif event.keycode == KEY_K:
+			# Comando de desenvolvedor desativado: sem movimento infinito
+			if hud_instance != null and hud_instance.combat_log != null:
+				hud_instance.combat_log.append_entry("AVISO", "🛡️ Comando de desenvolvedor 'k' desativado. Movimentação consome PM normalmente.")
+		elif event.keycode == KEY_F5 and not is_game_over:
+			toggle_autoplay()
+
+# ── Sistema de Auto-Play Tático ──────────────────────────────────────────────
+
+## Alterna o estado do Auto-Play. Retorna o novo estado ativo.
+func toggle_autoplay() -> bool:
+	autoplay_enabled = not autoplay_enabled
+	if hud_instance != null:
+		hud_instance.set_autoplay_active(autoplay_enabled)
+		if hud_instance.combat_log != null:
+			if autoplay_enabled:
+				hud_instance.combat_log.append_entry("AUTO-PLAY", "🤖 Modo Auto-Play ATIVADO! O esquadrão executará ações automaticamente.")
+			else:
+				hud_instance.combat_log.append_entry("AUTO-PLAY", "⏸ Modo Auto-Play DESATIVADO. Controle manual restaurado.")
+	if autoplay_enabled and not is_game_over:
+		_execute_autoplay_step()
+	return autoplay_enabled
+
+## Executa uma rodada completa de auto-play de forma síncrona (ideal para testes unitários e automação)
+func execute_autoplay_turn_synchronous() -> Dictionary:
+	var result: Dictionary = {
+		"cards_played": 0,
+		"attacks_made": 0,
+		"units_moved": 0,
+		"round_advanced": false
+	}
+	if is_game_over:
+		return result
+
+	# 1. Tentar jogar cartas viáveis da mão
+	if deck != null and economy != null:
+		var cards_to_play: Array[String] = []
+		for card in deck.get_hand():
+			if card != null and card.can_play(economy):
+				cards_to_play.append(card.id)
+		for cid in cards_to_play:
+			_on_hud_card_played("player", cid, "FORTRESS")
+			result["cards_played"] += 1
+
+	# 2. Ações dos heróis defensores (Time "A")
+	if board != null:
+		var hero_ids: Array[String] = board.get_units_by_team("A")
+		var living_heroes: Array[String] = []
+		for hid in hero_ids:
+			if board.is_unit_alive(hid):
+				living_heroes.append(hid)
+
+		var enemy_ids: Array[String] = board.get_units_by_team("B")
+		var living_enemies: Array[String] = []
+		for eid in enemy_ids:
+			if board.is_unit_alive(eid):
+				living_enemies.append(eid)
+
+		for hid in living_heroes:
+			if not board.is_unit_alive(hid):
+				continue
+			var hdata: Dictionary = board.get_unit_data(hid)
+			var hpos: Vector2i = board.get_unit_position(hid)
+			if hpos == Vector2i(-1, -1):
+				continue
+			var atk_range: int = int(hdata.get("attack_range", 1))
+
+			# 2a. Ataca se já estiver no alcance de um inimigo
+			var attackable: Array[Vector2i] = board.get_attackable_cells(hpos, atk_range, "A")
+			var target_enemy_id: String = ""
+			for cell in attackable:
+				var uid: String = board.get_unit_at(cell)
+				if uid in living_enemies and board.is_unit_alive(uid):
+					target_enemy_id = uid
+					break
+
+			if not target_enemy_id.is_empty():
+				_on_board_view_unit_attack(hid, target_enemy_id)
+				result["attacks_made"] += 1
+				continue
+
+			# 2b. Move em direção ao inimigo mais próximo se possuir PM
+			var rem_pm: int = int(hdata.get("remaining_pm", 0))
+			if rem_pm > 0 and not living_enemies.is_empty():
+				var nearest_pos: Vector2i = Vector2i(-1, -1)
+				var min_dist: int = 9999
+				for eid in living_enemies:
+					var epos: Vector2i = board.get_unit_position(eid)
+					if epos != Vector2i(-1, -1):
+						var d: int = maxi(absi(hpos.x - epos.x), absi(hpos.y - epos.y))
+						if d < min_dist:
+							min_dist = d
+							nearest_pos = epos
+
+				if nearest_pos != Vector2i(-1, -1):
+					var reachable: Array[Vector2i] = board.get_reachable_cells(hpos, rem_pm)
+					var best_cell: Vector2i = hpos
+					var best_dist: int = min_dist
+					for cell in reachable:
+						if board.get_unit_at(cell).is_empty():
+							var d: int = maxi(absi(cell.x - nearest_pos.x), absi(cell.y - nearest_pos.y))
+							if d < best_dist:
+								best_dist = d
+								best_cell = cell
+
+					if best_cell != hpos:
+						var dist_moved: int = maxi(absi(best_cell.x - hpos.x), absi(best_cell.y - hpos.y))
+						hdata["remaining_pm"] = maxi(0, rem_pm - dist_moved)
+						board.set_unit_data(hid, hdata)
+						board.move_unit(hid, best_cell)
+						_on_board_view_unit_moved(hid, best_cell)
+						result["units_moved"] += 1
+						hpos = best_cell
+
+						# Tenta atacar após o movimento se alcançou um inimigo
+						var post_attackable: Array[Vector2i] = board.get_attackable_cells(hpos, atk_range, "A")
+						for cell in post_attackable:
+							var post_uid: String = board.get_unit_at(cell)
+							if post_uid in living_enemies and board.is_unit_alive(post_uid):
+								_on_board_view_unit_attack(hid, post_uid)
+								result["attacks_made"] += 1
+								break
+
+	# 3. Avança a rodada
+	_on_hud_sync_round_requested()
+	result["round_advanced"] = true
+	return result
+
+## Execução assíncrona com pequenos intervalos visuais para gameplay fluido
+func _execute_autoplay_step() -> void:
+	if not autoplay_enabled or is_game_over:
+		return
+
+	# 1. Tenta jogar uma carta viável
+	if deck != null and economy != null:
+		var hand: Array[CardData] = deck.get_hand()
+		for card in hand:
+			if card != null and card.can_play(economy):
+				_on_hud_card_played("player", card.id, "FORTRESS")
+				_schedule_autoplay_next(0.35)
+				return
+
+	# 2. Ações dos heróis (Time "A")
+	if board != null:
+		var hero_ids: Array[String] = board.get_units_by_team("A")
+		var living_heroes: Array[String] = []
+		for hid in hero_ids:
+			if board.is_unit_alive(hid):
+				living_heroes.append(hid)
+
+		var enemy_ids: Array[String] = board.get_units_by_team("B")
+		var living_enemies: Array[String] = []
+		for eid in enemy_ids:
+			if board.is_unit_alive(eid):
+				living_enemies.append(eid)
+
+		if not living_enemies.is_empty():
+			# 2a. Atacar se puder
+			for hid in living_heroes:
+				var hdata: Dictionary = board.get_unit_data(hid)
+				if bool(hdata.get("autoplay_attacked", false)):
+					continue
+				var hpos: Vector2i = board.get_unit_position(hid)
+				if hpos == Vector2i(-1, -1):
+					continue
+				var atk_range: int = int(hdata.get("attack_range", 1))
+				var attackable: Array[Vector2i] = board.get_attackable_cells(hpos, atk_range, "A")
+				
+				var best_target_id: String = ""
+				for cell in attackable:
+					var uid_at_cell: String = board.get_unit_at(cell)
+					if uid_at_cell in living_enemies and board.is_unit_alive(uid_at_cell):
+						best_target_id = uid_at_cell
+						break
+
+				if not best_target_id.is_empty():
+					hdata["autoplay_attacked"] = true
+					board.set_unit_data(hid, hdata)
+					_on_board_view_unit_attack(hid, best_target_id)
+					_schedule_autoplay_next(0.35)
+					return
+
+			# 2b. Mover se tiver PM
+			for hid in living_heroes:
+				var hdata: Dictionary = board.get_unit_data(hid)
+				var rem_pm: int = int(hdata.get("remaining_pm", 0))
+				if rem_pm <= 0:
+					continue
+				var hpos: Vector2i = board.get_unit_position(hid)
+				if hpos == Vector2i(-1, -1):
+					continue
+
+				var nearest_enemy_pos: Vector2i = Vector2i(-1, -1)
+				var min_dist: int = 9999
+				for eid in living_enemies:
+					var epos: Vector2i = board.get_unit_position(eid)
+					if epos != Vector2i(-1, -1):
+						var d: int = maxi(absi(hpos.x - epos.x), absi(hpos.y - epos.y))
+						if d < min_dist:
+							min_dist = d
+							nearest_enemy_pos = epos
+
+				if nearest_enemy_pos != Vector2i(-1, -1):
+					var reachable_cells: Array[Vector2i] = board.get_reachable_cells(hpos, rem_pm)
+					var best_dest: Vector2i = hpos
+					var best_dist: int = min_dist
+					for cell in reachable_cells:
+						if board.get_unit_at(cell).is_empty():
+							var d: int = maxi(absi(cell.x - nearest_enemy_pos.x), absi(cell.y - nearest_enemy_pos.y))
+							if d < best_dist:
+								best_dist = d
+								best_dest = cell
+
+					if best_dest != hpos:
+						var moved_dist: int = maxi(absi(best_dest.x - hpos.x), absi(best_dest.y - hpos.y))
+						hdata["remaining_pm"] = maxi(0, rem_pm - moved_dist)
+						board.set_unit_data(hid, hdata)
+						board.move_unit(hid, best_dest)
+						_on_board_view_unit_moved(hid, best_dest)
+						_schedule_autoplay_next(0.35)
+						return
+					else:
+						hdata["remaining_pm"] = 0
+						board.set_unit_data(hid, hdata)
+
+	# 3. Concluir turno do jogador
+	if board != null:
+		for hid in board.get_units_by_team("A"):
+			var udata: Dictionary = board.get_unit_data(hid)
+			udata["autoplay_attacked"] = false
+			board.set_unit_data(hid, udata)
+
+	_on_hud_sync_round_requested()
+
+	if autoplay_enabled and not is_game_over:
+		_schedule_autoplay_next(0.50)
+
+func _schedule_autoplay_next(delay: float) -> void:
+	if not autoplay_enabled or is_game_over:
+		return
+	var tree: SceneTree = get_tree()
+	if tree != null:
+		var timer: SceneTreeTimer = tree.create_timer(delay)
+		timer.timeout.connect(func():
+			if autoplay_enabled and not is_game_over:
+				_execute_autoplay_step()
+		)

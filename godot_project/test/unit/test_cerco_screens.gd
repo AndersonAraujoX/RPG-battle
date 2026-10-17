@@ -6,6 +6,14 @@ extends GutTest
 
 # ── 1. CercoSetup Tests ──────────────────────────────────────────────────────
 
+func before_each() -> void:
+	RunSession.clear()
+	RunCombatBridge.clear()
+
+func after_each() -> void:
+	RunSession.clear()
+	RunCombatBridge.clear()
+
 func test_cerco_setup_initial_defaults() -> void:
 	# Arrange
 	var setup: CercoSetup = autofree(CercoSetup.new())
@@ -14,8 +22,9 @@ func test_cerco_setup_initial_defaults() -> void:
 	setup._ready()
 	
 	# Assert
-	assert_true(setup.selected_heroes.has("Aquele"), "Aquele should be present in hero table")
-	assert_true(setup.selected_heroes["Aquele"], "Aquele is selected by default")
+	assert_false(setup.selected_heroes.has("Aquele"), "Aquele must NOT be in public hero selection (is secret)")
+	assert_true(setup.selected_heroes.has("Stark"), "Stark should be present in hero table")
+	assert_true(setup.selected_heroes["Stark"], "Stark is selected by default")
 	assert_eq(setup.selected_diff_index, 1, "Default difficulty is Media (index 1)")
 	assert_eq(setup.selected_res_index, 3, "Default resolution is 1280x720 (index 3)")
 
@@ -24,17 +33,17 @@ func test_cerco_setup_hero_selection_toggle() -> void:
 	var setup: CercoSetup = autofree(CercoSetup.new())
 	setup._ready()
 	
-	# Act - Select Stark
-	setup._on_hero_clicked("Stark")
+	# Act - Select Elden
+	setup._on_hero_clicked("Elden")
 	
 	# Assert
-	assert_true(setup.selected_heroes.get("Stark", false), "Stark should now be selected")
+	assert_true(setup.selected_heroes.get("Elden", false), "Elden should now be selected")
 	
-	# Act - Toggle Stark off
-	setup._on_hero_clicked("Stark")
+	# Act - Toggle Elden off
+	setup._on_hero_clicked("Elden")
 	
 	# Assert
-	assert_false(setup.selected_heroes.get("Stark", false), "Stark should now be deselected")
+	assert_false(setup.selected_heroes.get("Elden", false), "Elden should now be deselected")
 
 func test_cerco_setup_difficulty_selection_changes_factor() -> void:
 	# Arrange
@@ -177,6 +186,7 @@ func test_main_menu_scene_instantiation_and_structure() -> void:
 	assert_not_null(menu.btn_opcoes, "btn_opcoes must be bound")
 	assert_not_null(menu.btn_dev_tools, "btn_dev_tools must be bound")
 	assert_not_null(menu.btn_sair, "btn_sair must be bound")
+	assert_not_null(menu.btn_quartel, "btn_quartel must be bound")
 	
 	assert_eq(menu.btn_jogar_cerco.text, "JOGAR CERCO")
 	assert_eq(menu.btn_nova_campanha.text, "NOVA CAMPANHA")
@@ -184,6 +194,7 @@ func test_main_menu_scene_instantiation_and_structure() -> void:
 	assert_eq(menu.btn_opcoes.text, "OPÇÕES")
 	assert_eq(menu.btn_dev_tools.text, "DEV TOOLS")
 	assert_eq(menu.btn_sair.text, "SAIR")
+	assert_eq(menu.btn_quartel.text, "QUARTEL DOS HERÓIS")
 	
 	# Assert - Background and Title labels
 	var bg: TextureRect = menu.get_node_or_null("Background") as TextureRect
@@ -196,6 +207,9 @@ func test_main_menu_scene_instantiation_and_structure() -> void:
 	assert_not_null(lbl_subtitle, "LblIsectum must exist")
 	assert_eq(lbl_title.text, "Cerco contra")
 	assert_eq(lbl_subtitle.text, "Isectum")
+	assert_not_null(menu.lbl_campanha_sub, "LblCampanhaSub must exist")
+	assert_eq(menu.lbl_campanha_sub.text, "A QUEDA DO REI ISECTUM")
+	assert_not_null(menu.lbl_meta_status, "LblMetaStatus must exist")
 
 func test_main_menu_legacy_references_parity() -> void:
 	# Arrange
@@ -265,6 +279,23 @@ func test_main_menu_button_theme_and_styling() -> void:
 	# Assert - Font sizes
 	var fsize_jogar: int = menu.btn_jogar_cerco.get_theme_font_size("font_size")
 	assert_eq(fsize_jogar, 20, "Button font size should be 20")
+
+func test_main_menu_open_barracks_modal() -> void:
+	# Arrange
+	var scene_res: PackedScene = load("res://scenes/main/Menu.tscn")
+	var menu: MainMenu = autofree(scene_res.instantiate()) as MainMenu
+	menu._ready()
+	
+	# Act
+	menu._on_btn_quartel_pressed()
+	
+	# Assert
+	assert_not_null(menu._barracks_modal, "Barracks modal must be instantiated on quartel click")
+	assert_true(menu._barracks_modal.visible, "Barracks modal must be visible")
+	
+	# Act 2 - Close barracks
+	menu._on_barracks_back()
+	assert_false(menu._barracks_modal.visible, "Barracks modal must hide on back")
 
 # ── 5. CercoGameController & SyncRound Alias Tests ────────────────────────────
 

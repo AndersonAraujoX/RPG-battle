@@ -12,9 +12,26 @@ const BGM_PATHS: Dictionary = {
 	"battle": "res://assets/sounds/battle1.ogg",
 	"cerco": "res://assets/sounds/battle1.ogg",
 	"combat": "res://assets/sounds/battle1.ogg",
-	"intro": "res://assets/sounds/intro.ogg",
-	"lobby": "res://assets/sounds/intro.ogg"
+	"intro": "res://assets/sounds/menu.ogg",
+	"intro_narrador": "res://assets/sounds/intro.ogg",
+	"lobby": "res://assets/sounds/menu.ogg",
+	"mapa": "res://assets/sounds/menu.ogg",
+	"map": "res://assets/sounds/menu.ogg",
+	"campanha": "res://assets/sounds/menu.ogg",
+	"run": "res://assets/sounds/menu.ogg",
+	"quartel": "res://assets/sounds/menu.ogg",
+	"barracks": "res://assets/sounds/menu.ogg",
+	"vitoria": "res://assets/sounds/menu.ogg",
+	"victory": "res://assets/sounds/menu.ogg",
+	"derrota": "res://assets/sounds/menu.ogg",
+	"defeat": "res://assets/sounds/menu.ogg",
+	"game_over": "res://assets/sounds/menu.ogg",
+	"opcoes": "res://assets/sounds/menu.ogg",
+	"options": "res://assets/sounds/menu.ogg"
 }
+
+## Flag de controle do áudio narrador de voz (desativado por solicitação do usuário)
+var narrator_voice_enabled: bool = false
 
 const SFX_PATHS: Dictionary = {
 	"attack": "res://assets/sounds/attack.ogg",
@@ -46,6 +63,7 @@ var _bgm_player_a: AudioStreamPlayer
 var _bgm_player_b: AudioStreamPlayer
 var _active_bgm_player: AudioStreamPlayer
 var _current_bgm_key: String = ""
+var _fading_out_key: String = ""
 var _bgm_tween: Tween = null
 
 var _sfx_pool: Array[AudioStreamPlayer] = []
@@ -79,11 +97,13 @@ func _init_audio_nodes() -> void:
 	_bgm_player_a = AudioStreamPlayer.new()
 	_bgm_player_a.process_mode = Node.PROCESS_MODE_ALWAYS
 	_bgm_player_a.bus = _resolve_bus(BUS_BGM)
+	_bgm_player_a.finished.connect(_on_bgm_finished.bind(_bgm_player_a))
 	add_child(_bgm_player_a)
 
 	_bgm_player_b = AudioStreamPlayer.new()
 	_bgm_player_b.process_mode = Node.PROCESS_MODE_ALWAYS
 	_bgm_player_b.bus = _resolve_bus(BUS_BGM)
+	_bgm_player_b.finished.connect(_on_bgm_finished.bind(_bgm_player_b))
 	add_child(_bgm_player_b)
 
 	_active_bgm_player = _bgm_player_a
@@ -96,6 +116,11 @@ func _init_audio_nodes() -> void:
 		p.finished.connect(_on_sfx_finished.bind(p))
 		add_child(p)
 		_sfx_pool.append(p)
+
+func _on_bgm_finished(player: AudioStreamPlayer) -> void:
+	# Redundância defensiva de looping: se a faixa terminar e for o player ativo, reinicia do início
+	if player != null and player == _active_bgm_player and not _current_bgm_key.is_empty() and player.stream != null:
+		player.play(0.0)
 
 func _on_sfx_finished(p: AudioStreamPlayer) -> void:
 	if p != null and not p.playing:
@@ -177,22 +202,38 @@ func play_bgm(track_key: String, crossfade_duration: float = 1.0) -> void:
 		return
 
 	# If this track is already playing:
-	if _current_bgm_key == key and is_bgm_playing():
-		# If it was fading out, cancel the fade and restore volume
+	if _current_bgm_key == key:
+		if is_bgm_playing():
+			# If it was fading out, cancel the fade and restore volume immediately
+			if _bgm_tween != null and _bgm_tween.is_valid():
+				_bgm_tween.kill()
+				_bgm_tween = null
+			_active_bgm_player.volume_db = 0.0
+			return
+		else:
+			# Track was paused or stopped: restore volume and play from start
+			if _bgm_tween != null and _bgm_tween.is_valid():
+				_bgm_tween.kill()
+				_bgm_tween = null
+			_active_bgm_player.volume_db = 0.0
+			_active_bgm_player.play(0.0)
+			return
+
+	# If this track was currently fading out in stop_bgm, cancel fade-out and restore volume
+	if _fading_out_key == key and _active_bgm_player != null and _active_bgm_player.playing:
 		if _bgm_tween != null and _bgm_tween.is_valid():
 			_bgm_tween.kill()
 			_bgm_tween = null
-			if crossfade_duration > 0.0 and is_inside_tree():
-				_bgm_tween = create_tween()
-				_bgm_tween.tween_property(_active_bgm_player, "volume_db", 0.0, crossfade_duration * 0.5)
-			else:
-				_active_bgm_player.volume_db = 0.0
+		_current_bgm_key = key
+		_fading_out_key = ""
+		_active_bgm_player.volume_db = 0.0
 		return
 
 	# Kill any ongoing transition tween
 	if _bgm_tween != null and _bgm_tween.is_valid():
 		_bgm_tween.kill()
 		_bgm_tween = null
+	_fading_out_key = ""
 
 	var stream: AudioStream = _get_or_load_bgm_stream(key)
 	if stream == null and ResourceLoader.exists(track_key):
@@ -217,7 +258,7 @@ func play_bgm(track_key: String, crossfade_duration: float = 1.0) -> void:
 
 	if should_crossfade:
 		incoming_player.volume_db = -80.0
-		incoming_player.play()
+		incoming_player.play(0.0)
 		_active_bgm_player = incoming_player
 		_current_bgm_key = key
 
@@ -225,7 +266,7 @@ func play_bgm(track_key: String, crossfade_duration: float = 1.0) -> void:
 		_bgm_tween.tween_property(outgoing_player, "volume_db", -80.0, crossfade_duration)
 		_bgm_tween.tween_property(incoming_player, "volume_db", 0.0, crossfade_duration)
 		_bgm_tween.chain().tween_callback(func():
-			if outgoing_player != null:
+			if outgoing_player != null and outgoing_player != _active_bgm_player:
 				outgoing_player.stop()
 				outgoing_player.stream = null
 		)
@@ -235,7 +276,7 @@ func play_bgm(track_key: String, crossfade_duration: float = 1.0) -> void:
 			outgoing_player.stream = null
 
 		incoming_player.volume_db = 0.0
-		incoming_player.play()
+		incoming_player.play(0.0)
 		_active_bgm_player = incoming_player
 		_current_bgm_key = key
 
@@ -245,9 +286,11 @@ func stop_bgm(fade_duration: float = 0.5) -> void:
 		_bgm_tween = null
 
 	var player_to_stop: AudioStreamPlayer = _active_bgm_player
+	_fading_out_key = _current_bgm_key
 	_current_bgm_key = ""
 
 	if player_to_stop == null or not player_to_stop.playing:
+		_fading_out_key = ""
 		if player_to_stop != null:
 			player_to_stop.stop()
 			player_to_stop.stream = null
@@ -257,13 +300,17 @@ func stop_bgm(fade_duration: float = 0.5) -> void:
 		_bgm_tween = create_tween()
 		_bgm_tween.tween_property(player_to_stop, "volume_db", -80.0, fade_duration)
 		_bgm_tween.tween_callback(func():
+			_fading_out_key = ""
 			if player_to_stop != null:
 				player_to_stop.stop()
 				player_to_stop.stream = null
+				player_to_stop.volume_db = 0.0
 		)
 	else:
+		_fading_out_key = ""
 		player_to_stop.stop()
 		player_to_stop.stream = null
+		player_to_stop.volume_db = 0.0
 
 func stop_all_sfx() -> void:
 	for p in _sfx_pool:

@@ -435,10 +435,16 @@ class EventHandler:
                         g.selected_boss_index = (g.selected_boss_index - 1) % len(g.bosses)
                     elif nome == 'sfx_vol_down':
                         g.volume_sfx = max(0.0, g.volume_sfx - 0.1)
-                        pygame.mixer.music.set_volume(g.volume_sfx)
+                        if hasattr(g, 'sounds') and isinstance(g.sounds, dict):
+                            for s in g.sounds.values():
+                                if s is not None and hasattr(s, 'set_volume'):
+                                    s.set_volume(g.volume_sfx)
                     elif nome == 'sfx_vol_up':
                         g.volume_sfx = min(1.0, g.volume_sfx + 0.1)
-                        pygame.mixer.music.set_volume(g.volume_sfx)
+                        if hasattr(g, 'sounds') and isinstance(g.sounds, dict):
+                            for s in g.sounds.values():
+                                if s is not None and hasattr(s, 'set_volume'):
+                                    s.set_volume(g.volume_sfx)
                     elif nome.startswith('res_'):
                         partes = nome.split('_')
                         if len(partes) == 2:

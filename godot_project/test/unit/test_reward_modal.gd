@@ -67,7 +67,7 @@ func test_setup_elite_node_awards_relic_and_extra_gold() -> void:
 	# Assert
 	assert_eq(modal.offered_gold, 30, "Elite concede 30 de ouro")
 	assert_false(modal.offered_relic_id.is_empty(), "Elite concede relíquia garantida")
-	assert_true(modal.offered_relic_id.begins_with("reliquia_"), "ID de relíquia válido")
+	assert_true(RewardModal.ELITE_RELICS.has(modal.offered_relic_id), "Relíquia pertence ao pool de elite")
 	assert_eq(modal.card_options.size(), 3, "Elite também oferta 3 cartas")
 
 func test_setup_boss_node_awards_boss_relic_and_high_gold() -> void:

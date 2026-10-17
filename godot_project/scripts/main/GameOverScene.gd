@@ -21,6 +21,10 @@ func _ready() -> void:
 			var reason: String = str(payload.get("reason", ""))
 			var stats: Dictionary = payload.get("stats", {})
 			modal.setup(is_win, reason, stats)
+			if tree.root.has_node("AudioManager"):
+				var am: Node = tree.root.get_node("AudioManager")
+				if am.has_method("play_bgm"):
+					am.play_bgm("vitoria" if is_win else "derrota", 1.0)
 
 func _on_restart_requested() -> void:
 	var tree: SceneTree = get_tree()
